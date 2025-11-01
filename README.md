@@ -4,10 +4,23 @@
 [![Bash](https://img.shields.io/badge/bash-3.2%2B-blue.svg)](https://www.gnu.org/software/bash/)
 [![GitHub Stars](https://img.shields.io/github/stars/kaitranntt/ccs.svg)](https://github.com/kaitranntt/ccs/stargazers)
 
-> Ultra-simple Claude CLI profile switcher. One command instead of long paths.
+> Switch between Claude Sonnet 4.5 and GLM 4.6 instantly. Use the right model for each task.
 
-**Before**: `claude --settings ~/.claude/glm.settings.json --verbose`
-**After**: `ccs glm --verbose`
+**The Problem**: You have both Claude subscription and GLM Coding Plan. Two scenarios happen daily:
+1. **Rate limits**: Claude hits limit mid-project, you manually edit `~/.claude/settings.json` to switch
+2. **Task optimization**: Complex planning needs Claude Sonnet 4.5's intelligence, but simple coding works fine with GLM 4.6
+
+Manual switching is tedious and error-prone.
+
+**The Solution**:
+```bash
+ccs sonnet    # Complex refactoring? Use Claude Sonnet 4.5
+ccs glm       # Simple bug fix? Use GLM 4.6
+# Hit rate limit? Switch instantly:
+ccs glm       # Continue working with GLM
+```
+
+One command. Zero downtime. No file editing. Right model, right task.
 
 ## Quick Start
 
@@ -39,12 +52,49 @@ ccs sonnet   # Use Sonnet profile
 
 ## Why CCS?
 
-Claude CLI's `--settings` flag is powerful but verbose. CCS gives you friendly aliases.
+**Built for developers with both Claude subscription and GLM Coding Plan.**
 
-**Features**:
-- Single command profile switching
+### Two Real Use Cases
+
+#### 1. Task-Appropriate Model Selection
+**Claude Sonnet 4.5** excels at:
+- Complex architectural decisions
+- System design and planning
+- Debugging tricky issues
+- Code reviews requiring deep reasoning
+
+**GLM 4.6** works great for:
+- Simple bug fixes
+- Straightforward implementations
+- Routine refactoring
+- Documentation writing
+
+**With CCS**: Switch models based on task complexity, maximize quality while managing costs.
+
+```bash
+ccs sonnet    # Planning new feature architecture
+# Got the plan? Implement with GLM:
+ccs glm       # Write the straightforward code
+```
+
+#### 2. Rate Limit Management
+If you have both Claude subscription and GLM Coding Plan, you know the pain:
+- Claude hits rate limit mid-project
+- You manually copy GLM config to `~/.claude/settings.json`
+- 5 minutes later, need to switch back
+- Repeat 10x per day
+
+**CCS solves this**:
+- One command to switch: `ccs glm` or `ccs sonnet`
+- Keep both configs saved as profiles
+- Switch in <1 second
+- No file editing, no copy-paste, no mistakes
+
+### Features
+- Instant profile switching (Claude ↔ GLM)
 - Pass-through all Claude CLI args
-- Zero configuration complexity
+- Smart setup: detects your current provider
+- Auto-creates configs during install
 - No proxies, no magic—just bash + jq
 
 ## Installation
@@ -119,31 +169,71 @@ ccs glm
 
 ## Use Cases
 
-### Claude Subscription + GLM Coding Plan
+### Real Workflow: Task-Based Model Selection
 
-Switch between Claude sub and GLM plan:
+**Scenario**: Building a new payment integration feature
 
+```bash
+# Step 1: Architecture & Planning (needs Claude's intelligence)
+ccs sonnet
+/plan "Design payment integration with Stripe, handle webhooks, errors, retries"
+# → Claude Sonnet 4.5 thinks deeply about edge cases, security, architecture
+
+# Step 2: Implementation (straightforward coding, use GLM)
+ccs glm
+/code "implement the payment webhook handler from the plan"
+# → GLM 4.6 writes the code efficiently, saves Claude usage
+
+# Step 3: Code Review (needs deep analysis)
+ccs sonnet
+/review "check the payment handler for security issues"
+# → Claude Sonnet 4.5 catches subtle vulnerabilities
+
+# Step 4: Bug Fixes (simple)
+ccs glm
+/fix "update error message formatting"
+# → GLM 4.6 handles routine fixes
+```
+
+**Result**: Best model for each task, lower costs, better quality.
+
+### Real Workflow: Rate Limit Management
+
+```bash
+# Working on complex refactoring with Claude
+ccs sonnet
+/plan "refactor authentication system"
+
+# Claude hits rate limit mid-task
+# → Error: Rate limit exceeded
+
+# Switch to GLM instantly
+ccs glm
+# Continue working without interruption
+
+# Rate limit resets? Switch back
+ccs sonnet
+```
+
+### Configuration Examples
+
+**Standard setup** (Claude sub + GLM):
 ```json
 {
   "profiles": {
-    "claude": "~/.claude/claude-sub.settings.json",
     "glm": "~/.claude/glm.settings.json",
+    "sonnet": "~/.claude/sonnet.settings.json",
     "default": "~/.claude/settings.json"
   }
 }
 ```
 
-```bash
-ccs claude   # Use Claude subscription
-ccs glm      # Use GLM coding plan
-```
-
-### Different Models
-
+**Advanced setup** (multiple providers):
 ```json
 {
   "profiles": {
     "sonnet": "~/.claude/sonnet.settings.json",
+    "glm": "~/.claude/glm.settings.json",
     "haiku": "~/.claude/haiku.settings.json",
     "default": "~/.claude/settings.json"
   }

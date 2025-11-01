@@ -60,26 +60,155 @@ fi
 
 echo "✅ Installation complete!"
 echo ""
-echo "Next steps:"
-if [[ ! -f "$HOME/.ccs.json" ]]; then
-  if [[ -f "$SCRIPT_DIR/.ccs.example.json" ]]; then
-    echo "1. Copy example config: cp $SCRIPT_DIR/.ccs.example.json ~/.ccs.json"
+
+# Smart setup: detect current provider and help create profiles
+CLAUDE_DIR="$HOME/.claude"
+CURRENT_SETTINGS="$CLAUDE_DIR/settings.json"
+GLM_SETTINGS="$CLAUDE_DIR/glm.settings.json"
+SONNET_SETTINGS="$CLAUDE_DIR/sonnet.settings.json"
+
+# Detect current provider
+CURRENT_PROVIDER="unknown"
+if [[ -f "$CURRENT_SETTINGS" ]]; then
+  if grep -q "api.z.ai" "$CURRENT_SETTINGS" 2>/dev/null || grep -q "glm-4" "$CURRENT_SETTINGS" 2>/dev/null; then
+    CURRENT_PROVIDER="glm"
+  elif grep -q "ANTHROPIC_BASE_URL" "$CURRENT_SETTINGS" 2>/dev/null && ! grep -q "api.z.ai" "$CURRENT_SETTINGS" 2>/dev/null; then
+    CURRENT_PROVIDER="custom"
   else
-    echo "1. Create config at ~/.ccs.json:"
-    echo "   {"
-    echo "     \"profiles\": {"
-    echo "       \"glm\": \"~/.claude/glm.settings.json\","
-    echo "       \"sonnet\": \"~/.claude/sonnet.settings.json\","
-    echo "       \"default\": \"~/.claude/settings.json\""
-    echo "     }"
-    echo "   }"
+    CURRENT_PROVIDER="claude"
   fi
-  echo "2. Edit ~/.ccs.json with your profile mappings"
-  echo "3. Run: ccs [profile]"
-else
-  echo "1. Config already exists at ~/.ccs.json"
-  echo "2. Run: ccs [profile]"
 fi
+
+# Check for existing profile files
+HAS_GLM=false
+HAS_SONNET=false
+[[ -f "$GLM_SETTINGS" ]] && HAS_GLM=true
+[[ -f "$SONNET_SETTINGS" ]] && HAS_SONNET=true
+
+# Smart setup guidance
+if [[ "$CURRENT_PROVIDER" != "unknown" ]]; then
+  echo "🔍 Detected current provider: $CURRENT_PROVIDER"
+  echo ""
+fi
+
+# Offer to create missing profiles
+if [[ "$HAS_GLM" == false ]] || [[ "$HAS_SONNET" == false ]]; then
+  echo "📝 Setup wizard: Creating profile files..."
+  echo ""
+
+  # Create GLM profile if missing
+  if [[ "$HAS_GLM" == false ]]; then
+    if [[ "$CURRENT_PROVIDER" == "glm" ]]; then
+      echo "✓ Copying current GLM config to profile..."
+      cp "$CURRENT_SETTINGS" "$GLM_SETTINGS"
+      echo "  Created: $GLM_SETTINGS"
+    else
+      echo "Creating GLM profile template at $GLM_SETTINGS"
+      # Preserve user's existing env vars if they exist
+      if [[ -f "$CURRENT_SETTINGS" ]] && command -v jq &> /dev/null; then
+        # Merge user's env with GLM essentials (atomic operation)
+        if jq '.env |= (. // {}) + {
+          "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+          "ANTHROPIC_AUTH_TOKEN": "YOUR_GLM_API_KEY_HERE",
+          "ANTHROPIC_MODEL": "glm-4.6"
+        }' "$CURRENT_SETTINGS" > "$GLM_SETTINGS.tmp" 2>/dev/null; then
+          mv "$GLM_SETTINGS.tmp" "$GLM_SETTINGS"
+        else
+          rm -f "$GLM_SETTINGS.tmp"
+          echo "  ℹ️  jq failed, using basic template"
+          # Fallback to minimal template
+          cat > "$GLM_SETTINGS" << 'EOF'
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "YOUR_GLM_API_KEY_HERE",
+    "ANTHROPIC_MODEL": "glm-4.6"
+  }
+}
+EOF
+        fi
+      else
+        # Minimal GLM template
+        cat > "$GLM_SETTINGS" << 'EOF'
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+    "ANTHROPIC_AUTH_TOKEN": "YOUR_GLM_API_KEY_HERE",
+    "ANTHROPIC_MODEL": "glm-4.6"
+  }
+}
+EOF
+      fi
+      echo "  Created: $GLM_SETTINGS"
+      echo "  ⚠️  Edit this file and replace YOUR_GLM_API_KEY_HERE with your actual GLM API key"
+    fi
+    echo ""
+  fi
+
+  # Create Sonnet profile if missing
+  if [[ "$HAS_SONNET" == false ]]; then
+    if [[ "$CURRENT_PROVIDER" == "claude" ]]; then
+      echo "✓ Copying current Claude config to profile..."
+      cp "$CURRENT_SETTINGS" "$SONNET_SETTINGS"
+      echo "  Created: $SONNET_SETTINGS"
+    else
+      echo "Creating Claude Sonnet profile template at $SONNET_SETTINGS"
+      # Preserve user's existing settings, remove GLM-specific fields
+      if [[ -f "$CURRENT_SETTINGS" ]] && command -v jq &> /dev/null; then
+        # Remove GLM-specific env vars, keep user's other settings (atomic)
+        if jq 'del(.env.ANTHROPIC_BASE_URL, .env.ANTHROPIC_AUTH_TOKEN, .env.ANTHROPIC_MODEL) |
+            if (.env | length) == 0 then .env = {} else . end' "$CURRENT_SETTINGS" > "$SONNET_SETTINGS.tmp" 2>/dev/null; then
+          mv "$SONNET_SETTINGS.tmp" "$SONNET_SETTINGS"
+        else
+          rm -f "$SONNET_SETTINGS.tmp"
+          echo "  ℹ️  jq failed, using basic template"
+          # Fallback to minimal template
+          cat > "$SONNET_SETTINGS" << 'EOF'
+{
+  "env": {}
+}
+EOF
+        fi
+      else
+        # Minimal Claude template (uses default authentication)
+        cat > "$SONNET_SETTINGS" << 'EOF'
+{
+  "env": {}
+}
+EOF
+      fi
+      echo "  Created: $SONNET_SETTINGS"
+      echo "  ℹ️  This uses your Claude subscription (no API key needed)"
+    fi
+    echo ""
+  fi
+fi
+
+# Auto-create ~/.ccs.json if missing (atomic operation)
+if [[ ! -f "$HOME/.ccs.json" ]]; then
+  echo "Creating ~/.ccs.json config..."
+  cat > "$HOME/.ccs.json.tmp" << 'EOF'
+{
+  "profiles": {
+    "glm": "~/.claude/glm.settings.json",
+    "sonnet": "~/.claude/sonnet.settings.json",
+    "default": "~/.claude/settings.json"
+  }
+}
+EOF
+  # Atomic move only if file still doesn't exist (prevents race condition)
+  if mv -n "$HOME/.ccs.json.tmp" "$HOME/.ccs.json" 2>/dev/null; then
+    echo "  ✓ Created: ~/.ccs.json"
+  else
+    rm -f "$HOME/.ccs.json.tmp"
+    echo "  ℹ️  Config already exists"
+  fi
+  echo ""
+fi
+
+echo "✅ Setup complete!"
+echo ""
+echo "Quick start:"
 echo ""
 echo "Example:"
 echo "  ccs           # Uses default profile"
