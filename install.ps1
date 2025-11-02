@@ -186,8 +186,6 @@ Write-Host ""
 # Profile Setup
 
 $CurrentProvider = Detect-CurrentProvider
-$GlmSettings = "$CcsDir\glm.settings.json"
-$SonnetSettings = "$CcsDir\sonnet.settings.json"
 
 $ProviderLabel = switch ($CurrentProvider) {
     "glm" { " (detected: GLM)" }
@@ -200,30 +198,33 @@ Write-Host "┌─ Configuring Profiles$ProviderLabel"
 
 $NeedsGlmKey = $false
 
-if (-not (Test-Path $GlmSettings)) {
-    New-GlmProfile -Provider $CurrentProvider | Out-Null
-    Write-Host "|  [OK] GLM profile -> $env:USERPROFILE\.ccs\glm.settings.json"
-    if ($CurrentProvider -ne "glm") { $NeedsGlmKey = $true }
-}
-
-if (-not (Test-Path $SonnetSettings)) {
-    New-SonnetProfile -Provider $CurrentProvider | Out-Null
-    Write-Host "|  [OK] Sonnet profile -> $env:USERPROFILE\.ccs\sonnet.settings.json"
-}
-
-# Create ccs config (using Unix-style paths for cross-platform compatibility)
+# Create ccs config (Windows uses environment variables, not settings files)
 $ConfigFile = "$CcsDir\config.json"
 if (-not (Test-Path $ConfigFile)) {
+    # Detect if user has GLM API key set in environment
+    $HasGlmKey = $env:ANTHROPIC_AUTH_TOKEN -and $env:ANTHROPIC_BASE_URL -match "z\.ai"
+
     $ConfigContent = @{
         profiles = @{
-            glm = "~/.ccs/glm.settings.json"
-            son = "~/.ccs/sonnet.settings.json"
-            default = "~/.claude/settings.json"
+            glm = @{
+                ANTHROPIC_BASE_URL = "https://api.z.ai/api/anthropic"
+                ANTHROPIC_AUTH_TOKEN = if ($HasGlmKey) { $env:ANTHROPIC_AUTH_TOKEN } else { "YOUR_GLM_API_KEY_HERE" }
+                ANTHROPIC_MODEL = $GlmModel
+                ANTHROPIC_DEFAULT_OPUS_MODEL = $GlmModel
+                ANTHROPIC_DEFAULT_SONNET_MODEL = $GlmModel
+                ANTHROPIC_DEFAULT_HAIKU_MODEL = $GlmModel
+            }
+            son = @{}  # Empty = use Claude subscription (no env vars needed)
+            default = @{}  # Empty = use current environment settings
         }
     }
 
     $ConfigContent | ConvertTo-Json -Depth 10 | Set-Content $ConfigFile
     Write-Host "|  [OK] Config -> $env:USERPROFILE\.ccs\config.json"
+
+    if (-not $HasGlmKey) {
+        $NeedsGlmKey = $true
+    }
 }
 
 Write-Host "└─"
@@ -253,8 +254,8 @@ if ($UserPath -notlike "*$CcsDir*") {
 if ($NeedsGlmKey) {
     Write-Host "[!]  ACTION REQUIRED"
     Write-Host ""
-    Write-Host "   Edit $env:USERPROFILE\.ccs\glm.settings.json and add your GLM API key"
-    Write-Host "   Replace: YOUR_GLM_API_KEY_HERE"
+    Write-Host "   Edit $env:USERPROFILE\.ccs\config.json and add your GLM API key"
+    Write-Host "   Replace YOUR_GLM_API_KEY_HERE in the 'glm' profile with your actual API key"
     Write-Host ""
 }
 

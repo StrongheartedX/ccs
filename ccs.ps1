@@ -1,5 +1,5 @@
 # CCS - Claude Code Switch (Windows PowerShell)
-# Cross-platform Claude CLI profile switcher
+# Cross-platform Claude CLI profile switcher using environment variables
 # https://github.com/kaitranntt/ccs
 
 param(
@@ -50,10 +50,10 @@ if (-not $Config.profiles) {
     exit 1
 }
 
-# Get settings path for profile
-$SettingsPath = $Config.profiles.$Profile
+# Get profile config
+$ProfileConfig = $Config.profiles.$Profile
 
-if (-not $SettingsPath) {
+if (-not $ProfileConfig) {
     Write-Host "Error: Profile '$Profile' not found in $ConfigFile" -ForegroundColor Red
     Write-Host ""
     Write-Host "Available profiles:"
@@ -63,31 +63,64 @@ if (-not $SettingsPath) {
     exit 1
 }
 
-# Path expansion and normalization
-# 1. Handle Unix-style tilde expansion (~/path -> %USERPROFILE%\path)
-if ($SettingsPath -match '^~[/\\]') {
-    $SettingsPath = $SettingsPath -replace '^~', $env:USERPROFILE
-}
+# Profile config can be either a string (settings file path) or object (env vars)
+# For backward compatibility with Unix, support both formats
 
-# 2. Expand Windows environment variables (%USERPROFILE%, etc.)
-$SettingsPath = [System.Environment]::ExpandEnvironmentVariables($SettingsPath)
-
-# 3. Convert forward slashes to backslashes (Unix path compatibility)
-$SettingsPath = $SettingsPath -replace '/', '\'
-
-# Validate settings file exists
-if (-not (Test-Path $SettingsPath)) {
-    Write-Host "Error: Settings file not found: $SettingsPath" -ForegroundColor Red
+if ($ProfileConfig -is [string]) {
+    # Legacy format: path to settings file (for cross-platform configs)
+    # This won't work on Windows Claude CLI, show helpful error
+    Write-Host "Error: Windows Claude CLI doesn't support settings files." -ForegroundColor Red
     Write-Host ""
-    Write-Host "Create the settings file or update the path in $ConfigFile"
+    Write-Host "Windows uses environment variables instead."
+    Write-Host "Update your profile in $ConfigFile to use this format:"
+    Write-Host ""
+    Write-Host '  "' + $Profile + '": {'
+    Write-Host '    "ANTHROPIC_AUTH_TOKEN": "your_api_key",'
+    Write-Host '    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",'
+    Write-Host '    "ANTHROPIC_MODEL": "glm-4.6"'
+    Write-Host '  }'
+    Write-Host ""
+    Write-Host "Or leave empty {} for Claude subscription (no API key needed)."
     exit 1
 }
 
-# Execute claude with settings
-# Pass arguments directly to Claude CLI with proper splatting
-if ($RemainingArgs) {
-    & claude --settings $SettingsPath @RemainingArgs
-} else {
-    & claude --settings $SettingsPath
+# Apply environment variables from profile
+# Save original values to restore after command execution
+$OriginalEnvVars = @{}
+
+if ($ProfileConfig.PSObject.Properties.Count -gt 0) {
+    foreach ($Property in $ProfileConfig.PSObject.Properties) {
+        $VarName = $Property.Name
+        $VarValue = $Property.Value
+
+        # Save original value
+        $OriginalEnvVars[$VarName] = [System.Environment]::GetEnvironmentVariable($VarName, 'Process')
+
+        # Set new value for this process
+        [System.Environment]::SetEnvironmentVariable($VarName, $VarValue, 'Process')
+    }
 }
-exit $LASTEXITCODE
+
+# Execute claude with environment variables set
+try {
+    if ($RemainingArgs) {
+        & claude @RemainingArgs
+    } else {
+        & claude
+    }
+    $ExitCode = $LASTEXITCODE
+} finally {
+    # Restore original environment variables
+    foreach ($VarName in $OriginalEnvVars.Keys) {
+        $OriginalValue = $OriginalEnvVars[$VarName]
+        if ($null -eq $OriginalValue) {
+            # Variable didn't exist before, remove it
+            [System.Environment]::SetEnvironmentVariable($VarName, $null, 'Process')
+        } else {
+            # Restore original value
+            [System.Environment]::SetEnvironmentVariable($VarName, $OriginalValue, 'Process')
+        }
+    }
+}
+
+exit $ExitCode

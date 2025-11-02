@@ -206,7 +206,9 @@ The installer auto-creates config and profile templates during installation:
 **macOS / Linux**: `~/.ccs/config.json`
 **Windows**: `%USERPROFILE%\.ccs\config.json`
 
-If you need to customize:
+### macOS / Linux Configuration
+
+Uses settings file paths:
 
 ```json
 {
@@ -218,33 +220,43 @@ If you need to customize:
 }
 ```
 
-**Note**: Config uses Unix-style paths (`~/`) for cross-platform compatibility. Windows version automatically converts paths.
-
 Each profile points to a Claude settings JSON file. Create settings files per [Claude CLI docs](https://docs.claude.com/en/docs/claude-code/installation).
 
-### GLM Profile Configuration
+### Windows Configuration
 
-The installer automatically configures GLM profiles with enhanced environment variables:
+**Important**: Windows Claude CLI uses **environment variables** instead of settings files.
+
+Config format:
 
 ```json
 {
-  "env": {
-    "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
-    "ANTHROPIC_AUTH_TOKEN": "YOUR_GLM_API_KEY_HERE",
-    "ANTHROPIC_MODEL": "glm-4.6",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.6",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.6"
+  "profiles": {
+    "glm": {
+      "ANTHROPIC_BASE_URL": "https://api.z.ai/api/anthropic",
+      "ANTHROPIC_AUTH_TOKEN": "your_glm_api_key",
+      "ANTHROPIC_MODEL": "glm-4.6",
+      "ANTHROPIC_DEFAULT_OPUS_MODEL": "glm-4.6",
+      "ANTHROPIC_DEFAULT_SONNET_MODEL": "glm-4.6",
+      "ANTHROPIC_DEFAULT_HAIKU_MODEL": "glm-4.6"
+    },
+    "son": {},
+    "default": {}
   }
 }
 ```
 
-**Environment Variables**:
-- `ANTHROPIC_DEFAULT_OPUS_MODEL`: Default model for Opus-class requests
-- `ANTHROPIC_DEFAULT_SONNET_MODEL`: Default model for Sonnet-class requests
-- `ANTHROPIC_DEFAULT_HAIKU_MODEL`: Default model for Haiku-class requests
+**Profile types**:
+- **With env vars** (GLM): Sets environment variables for API providers
+- **Empty object** `{}` (Claude): Uses Claude subscription (no API key needed)
+- **Empty object** `{}` (default): Uses current environment variables
 
-These variables ensure GLM is used as the default provider when switching profiles.
+**Environment Variables**:
+- `ANTHROPIC_BASE_URL`: API endpoint URL
+- `ANTHROPIC_AUTH_TOKEN`: Your API key
+- `ANTHROPIC_MODEL`: Default model
+- `ANTHROPIC_DEFAULT_OPUS_MODEL`: Model for Opus-class requests
+- `ANTHROPIC_DEFAULT_SONNET_MODEL`: Model for Sonnet-class requests
+- `ANTHROPIC_DEFAULT_HAIKU_MODEL`: Model for Haiku-class requests
 
 ## Usage
 
