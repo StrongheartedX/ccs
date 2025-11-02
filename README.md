@@ -54,9 +54,13 @@ EOF
 
 **Use**:
 ```bash
-ccs          # Use default profile
-ccs glm      # Use GLM profile
-ccs son      # Use Sonnet profile
+ccs              # Use default profile
+ccs glm          # Use GLM profile
+ccs son          # Use Sonnet profile
+
+# Utility commands
+ccs --version    # Show CCS version
+ccs --help       # Show Claude CLI help
 ```
 
 ## Why CCS?

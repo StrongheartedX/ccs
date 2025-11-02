@@ -54,9 +54,13 @@ EOF
 
 **Sử dụng**:
 ```bash
-ccs          # Dùng profile mặc định
-ccs glm      # Dùng GLM profile
-ccs son      # Dùng Sonnet profile
+ccs              # Dùng profile mặc định
+ccs glm          # Dùng GLM profile
+ccs son          # Dùng Sonnet profile
+
+# Lệnh tiện ích
+ccs --version    # Hiển thị phiên bản CCS
+ccs --help       # Hiển thị trợ giúp Claude CLI
 ```
 
 ## Tại Sao Nên Dùng CCS?

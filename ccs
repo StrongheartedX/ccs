@@ -1,8 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Version
+CCS_VERSION="1.1.0"
+
 CONFIG_FILE="${CCS_CONFIG:-$HOME/.ccs/config.json}"
 PROFILE="${1:-default}"
+
+# Special case: version command
+if [[ "$PROFILE" == "version" || "$PROFILE" == "--version" || "$PROFILE" == "-v" ]]; then
+  echo "CCS (Claude Code Switch) version $CCS_VERSION"
+  echo "https://github.com/kaitranntt/ccs"
+  exit 0
+fi
+
+# Special case: help command (forward to Claude CLI)
+if [[ "$PROFILE" == "--help" || "$PROFILE" == "-h" || "$PROFILE" == "help" ]]; then
+  shift  # Remove the help argument
+  exec claude --help "$@"
+fi
 
 # Check config exists
 if [[ ! -f "$CONFIG_FILE" ]]; then

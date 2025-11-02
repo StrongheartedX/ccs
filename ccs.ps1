@@ -12,6 +12,32 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Version
+$CCS_VERSION = "1.1.0"
+
+# Special case: version command
+if ($Profile -eq "version" -or $Profile -eq "--version" -or $Profile -eq "-v") {
+    Write-Host "CCS (Claude Code Switch) version $CCS_VERSION"
+    Write-Host "https://github.com/kaitranntt/ccs"
+    exit 0
+}
+
+# Special case: help command (forward to Claude CLI)
+if ($Profile -eq "--help" -or $Profile -eq "-h" -or $Profile -eq "help") {
+    try {
+        if ($RemainingArgs) {
+            & claude --help @RemainingArgs
+        } else {
+            & claude --help
+        }
+        exit $LASTEXITCODE
+    } catch {
+        Write-Host "Error: Failed to execute claude --help" -ForegroundColor Red
+        Write-Host $_.Exception.Message
+        exit 1
+    }
+}
+
 # Special case: "default" profile just runs claude directly (no profile switching)
 if ($Profile -eq "default") {
     try {
