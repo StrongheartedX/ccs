@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Version (updated by scripts/bump-version.sh)
-CCS_VERSION="2.2.0"
+CCS_VERSION="2.2.2"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # --- Color/Format Functions ---
@@ -33,7 +33,20 @@ CONFIG_FILE="${CCS_CONFIG:-$HOME/.ccs/config.json}"
 
 # Installation function for commands and skills
 install_commands_and_skills() {
-  local source_dir="$SCRIPT_DIR/.claude"
+  # Try both possible locations for .claude directory
+  local source_dir=""
+  local possible_dirs=(
+    "$SCRIPT_DIR/.claude"           # Development: tools/ccs/.claude
+    "$HOME/.ccs/.claude"            # Installed: ~/.ccs/.claude
+  )
+
+  for dir in "${possible_dirs[@]}"; do
+    if [[ -d "$dir" ]]; then
+      source_dir="$dir"
+      break
+    fi
+  done
+
   local target_dir="$HOME/.claude"
 
   echo "┌─ Installing CCS Commands & Skills"
@@ -44,9 +57,15 @@ install_commands_and_skills() {
   # Check if source directory exists
   if [[ ! -d "$source_dir" ]]; then
     echo "|"
-    msg_error "Source directory not found: $source_dir
+    msg_error "Source directory not found.
 
-Make sure you're running this from the CCS repository directory."
+Checked locations:
+  - $SCRIPT_DIR/.claude (development)
+  - $HOME/.ccs/.claude (installed)
+
+Solution:
+  1. If developing: Ensure you're in the CCS repository
+  2. If installed: Reinstall CCS with: curl -fsSL ccs.kaitran.ca/install | bash"
     return 1
   fi
 

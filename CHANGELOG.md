@@ -4,6 +4,25 @@ All notable changes to CCS will be documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.2.2] - 2025-11-03
+
+### Fixed
+- **Installation Command**: `ccs --install` now works when called via symlinks
+- **Directory Resolution**: Added fallback logic to check both development and installation locations
+  - Checks `$SCRIPT_DIR/.claude` for development (tools/ccs/.claude)
+  - Checks `$HOME/.ccs/.claude` for installed (~/.ccs/.claude)
+  - Works regardless of how the script is executed (direct or via symlink)
+- **Cross-Platform Consistency**: PowerShell version (ccs.ps1) includes identical fix
+- **Error Messages**: Enhanced with clear guidance showing both checked locations
+
+### Technical Details
+- **Files Modified**:
+  - `ccs`: Added fallback directory checking in install_commands_and_skills()
+  - `ccs.ps1`: Added identical fallback logic in Install-CommandsAndSkills
+- **Root Cause**: Script directory resolution didn't handle symlinks properly
+- **Solution**: Simple KISS principle approach - check both possible locations
+- **Impact**: No breaking changes, full backward compatibility maintained
+
 ## [2.2.1] - 2025-11-03
 
 ### Changed

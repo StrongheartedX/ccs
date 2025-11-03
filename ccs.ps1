@@ -25,12 +25,25 @@ function Write-ErrorMsg {
 }
 
 # Version (updated by scripts/bump-version.sh)
-$CcsVersion = "2.2.0"
+$CcsVersion = "2.2.2"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # Installation function for commands and skills
 function Install-CommandsAndSkills {
-    $SourceDir = Join-Path $ScriptDir ".claude"
+    # Try both possible locations for .claude directory
+    $SourceDir = $null
+    $PossibleDirs = @(
+        (Join-Path $ScriptDir ".claude"),                    # Development: tools/ccs/.claude
+        (Join-Path $env:USERPROFILE ".ccs\.claude")          # Installed: ~/.ccs/.claude
+    )
+
+    foreach ($Dir in $PossibleDirs) {
+        if (Test-Path $Dir) {
+            $SourceDir = $Dir
+            break
+        }
+    }
+
     $TargetDir = Join-Path $env:USERPROFILE ".claude"
 
     Write-Host "[Installing CCS Commands & Skills]" -ForegroundColor Cyan
@@ -39,10 +52,19 @@ function Install-CommandsAndSkills {
     Write-Host "|"
 
     # Check if source directory exists
-    if (-not (Test-Path $SourceDir)) {
+    if (-not $SourceDir) {
         Write-Host "|"
-        Write-Host "[ERROR] Source directory not found: $SourceDir" -ForegroundColor Red
-        Write-Host "  Make sure you're running this from the CCS repository directory."
+        $DevelopmentPath = Join-Path $ScriptDir ".claude"
+        $InstalledPath = Join-Path $env:USERPROFILE ".ccs\.claude"
+        Write-ErrorMsg "Source directory not found.
+
+Checked locations:
+  - $DevelopmentPath (development)
+  - $InstalledPath (installed)
+
+Solution:
+  1. If developing: Ensure you're in the CCS repository
+  2. If installed: Reinstall CCS with: irm ccs.kaitran.ca/install | iex"
         exit 1
     }
 
