@@ -30,7 +30,7 @@ $InstallMethod = if ($ScriptDir -and ((Test-Path "$ScriptDir\ccs.ps1") -or (Test
 # IMPORTANT: Update this version when releasing new versions!
 # This hardcoded version is used for standalone installations (irm | iex)
 # For git installations, VERSION file is read if available
-$CcsVersion = "2.1.2"
+$CcsVersion = "2.1.3"
 
 # Try to read VERSION file for git installations
 if ($ScriptDir) {
@@ -232,7 +232,7 @@ if ($ScriptDir -and (Test-Path "$ScriptDir\uninstall.ps1")) {
     try {
         $BaseUrl = "https://raw.githubusercontent.com/kaitranntt/ccs/main"
         # Download uninstall.ps1 as ccs-uninstall.ps1
-        Invoke-WebRequest -Uri "$BaseUrl/uninstall.ps1" -OutFile "$CcsDir\ccs-uninstall.ps1" -UseBasicParsing
+        Invoke-WebRequest -Uri "$BaseUrl/installers/uninstall.ps1" -OutFile "$CcsDir\ccs-uninstall.ps1" -UseBasicParsing
         # Clean up old uninstall.ps1 from previous installations
         if (Test-Path "$CcsDir\uninstall.ps1") {
             Remove-Item "$CcsDir\uninstall.ps1" -Force -ErrorAction SilentlyContinue

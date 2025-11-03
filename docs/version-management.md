@@ -43,7 +43,6 @@ This updates:
 - VERSION file
 - installers/install.sh (hardcoded version)
 - installers/install.ps1 (hardcoded version)
-- Creates git tag (if in git repo)
 
 ### Manual Method
 
@@ -68,12 +67,11 @@ If updating manually, update version in ALL three locations:
 
 When releasing a new version:
 
-- [ ] Update version using `./scripts/update-version.sh X.Y.Z`
+- [ ] Update version using `./scripts/bump-version.sh X.Y.Z`
 - [ ] Review changes: `git diff`
 - [ ] Update CHANGELOG.md with release notes
 - [ ] Commit changes: `git commit -am "chore: bump version to X.Y.Z"`
-- [ ] Create tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
-- [ ] Push: `git push && git push --tags`
+- [ ] Push: `git push`
 - [ ] Verify CloudFlare worker serves updated installer
 
 ## Version Display

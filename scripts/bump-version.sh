@@ -60,7 +60,6 @@ echo "This will:"
 echo "  1. Update VERSION file"
 echo "  2. Update installers/install.sh (hardcoded version)"
 echo "  3. Update installers/install.ps1 (hardcoded version)"
-echo "  4. Create git tag v$NEW_VERSION (if in git repo)"
 echo ""
 read -p "Continue? (y/N) " -n 1 -r
 echo
@@ -92,20 +91,6 @@ if [[ -f "$INSTALL_PS1" ]]; then
     echo "✓ Updated installers/install.ps1"
 else
     echo "⚠  installers/install.ps1 not found, skipping"
-fi
-
-# Create git tag if in repo
-if git rev-parse --git-dir > /dev/null 2>&1; then
-    if git tag -a "v$NEW_VERSION" -m "Release v$NEW_VERSION"; then
-        echo "✓ Created git tag v$NEW_VERSION"
-        echo ""
-        echo "Next steps:"
-        echo "  git push origin v$NEW_VERSION"
-    else
-        echo "⚠  Failed to create git tag (may already exist)"
-    fi
-else
-    echo "ℹ  Not in git repository, skipping tag creation"
 fi
 
 echo ""
