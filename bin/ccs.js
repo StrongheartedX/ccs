@@ -11,6 +11,18 @@ const { getSettingsPath } = require('./config-manager');
 // Version (sync with package.json)
 const CCS_VERSION = require('../package.json').version;
 
+// Helper: Get spawn options for claude execution
+// On Windows, .cmd/.bat/.ps1 files need shell: true
+function getSpawnOptions(claudePath) {
+  const isWindows = process.platform === 'win32';
+  const needsShell = isWindows && /\.(cmd|bat|ps1)$/i.test(claudePath);
+
+  return {
+    stdio: 'inherit',
+    shell: needsShell  // Required for .cmd files on Windows
+  };
+}
+
 // Special command handlers
 function handleVersionCommand() {
   console.log(`CCS (Claude Code Switch) version ${CCS_VERSION}`);
@@ -28,8 +40,15 @@ function handleVersionCommand() {
 function handleHelpCommand(remainingArgs) {
   const claudeCli = detectClaudeCli();
 
+  // Check if claude was found
+  if (!claudeCli) {
+    showClaudeNotFoundError();
+    process.exit(1);
+  }
+
   // Execute claude --help
-  const child = spawn(claudeCli, ['--help', ...remainingArgs], { stdio: 'inherit' });
+  const spawnOpts = getSpawnOptions(claudeCli);
+  const child = spawn(claudeCli, ['--help', ...remainingArgs], spawnOpts);
 
   child.on('exit', (code, signal) => {
     if (signal) {
@@ -111,8 +130,15 @@ function main() {
   if (profile === 'default') {
     const claudeCli = detectClaudeCli();
 
+    // Check if claude was found
+    if (!claudeCli) {
+      showClaudeNotFoundError();
+      process.exit(1);
+    }
+
     // Execute claude with args
-    const child = spawn(claudeCli, remainingArgs, { stdio: 'inherit' });
+    const spawnOpts = getSpawnOptions(claudeCli);
+    const child = spawn(claudeCli, remainingArgs, spawnOpts);
 
     child.on('exit', (code, signal) => {
       if (signal) {
@@ -136,9 +162,16 @@ function main() {
   // Detect Claude CLI
   const claudeCli = detectClaudeCli();
 
+  // Check if claude was found
+  if (!claudeCli) {
+    showClaudeNotFoundError();
+    process.exit(1);
+  }
+
   // Execute claude with --settings
   const claudeArgs = ['--settings', settingsPath, ...remainingArgs];
-  const child = spawn(claudeCli, claudeArgs, { stdio: 'inherit' });
+  const spawnOpts = getSpawnOptions(claudeCli);
+  const child = spawn(claudeCli, claudeArgs, spawnOpts);
 
   child.on('exit', (code, signal) => {
     if (signal) {

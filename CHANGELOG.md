@@ -7,6 +7,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ## [2.4.1] - 2025-11-04
 
 ### Fixed
+- **CRITICAL: Windows npm Installation PATH Detection**: Fixed Node.js spawn() unable to resolve claude on Windows
+  - **Root Cause**: Node.js spawn() doesn't use Windows PATHEXT, can't resolve bare command names in SSH/npm context
+  - **Solution**:
+    1. Pre-resolve absolute path using `where.exe`/`which` before spawning
+    2. Prefer executables with extensions (.exe, .cmd, .bat) - `where.exe` returns no-extension file first
+    3. Use `shell: true` for .cmd/.bat/.ps1 files (required to execute batch scripts on Windows)
+  - **Windows-specific Issues Solved**:
+    - `where.exe claude` returns both `claude` (no ext) and `claude.cmd`, but spawn() needs the .cmd wrapper
+    - `.cmd` files can't be spawned directly (EINVAL error), need shell: true to execute via cmd.exe
+  - **Impact**: Windows users can now use npm-installed CCS in SSH sessions with npm-installed Claude CLI
+  - **Files**:
+    - `bin/claude-detector.js`: Added execSync PATH resolution + extension preference logic
+    - `bin/ccs.js`: Added null checks + getSpawnOptions() helper for shell: true on .cmd files
+  - **Security**: Added 5-second timeout, documented command injection safety (hardcoded literals, controlled shell usage)
+  - **Diagnostics**: Enhanced error messages with platform, PATH directory count, executable name
+  - **Tested**: Verified with `where.exe claude` returning both entries, spawn EINVAL fixed with shell: true
+  - Native installation always worked; only affected npm global installs on Windows
 - **CRITICAL: PowerShell Terminal Termination**: Fixed PowerShell 7 terminal closing when using `irm | iex` installation
   - Changed `exit 1` to `return` in install.ps1 line 229 for piped script contexts
   - Terminal now stays open on installation errors, showing error messages properly
