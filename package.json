@@ -45,10 +45,19 @@
   ],
   "preferGlobal": true,
   "scripts": {
-    "test": "bash tests/edge-cases.sh",
+    "test": "npm run test:all",
+    "test:all": "npm run test:unit && npm run test:integration && npm run test:npm",
+    "test:unit": "npx mocha tests/unit/**/*.test.js --timeout 5000",
+    "test:integration": "npx mocha tests/integration/**/*.test.js --timeout 5000",
+    "test:npm": "npx mocha tests/npm/**/*.test.js --timeout 10000",
+    "test:native": "bash tests/native/unix/edge-cases.sh",
+    "test:edge-cases": "bash tests/edge-cases.sh",
     "prepublishOnly": "node scripts/sync-version.js",
     "prepack": "node scripts/sync-version.js",
     "prepare": "node scripts/check-executables.js",
     "postinstall": "node scripts/postinstall.js"
+  },
+  "devDependencies": {
+    "mocha": "^11.7.5"
   }
 }

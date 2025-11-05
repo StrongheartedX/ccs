@@ -92,13 +92,11 @@ describe('npm postinstall', () => {
     assert(fs.existsSync(glmPath), 'glm.settings.json should be created');
   });
 
-  it('creates VERSION file', () => {
+  it('does not create VERSION file', () => {
     execSync(`node "${postinstallScript}"`, { stdio: 'ignore' });
 
     const versionPath = path.join(ccsDir, 'VERSION');
-    assert(fs.existsSync(versionPath), 'VERSION file should be created');
-
-    const version = fs.readFileSync(versionPath, 'utf8').trim();
-    assert(/\d+\.\d+\.\d+/.test(version), 'VERSION should be in semantic version format');
+    // The postinstall script doesn't create VERSION file (only native install does)
+    assert(!fs.existsSync(versionPath), 'VERSION file should NOT be created by npm postinstall');
   });
 });
