@@ -4,6 +4,15 @@ All notable changes to CCS will be documented here.
 
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [2.5.1] - 2025-11-07
+
+### Added
+- `ANTHROPIC_SMALL_FAST_MODEL` support for Kimi configuration
+- Updated all Kimi configuration templates to include `ANTHROPIC_SMALL_FAST_MODEL`
+
+### Fixed
+- Kimi API configuration now matches official documentation format
+
 ## [2.5.0] - 2025-11-07
 
 ### Added

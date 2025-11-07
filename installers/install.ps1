@@ -31,7 +31,7 @@ $InstallMethod = if ($ScriptDir -and ((Test-Path "$ScriptDir\lib\ccs.ps1") -or (
 # IMPORTANT: Update this version when releasing new versions!
 # This hardcoded version is used for standalone installations (irm | iex)
 # For git installations, VERSION file is read if available
-$CcsVersion = "2.5.0"
+$CcsVersion = "2.5.1"
 
 # Try to read VERSION file for git installations
 if ($ScriptDir) {
@@ -161,6 +161,7 @@ function New-KimiTemplate {
             ANTHROPIC_BASE_URL = "https://api.kimi.com/coding/"
             ANTHROPIC_AUTH_TOKEN = "YOUR_KIMI_API_KEY_HERE"
             ANTHROPIC_MODEL = $KimiModel
+            ANTHROPIC_SMALL_FAST_MODEL = $KimiModel
             ANTHROPIC_DEFAULT_OPUS_MODEL = $KimiModel
             ANTHROPIC_DEFAULT_SONNET_MODEL = $KimiModel
             ANTHROPIC_DEFAULT_HAIKU_MODEL = $KimiModel
@@ -184,6 +185,7 @@ function New-KimiProfile {
             if (-not $Config.env) {
                 $Config | Add-Member -NotePropertyName env -NotePropertyValue @{} -Force
             }
+            $Config.env | Add-Member -NotePropertyName ANTHROPIC_SMALL_FAST_MODEL -NotePropertyValue $KimiModel -Force
             $Config.env | Add-Member -NotePropertyName ANTHROPIC_DEFAULT_OPUS_MODEL -NotePropertyValue $KimiModel -Force
             $Config.env | Add-Member -NotePropertyName ANTHROPIC_DEFAULT_SONNET_MODEL -NotePropertyValue $KimiModel -Force
             $Config.env | Add-Member -NotePropertyName ANTHROPIC_DEFAULT_HAIKU_MODEL -NotePropertyValue $KimiModel -Force

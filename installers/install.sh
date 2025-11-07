@@ -32,7 +32,7 @@ fi
 # IMPORTANT: Update this version when releasing new versions!
 # This hardcoded version is used for standalone installations (curl | bash)
 # For git installations, VERSION file is read if available
-CCS_VERSION="2.5.0"
+CCS_VERSION="2.5.1"
 
 # Try to read VERSION file for git installations
 if [[ -f "$SCRIPT_DIR/VERSION" ]]; then
@@ -283,6 +283,7 @@ create_kimi_template() {
     "ANTHROPIC_BASE_URL": "https://api.kimi.com/coding/",
     "ANTHROPIC_AUTH_TOKEN": "YOUR_KIMI_API_KEY_HERE",
     "ANTHROPIC_MODEL": "$KIMI_MODEL",
+    "ANTHROPIC_SMALL_FAST_MODEL": "$KIMI_MODEL",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "$KIMI_MODEL",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "$KIMI_MODEL",
     "ANTHROPIC_DEFAULT_HAIKU_MODEL": "$KIMI_MODEL"
@@ -411,6 +412,7 @@ create_kimi_profile() {
     echo "[OK] Copying current Kimi config to profile..."
     if command -v jq &> /dev/null; then
       if jq '.env |= (. // {}) + {
+        "ANTHROPIC_SMALL_FAST_MODEL": "'"$KIMI_MODEL"'",
         "ANTHROPIC_DEFAULT_OPUS_MODEL": "'"$KIMI_MODEL"'",
         "ANTHROPIC_DEFAULT_SONNET_MODEL": "'"$KIMI_MODEL"'",
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": "'"$KIMI_MODEL"'"
@@ -433,6 +435,7 @@ create_kimi_profile() {
         "ANTHROPIC_BASE_URL": "https://api.kimi.com/coding/",
         "ANTHROPIC_AUTH_TOKEN": "YOUR_KIMI_API_KEY_HERE",
         "ANTHROPIC_MODEL": "'"$KIMI_MODEL"'",
+        "ANTHROPIC_SMALL_FAST_MODEL": "'"$KIMI_MODEL"'",
         "ANTHROPIC_DEFAULT_OPUS_MODEL": "'"$KIMI_MODEL"'",
         "ANTHROPIC_DEFAULT_SONNET_MODEL": "'"$KIMI_MODEL"'",
         "ANTHROPIC_DEFAULT_HAIKU_MODEL": "'"$KIMI_MODEL"'"
