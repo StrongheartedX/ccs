@@ -62,26 +62,32 @@ graph TB
 
 **Key Responsibilities**:
 - Argument parsing and profile detection
-- Special command handling (--version, --help) [--install/--uninstall WIP]
+- Special command handling (--version, --help, auth) [--install/--uninstall WIP]
+- Profile type routing (settings-based vs account-based)
 - Unified process execution through `execClaude()`
 - Error propagation and exit code management
 
-**Simplified Architecture**:
+**Architecture with Concurrent Sessions**:
 ```mermaid
 graph LR
     subgraph "Entry Point"
         ARGS[Parse Arguments]
         SPECIAL[Handle Special Commands]
-        PROFILE[Detect Profile]
+        DETECT[ProfileDetector]
+        SETTINGS[Settings-based Profile]
+        ACCOUNT[Account-based Profile]
         EXEC[Execute Claude]
     end
 
     ARGS --> SPECIAL
-    SPECIAL --> PROFILE
-    PROFILE --> EXEC
+    SPECIAL --> DETECT
+    DETECT --> SETTINGS
+    DETECT --> ACCOUNT
+    SETTINGS --> EXEC
+    ACCOUNT --> EXEC
 ```
 
-**Critical Simplification**: The `execClaude()` function now provides a single source of truth for all process spawning, eliminating 3 duplicate code blocks.
+**Key Enhancement ()**: Dual-path execution supporting both `--settings` flag (backward compatible) and `CLAUDE_CONFIG_DIR` env var (concurrent sessions).
 
 ### 2. Configuration Manager (`bin/config-manager.js`)
 
@@ -146,32 +152,143 @@ graph TD
 - `validateProfileName()`: Redundant validation
 - `isPathSafe()`: Excessive security checking
 
+### 5. Instance Manager (`bin/instance-manager.js`) - NEW in 
+
+**Role**: Manages isolated Claude CLI instances per profile
+
+**Key Responsibilities**:
+- Lazy instance initialization on first use (YAGNI principle)
+- Instance directory creation (`~/.ccs/instances/<profile>/`)
+- Credential synchronization from vault to instance
+- Instance integrity validation
+- Instance lifecycle management (create, validate, delete)
+
+**Architecture Flow**:
+```mermaid
+graph TD
+    ACTIVATE[activateInstance] --> EXISTS{Instance exists?}
+    EXISTS -->|No| INIT[initializeInstance]
+    EXISTS -->|Yes| SYNC[syncCredentialsToInstance]
+    INIT --> SYNC
+    SYNC --> VALIDATE[validateInstance]
+    VALIDATE --> RETURN[Return instance path]
+```
+
+**Directory Structure Created**:
+```
+~/.ccs/instances/<profile>/
+├── session-env/           # Claude session data
+├── todos/                 # Per-profile todo lists
+├── logs/                  # Execution logs
+├── file-history/          # File edit history
+├── shell-snapshots/       # Shell state snapshots
+├── debug/                 # Debug information
+├── .anthropic/            # Anthropic SDK config
+├── commands/              # Custom commands (copied from global)
+├── skills/                # Custom skills (copied from global)
+└── .credentials.json      # Encrypted credentials (synced from vault)
+```
+
+### 6. Profile Detector (`bin/profile-detector.js`) - NEW in 
+
+**Role**: Determines profile type for routing
+
+**Key Responsibilities**:
+- Detect settings-based profiles (glm, kimi) - Priority 1 for backward compatibility
+- Detect account-based profiles (work, personal) - Priority 2
+- Resolve default profile across both types
+- Provide error messages with available profiles
+
+**Detection Priority**:
+```mermaid
+graph TD
+    INPUT[Profile name] --> SETTINGS{In config.json?}
+    SETTINGS -->|Yes| RETURN_SETTINGS[Return: type=settings]
+    SETTINGS -->|No| ACCOUNT{In profiles.json?}
+    ACCOUNT -->|Yes| RETURN_ACCOUNT[Return: type=account]
+    ACCOUNT -->|No| ERROR[Throw: Profile not found]
+```
+
+### 7. Profile Registry (`bin/profile-registry.js`) - NEW in 
+
+**Role**: Manages account profile metadata
+
+**Key Responsibilities**:
+- CRUD operations for account profiles in `~/.ccs/profiles.json`
+- Default profile management
+- Last-used timestamp tracking
+- Atomic file writes for data integrity
+
+**Profile Metadata Schema**:
+```json
+{
+  "version": "2.0.0",
+  "profiles": {
+    "work": {
+      "type": "account",
+      "vault": "~/.ccs/accounts/work.json.enc",
+      "subscription": "pro",
+      "email": "user@work.com",
+      "created": "2025-11-09T...",
+      "last_used": "2025-11-09T..."
+    }
+  },
+  "default": "work"
+}
+```
 ## Data Flow Architecture
 
-### Typical Execution Flow
+### Settings-Based Profile Execution Flow (Backward Compatible)
 
 ```mermaid
 sequenceDiagram
     participant User
     participant CCS as ccs.js
+    participant Detector as profile-detector.js
     participant Config as config-manager.js
-    participant Detector as claude-detector.js
     participant Claude as Claude CLI
 
     User->>CCS: ccs glm "command"
     CCS->>CCS: Parse arguments
-    CCS->>CCS: Detect profile: "glm"
+    CCS->>Detector: detectProfileType("glm")
+    Detector->>Detector: Check config.json
+    Detector-->>CCS: {type: "settings", settingsPath: ...}
     CCS->>Config: getSettingsPath("glm")
-    Config->>Config: Read config.json
-    Config->>Config: Validate JSON
-    Config->>Config: Map profile → path
     Config-->>CCS: Return settings path
-    CCS->>Detector: detectClaudeCli()
-    Detector->>Detector: Check CCS_CLAUDE_PATH
-    Detector->>Detector: Search system PATH
-    Detector-->>CCS: Return Claude path
-    CCS->>Claude: execClaude(claude, ["--settings", path, "command"])
-    Claude->>User: Execute Claude with GLM profile
+    CCS->>Claude: execClaude(["--settings", path, "command"])
+    Claude->>User: Execute with GLM profile
+```
+
+### Account-Based Profile Execution Flow (Concurrent Sessions)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CCS as ccs.js
+    participant Detector as profile-detector.js
+    participant Instance as instance-manager.js
+    participant Vault as vault-manager.js
+    participant Registry as profile-registry.js
+    participant Claude as Claude CLI
+
+    User->>CCS: ccs work "command"
+    CCS->>Detector: detectProfileType("work")
+    Detector->>Detector: Check profiles.json
+    Detector-->>CCS: {type: "account", name: "work"}
+    CCS->>Instance: activateInstance("work")
+    Instance->>Instance: Check if instance exists
+    alt Instance not exists
+        Instance->>Instance: initializeInstance (create dirs)
+    end
+    Instance->>Vault: decryptCredentials("work")
+    Vault-->>Instance: Return credentials JSON
+    Instance->>Instance: Write to instance/.credentials.json
+    Instance->>Instance: validateInstance (check integrity)
+    Instance-->>CCS: Return instance path
+    CCS->>Registry: touchProfile("work")
+    Registry->>Registry: Update last_used timestamp
+    CCS->>Claude: execClaude(["command"], {CLAUDE_CONFIG_DIR: instancePath})
+    Claude->>User: Execute with work account
 ```
 
 ### Special Command Flow
@@ -201,10 +318,27 @@ sequenceDiagram
 
 ```
 ~/.ccs/
-├── config.json              # Profile mappings
+├── config.json              # Settings-based profile mappings (glm, kimi)
+├── profiles.json            # Account-based profile metadata (work, personal)
 ├── glm.settings.json        # GLM configuration
+├── kimi.settings.json       # Kimi configuration
 ├── config.json.backup       # Single backup file
-└── VERSION                  # Version information
+├── VERSION                  # Version information
+├── accounts/                # Encrypted credential vaults
+│   ├── .salt                # Key derivation salt
+│   ├── work.json.enc        # Work account credentials (encrypted)
+│   └── personal.json.enc    # Personal account credentials (encrypted)
+└── instances/               # Isolated Claude instances (+)
+    ├── work/                # Work account instance
+    │   ├── session-env/
+    │   ├── todos/
+    │   ├── logs/
+    │   ├── .credentials.json
+    │   └── ...
+    └── personal/            # Personal account instance
+        ├── session-env/
+        ├── todos/
+        └── ...
 ```
 
 ### Configuration Schema
@@ -375,32 +509,115 @@ graph LR
 4. **Validation**: Ensures Claude CLI is available
 5. **Ready State**: System ready for profile switching
 
+## Concurrent Sessions Architecture ()
+
+### CLAUDE_CONFIG_DIR Mechanism
+
+CCS uses the undocumented `CLAUDE_CONFIG_DIR` environment variable to isolate Claude CLI instances:
+
+```javascript
+// Settings-based profile (backward compatible)
+execClaude(claudeCli, ['--settings', settingsPath, ...args]);
+
+// Account-based profile (concurrent sessions)
+const envVars = { CLAUDE_CONFIG_DIR: instancePath };
+execClaude(claudeCli, args, envVars);
+```
+
+**How it works**:
+1. Claude CLI reads `CLAUDE_CONFIG_DIR` env var
+2. If set, uses that directory instead of `~/.claude/`
+3. All state (sessions, todos, logs) stored in instance directory
+4. Each profile gets isolated state → concurrent sessions possible
+
+### Isolation Guarantees
+
+**Isolated per instance**:
+- Credentials (`.credentials.json`)
+- Chat sessions (`session-env/`)
+- Todo lists (`todos/`)
+- Execution logs (`logs/`)
+- File edit history (`file-history/`)
+- Shell snapshots (`shell-snapshots/`)
+
+**Shared across instances**:
+- Claude CLI binary location
+- CCS configuration (`~/.ccs/config.json`, `profiles.json`)
+- Encrypted credential vaults (`~/.ccs/accounts/`)
+
+### Concurrent Sessions Workflow
+
+```mermaid
+graph TD
+    subgraph "Terminal 1"
+        T1[ccs work "task1"]
+        I1[Instance: ~/.ccs/instances/work/]
+        C1[CLAUDE_CONFIG_DIR=work]
+        CLI1[Claude CLI Process 1]
+    end
+
+    subgraph "Terminal 2"
+        T2[ccs personal "task2"]
+        I2[Instance: ~/.ccs/instances/personal/]
+        C2[CLAUDE_CONFIG_DIR=personal]
+        CLI2[Claude CLI Process 2]
+    end
+
+    T1 --> I1 --> C1 --> CLI1
+    T2 --> I2 --> C2 --> CLI2
+```
+
+### Known Limitations ()
+
+1. **Same Profile Concurrent Access**: Running `ccs work` in 2 terminals → file conflicts
+   - Not blocked in 
+   - File locking considered for future versions
+
+2. **CLAUDE_CONFIG_DIR Reliability**: Undocumented env var
+   - May not work on all systems
+   - Claude CLI version dependencies unknown
+   - No official support from Anthropic
+
+3. **Disk Space**: Each instance ~200-700 KB
+   - Sessions accumulate over time
+   - No automatic cleanup in 
+
 ## Future Extensibility
 
 ### Extension Points
 
-The simplified architecture provides clean extension points:
+The architecture provides clean extension points:
 
-1. **New Profile Types**: Easy addition in configuration manager
+1. **New Profile Types**: Easy addition via ProfileDetector
 2. **Additional Commands**: Straightforward command handler extension
-3. **Enhanced Detection**: Improved Claude CLI discovery
-4. **Plugin System**: Clean architecture supports future plugins
+3. **Enhanced Isolation**: File locking for same-profile concurrent access
+4. **Instance Cleanup**: Automatic session/log cleanup policies
+5. **Plugin System**: Clean architecture supports future plugins
 
 ### Architectural Guarantees
 
-- **Backward Compatibility**: New features won't break existing functionality
-- **Performance**: Simplified base maintains fast execution
-- **Maintainability**: Clean separation of concerns
-- **Reliability**: Reduced complexity means fewer failure points
+- **Backward Compatibility**: Settings-based profiles (glm, kimi) work unchanged
+- **Performance**: Lazy instance initialization minimizes overhead
+- **Maintainability**: Clear separation between settings-based and account-based paths
+- **Reliability**: Encrypted vaults + isolated instances reduce failure coupling
 
 ## Summary
 
 The CCS system architecture successfully balances simplicity with functionality:
 
 - **Unified spawn logic** eliminates code duplication
-- **Streamlined configuration** reduces complexity while maintaining flexibility
+- **Dual-path execution** supports both settings-based (backward compatible) and account-based (concurrent sessions) profiles
+- **Lazy instance initialization** follows YAGNI principle (only create when needed)
+- **Encrypted credential vaults** with AES-256-GCM provide secure multi-account storage
+- **Isolated Claude instances** enable concurrent sessions via CLAUDE_CONFIG_DIR
 - **Cross-platform compatibility** ensures consistent behavior everywhere
 - **Performance optimization** achieves 35% code reduction with identical functionality
 - **Clean separation of concerns** makes the codebase maintainable and extensible
 
-The architecture demonstrates how thoughtful simplification can improve maintainability, performance, and reliability while preserving all essential functionality.
+** Enhancements**:
+- Concurrent sessions for account-based profiles
+- Profile type detection and routing (settings vs account)
+- Instance isolation with credential synchronization
+- Backward compatibility maintained for all existing profiles
+
+The architecture demonstrates how thoughtful design can add sophisticated features (concurrent sessions, multi-account management) while maintaining simplicity, security, and backward compatibility.

@@ -156,33 +156,45 @@ One command. Zero downtime. No file editing. Right model, right task.
 
 ---
 
-## 🏗️ Architecture Overview
+## 🏗️ Architecture Overview (v3.0 Simplified)
+
+**v3.0 Login-Per-Profile Model**: Each profile is an isolated Claude instance where users login directly. No credential copying or vault encryption.
 
 ```mermaid
 graph LR
     subgraph "User Command"
-        CMD[ccs glm]
+        CMD[ccs <profile>]
+    end
+
+    subgraph "Profile Detection"
+        DETECT[ProfileDetector]
+        SETTINGS[Settings-based: glm, kimi]
+        ACCOUNT[Account-based: work, personal]
     end
 
     subgraph "CCS Processing"
-        CONFIG[Read ~/.ccs/config.json]
-        LOOKUP[Lookup profile → settings file]
-        VALIDATE[Validate file exists]
+        CONFIG[Read config.json/profiles.json]
+        INSTANCE[InstanceManager: lazy directory init]
     end
 
-    subgraph "Claude CLI"
-        EXEC[claude --settings file_path]
+    subgraph "Claude CLI Execution"
+        SETTINGS_EXEC[claude --settings <path>]
+        INSTANCE_EXEC[CLAUDE_CONFIG_DIR=<instance> claude]
     end
 
     subgraph "API Response"
-        API[Claude Sub or GLM API]
+        API[Claude/GLM/Kimi API]
     end
 
-    CMD --> CONFIG
-    CONFIG --> LOOKUP
-    LOOKUP --> VALIDATE
-    VALIDATE --> EXEC
-    EXEC --> API
+    CMD --> DETECT
+    DETECT --> SETTINGS
+    DETECT --> ACCOUNT
+    SETTINGS --> CONFIG
+    ACCOUNT --> INSTANCE
+    SETTINGS --> SETTINGS_EXEC
+    ACCOUNT --> INSTANCE_EXEC
+    SETTINGS_EXEC --> API
+    INSTANCE_EXEC --> API
 ```
 
 ---
@@ -194,6 +206,13 @@ graph LR
 - **Smart Detection**: Automatically uses right model for each task
 - **Persistent**: Switch stays active until changed again
 
+### Concurrent Sessions (All Platforms)
+- **Multiple Profiles Simultaneously**: Run `ccs work` and `ccs personal` in different terminals concurrently
+- **Isolated Instances**: Each profile gets own config directory (`~/.ccs/instances/<profile>/`)
+- **Independent Sessions**: Separate login, chat sessions, todos, logs per profile
+- **Platform Parity**: Works identically on macOS, Linux, and Windows via `CLAUDE_CONFIG_DIR`
+- **Backward Compatible**: Existing settings profiles (glm, kimi) work unchanged
+
 ### Zero Workflow Interruption
 - **No Downtime**: Switching happens instantly between commands
 - **Context Preservation**: Your workflow remains uninterrupted
@@ -204,11 +223,28 @@ graph LR
 
 ## 💻 Usage Examples
 
+### Basic Profile Switching
 ```bash
 ccs              # Use Claude subscription (default)
 ccs glm          # Use GLM fallback
 ccs kimi         # Use Kimi for Coding
 ccs --version    # Show CCS version and install location
+```
+
+### Concurrent Sessions (Multi-Account)
+```bash
+# First time: Create profile and login
+ccs auth create work        # Opens Claude, prompts for login
+ccs auth create personal    # Opens Claude, prompts for login
+
+# Terminal 1 - Work account
+ccs work "implement feature"
+
+# Terminal 2 - Personal account (concurrent)
+ccs personal "review code"
+
+# Both run simultaneously with isolated logins/sessions
+# Works on all platforms: macOS, Linux, Windows
 ```
 
 ---

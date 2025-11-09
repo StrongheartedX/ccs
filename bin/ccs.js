@@ -4,6 +4,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { error, colored } = require('./helpers');
 const { detectClaudeCli, showClaudeNotFoundError } = require('./claude-detector');
 const { getSettingsPath, getConfigPath } = require('./config-manager');
@@ -18,9 +19,12 @@ function escapeShellArg(arg) {
 }
 
 // Execute Claude CLI with unified spawn logic
-function execClaude(claudeCli, args) {
+function execClaude(claudeCli, args, envVars = null) {
   const isWindows = process.platform === 'win32';
   const needsShell = isWindows && /\.(cmd|bat|ps1)$/i.test(claudeCli);
+
+  // Prepare environment (merge with process.env if envVars provided)
+  const env = envVars ? { ...process.env, ...envVars } : process.env;
 
   let child;
   if (needsShell) {
@@ -29,13 +33,15 @@ function execClaude(claudeCli, args) {
     child = spawn(cmdString, {
       stdio: 'inherit',
       windowsHide: true,
-      shell: true
+      shell: true,
+      env
     });
   } else {
     // When no shell needed: use array form (faster, no shell overhead)
     child = spawn(claudeCli, args, {
       stdio: 'inherit',
-      windowsHide: true
+      windowsHide: true,
+      env
     });
   }
 
@@ -100,10 +106,16 @@ function handleHelpCommand() {
   console.log(`  ${colored('ccs', 'yellow')}                         Use default profile`);
   console.log(`  ${colored('ccs glm', 'yellow')}                     Switch to GLM profile`);
   console.log(`  ${colored('ccs kimi', 'yellow')}                    Switch to Kimi profile`);
+  console.log(`  ${colored('ccs work', 'yellow')}                    Use work account (saved profile)`);
   console.log(`  ${colored('ccs glm', 'yellow')} "debug this code"   Switch to GLM and run command`);
-  console.log(`  ${colored('ccs kimi', 'yellow')} "write tests"      Switch to Kimi and run command`);
-  console.log(`  ${colored('ccs glm', 'yellow')} --verbose           Switch to GLM with Claude flags`);
-  console.log(`  ${colored('ccs kimi', 'yellow')} --verbose           Switch to Kimi with Claude flags`);
+  console.log(`  ${colored('ccs work', 'yellow')} "review code"      Use work account and run command`);
+  console.log('');
+
+  // Account Management
+  console.log(colored('Account Management:', 'cyan'));
+  console.log(`  ${colored('ccs auth create <profile>', 'yellow')}   Create new profile and login`);
+  console.log(`  ${colored('ccs auth list', 'yellow')}               List all saved profiles`);
+  console.log(`  ${colored('ccs auth --help', 'yellow')}             Show account management help`);
   console.log('');
 
   // Flags
@@ -195,7 +207,7 @@ function detectProfile(args) {
 }
 
 // Main execution
-function main() {
+async function main() {
   const args = process.argv.slice(2);
 
   // Special case: version command (check BEFORE profile detection)
@@ -222,36 +234,67 @@ function main() {
     return;
   }
 
-  // Detect profile
-  const { profile, remainingArgs } = detectProfile(args);
-
-  // Special case: "default" profile just runs claude directly
-  if (profile === 'default') {
-    const claudeCli = detectClaudeCli();
-    if (!claudeCli) {
-      showClaudeNotFoundError();
-      process.exit(1);
-    }
-
-    execClaude(claudeCli, remainingArgs);
+  // Special case: auth command (multi-account management)
+  if (firstArg === 'auth') {
+    const AuthCommands = require('./auth-commands');
+    const authCommands = new AuthCommands();
+    await authCommands.route(args.slice(1));
     return;
   }
 
-  // Get settings path for profile
-  const settingsPath = getSettingsPath(profile);
+  // Detect profile
+  const { profile, remainingArgs } = detectProfile(args);
 
-  // Detect Claude CLI
+  // Detect Claude CLI first (needed for all paths)
   const claudeCli = detectClaudeCli();
-
-  // Check if claude was found
   if (!claudeCli) {
     showClaudeNotFoundError();
     process.exit(1);
   }
 
-  // Execute claude with --settings
-  execClaude(claudeCli, ['--settings', settingsPath, ...remainingArgs]);
+  // Use ProfileDetector to determine profile type
+  const ProfileDetector = require('./profile-detector');
+  const InstanceManager = require('./instance-manager');
+  const ProfileRegistry = require('./profile-registry');
+  const { getSettingsPath } = require('./config-manager');
+
+  const detector = new ProfileDetector();
+
+  try {
+    const profileInfo = detector.detectProfileType(profile);
+
+    if (profileInfo.type === 'settings') {
+      // EXISTING FLOW: Settings-based profile (glm, kimi)
+      // Use --settings flag (backward compatible)
+      const expandedSettingsPath = getSettingsPath(profileInfo.name);
+      execClaude(claudeCli, ['--settings', expandedSettingsPath, ...remainingArgs]);
+    } else if (profileInfo.type === 'account') {
+      // NEW FLOW: Account-based profile (work, personal)
+      // All platforms: Use instance isolation with CLAUDE_CONFIG_DIR
+      const registry = new ProfileRegistry();
+      const instanceMgr = new InstanceManager();
+
+      // Ensure instance exists (lazy init if needed)
+      const instancePath = instanceMgr.ensureInstance(profileInfo.name);
+
+      // Update last_used timestamp
+      registry.touchProfile(profileInfo.name);
+
+      // Execute Claude with instance isolation
+      const envVars = { CLAUDE_CONFIG_DIR: instancePath };
+      execClaude(claudeCli, remainingArgs, envVars);
+    } else {
+      // DEFAULT: No profile configured, use Claude's own defaults
+      execClaude(claudeCli, remainingArgs);
+    }
+  } catch (error) {
+    console.error(`[X] ${error.message}`);
+    process.exit(1);
+  }
 }
 
 // Run main
-main();
+main().catch(error => {
+  console.error('Fatal error:', error.message);
+  process.exit(1);
+});

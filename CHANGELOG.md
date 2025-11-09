@@ -453,7 +453,7 @@ No changes. Installation remains at `~/.ccs/ccs.ps1` with automatic PATH configu
 - `installers/` folder for clean project structure (install/uninstall scripts)
 - Smart installer with validation and self-healing
 - Non-invasive approach - never modifies `~/.claude/settings.json`
-- Version pinning support: `curl ccs.kaitran.ca/v2.0.0/install | bash`
+- Version pinning support: `curl ccs.kaitran.ca/install | bash`
 - CHANGELOG.md for release tracking
 - WORKFLOW.md - comprehensive workflow documentation
 - Migration detection and auto-migration from v1.x configs
