@@ -114,14 +114,9 @@ function handleHelpCommand() {
 
   // Account Management
   console.log(colored('Account Management:', 'cyan'));
-  console.log(`  ${colored('ccs auth create <profile>', 'yellow')}   Create new profile and login`);
-  console.log(`  ${colored('ccs auth list', 'yellow')}               List all saved profiles`);
-  console.log(`  ${colored('ccs auth show <profile>', 'yellow')}     Show profile details`);
-  console.log(`  ${colored('ccs auth remove <profile>', 'yellow')}   Remove profile (requires --force)`);
-  console.log(`  ${colored('ccs auth default <profile>', 'yellow')}  Set default profile`);
+  console.log(`  ${colored('ccs auth --help', 'yellow')}             Manage multiple Claude accounts`);
   console.log(`  ${colored('ccs work', 'yellow')}                    Switch to work account`);
   console.log(`  ${colored('ccs personal', 'yellow')}                Switch to personal account`);
-  console.log(`  ${colored('ccs work', 'yellow')} "review code"      Run command with work account`);
   console.log('');
 
   // Diagnostics
@@ -140,26 +135,6 @@ function handleHelpCommand() {
   console.log('  Config File: ~/.ccs/config.json');
   console.log('  Settings:    ~/.ccs/*.settings.json');
   console.log('  Environment: CCS_CONFIG (override config path)');
-  console.log('');
-
-  // Examples
-  console.log(colored('Examples:', 'cyan'));
-  console.log('  # Try without installing');
-  console.log(`  ${colored('npx @kaitranntt/ccs glm', 'yellow')} "write tests"`);
-  console.log(`  ${colored('npx @kaitranntt/ccs kimi', 'yellow')} "write tests"`);
-  console.log('');
-  console.log('  # Use default Claude subscription');
-  console.log(`  ${colored('ccs', 'yellow')} "Review this architecture"`);
-  console.log('');
-  console.log('  # Switch to GLM for cost-effective tasks');
-  console.log(`  ${colored('ccs glm', 'yellow')} "Write unit tests"`);
-  console.log('');
-  console.log('  # Switch to Kimi for alternative option');
-  console.log(`  ${colored('ccs kimi', 'yellow')} "Write integration tests"`);
-  console.log('');
-  console.log('  # Use with verbose output');
-  console.log(`  ${colored('ccs glm', 'yellow')} --verbose "Debug error"`);
-  console.log(`  ${colored('ccs kimi', 'yellow')} --verbose "Review code"`);
   console.log('');
 
   // Uninstall

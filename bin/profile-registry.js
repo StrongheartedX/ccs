@@ -94,10 +94,9 @@ class ProfileRegistry {
       last_used: null
     };
 
-    // Set as default if no default exists
-    if (!data.default) {
-      data.default = name;
-    }
+    // Note: No longer auto-set as default
+    // Users must explicitly run: ccs auth default <profile>
+    // Default always stays on implicit 'default' profile (uses ~/.claude/)
 
     this._write(data);
   }

@@ -12,7 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Version (updated by scripts/bump-version.sh)
-$CcsVersion = "3.0.1"
+$CcsVersion = "3.0.2"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ConfigFile = if ($env:CCS_CONFIG) { $env:CCS_CONFIG } else { "$env:USERPROFILE\.ccs\config.json" }
 $ProfilesJson = "$env:USERPROFILE\.ccs\profiles.json"
@@ -111,14 +111,9 @@ function Show-Help {
     Write-ColorLine "  ccs glm 'debug this code'   Use GLM and run command" "Yellow"
     Write-Host ""
     Write-ColorLine "Account Management:" "Cyan"
-    Write-ColorLine "  ccs auth create <profile>   Create new account profile" "Yellow"
-    Write-ColorLine "  ccs auth list               List all profiles" "Yellow"
-    Write-ColorLine "  ccs auth show <profile>     Show profile details" "Yellow"
-    Write-ColorLine "  ccs auth remove <profile>   Remove profile (requires --force)" "Yellow"
-    Write-ColorLine "  ccs auth default <profile>  Set default profile" "Yellow"
+    Write-ColorLine "  ccs auth --help             Manage multiple Claude accounts" "Yellow"
     Write-ColorLine "  ccs work                    Switch to work account" "Yellow"
     Write-ColorLine "  ccs personal                Switch to personal account" "Yellow"
-    Write-ColorLine "  ccs work 'review code'      Run command with work account" "Yellow"
     Write-Host ""
     Write-ColorLine "Diagnostics:" "Cyan"
     Write-ColorLine "  ccs doctor                  Run health check and diagnostics" "Yellow"
@@ -131,16 +126,6 @@ function Show-Help {
     Write-Host "  Config:   ~/.ccs/config.json"
     Write-Host "  Profiles: ~/.ccs/profiles.json"
     Write-Host "  Settings: ~/.ccs/*.settings.json"
-    Write-Host ""
-    Write-ColorLine "Examples:" "Cyan"
-    Write-Host "  # Create work account profile"
-    Write-ColorLine "  ccs auth create work" "Yellow"
-    Write-Host ""
-    Write-Host "  # Use work account"
-    Write-ColorLine "  ccs work 'Review architecture'" "Yellow"
-    Write-Host ""
-    Write-Host "  # Switch to GLM for cost-effective tasks"
-    Write-ColorLine "  ccs glm 'Write unit tests'" "Yellow"
     Write-Host ""
     Write-ColorLine "Documentation:" "Cyan"
     Write-Host "  GitHub:  https://github.com/kaitranntt/ccs"
@@ -350,10 +335,9 @@ function Register-Profile {
         last_used = $null
     })
 
-    # Set as default if none exists
-    if (-not $Data.default) {
-        $Data.default = $ProfileName
-    }
+    # Note: No longer auto-set as default
+    # Users must explicitly run: ccs auth default <profile>
+    # Default always stays on implicit 'default' profile (uses ~/.claude/)
 
     Write-ProfilesJson $Data
 }
@@ -640,9 +624,19 @@ function Show-AuthHelp {
     Write-Host "  default <profile>      Set default profile" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "Examples:" -ForegroundColor Cyan
-    Write-Host "  ccs auth create work" -ForegroundColor Yellow
-    Write-Host "  ccs auth list" -ForegroundColor Yellow
-    Write-Host "  ccs auth remove work --force" -ForegroundColor Yellow
+    Write-Host "  ccs auth create work                     # Create & login to work profile" -ForegroundColor Yellow
+    Write-Host "  ccs auth default work                    # Set work as default" -ForegroundColor Yellow
+    Write-Host "  ccs auth list                            # List all profiles" -ForegroundColor Yellow
+    Write-Host '  ccs work "review code"                   # Use work profile' -ForegroundColor Yellow
+    Write-Host '  ccs "review code"                        # Use default profile' -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "Note:" -ForegroundColor Cyan
+    Write-Host "  By default, " -NoNewline
+    Write-Host "ccs" -ForegroundColor Yellow -NoNewline
+    Write-Host " uses Claude CLI defaults from ~/.claude/"
+    Write-Host "  Use " -NoNewline
+    Write-Host "ccs auth default <profile>" -ForegroundColor Yellow -NoNewline
+    Write-Host " to change the default profile."
     Write-Host ""
 }
 
@@ -703,7 +697,10 @@ function Invoke-AuthCreate {
     Write-Host "  Instance: $InstancePath"
     Write-Host ""
     Write-Host "Usage:"
-    Write-Host "  ccs $ProfileName `"your prompt here`"" -ForegroundColor Yellow
+    Write-Host "  ccs $ProfileName `"your prompt here`"        # Use this specific profile" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host 'To set as default (so you can use just "ccs"):'
+    Write-Host "  ccs auth default $ProfileName" -ForegroundColor Yellow
     Write-Host ""
 }
 

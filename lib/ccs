@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Version (updated by scripts/bump-version.sh)
-CCS_VERSION="3.0.1"
+CCS_VERSION="3.0.2"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly CONFIG_FILE="${CCS_CONFIG:-$HOME/.ccs/config.json}"
 readonly PROFILES_JSON="$HOME/.ccs/profiles.json"
@@ -55,14 +55,9 @@ show_help() {
   echo -e "  ${YELLOW}ccs glm${RESET} \"debug this code\"   Use GLM and run command"
   echo ""
   echo -e "${CYAN}Account Management:${RESET}"
-  echo -e "  ${YELLOW}ccs auth create <profile>${RESET}   Create new account profile"
-  echo -e "  ${YELLOW}ccs auth list${RESET}               List all profiles"
-  echo -e "  ${YELLOW}ccs auth show <profile>${RESET}     Show profile details"
-  echo -e "  ${YELLOW}ccs auth remove <profile>${RESET}   Remove profile (requires --force)"
-  echo -e "  ${YELLOW}ccs auth default <profile>${RESET}  Set default profile"
+  echo -e "  ${YELLOW}ccs auth --help${RESET}             Manage multiple Claude accounts"
   echo -e "  ${YELLOW}ccs work${RESET}                    Switch to work account"
   echo -e "  ${YELLOW}ccs personal${RESET}                Switch to personal account"
-  echo -e "  ${YELLOW}ccs work${RESET} \"review code\"      Run command with work account"
   echo ""
   echo -e "${CYAN}Diagnostics:${RESET}"
   echo -e "  ${YELLOW}ccs doctor${RESET}                  Run health check and diagnostics"
@@ -75,16 +70,6 @@ show_help() {
   echo -e "  Config:   ~/.ccs/config.json"
   echo -e "  Profiles: ~/.ccs/profiles.json"
   echo -e "  Settings: ~/.ccs/*.settings.json"
-  echo ""
-  echo -e "${CYAN}Examples:${RESET}"
-  echo -e "  # Create work account profile"
-  echo -e "  ${YELLOW}ccs auth create work${RESET}"
-  echo ""
-  echo -e "  # Use work account"
-  echo -e "  ${YELLOW}ccs work${RESET} \"Review architecture\""
-  echo ""
-  echo -e "  # Switch to GLM for cost-effective tasks"
-  echo -e "  ${YELLOW}ccs glm${RESET} \"Write unit tests\""
   echo ""
   echo -e "${CYAN}Documentation:${RESET}"
   echo -e "  GitHub:  ${CYAN}https://github.com/kaitranntt/ccs${RESET}"
@@ -428,11 +413,9 @@ register_profile() {
       "last_used": null
     }')
 
-  # Set as default if none exists
-  local has_default=$(echo "$data" | jq -r '.default // empty')
-  if [[ -z "$has_default" ]]; then
-    data=$(echo "$data" | jq --arg name "$profile_name" '.default = $name')
-  fi
+  # Note: No longer auto-set as default
+  # Users must explicitly run: ccs auth default <profile>
+  # Default always stays on implicit 'default' profile (uses ~/.claude/)
 
   write_profiles_json "$data"
 }
@@ -687,9 +670,15 @@ auth_help() {
   echo -e "  ${YELLOW}default <profile>${RESET}      Set default profile"
   echo ""
   echo -e "${CYAN}Examples:${RESET}"
-  echo -e "  ${YELLOW}ccs auth create work${RESET}"
-  echo -e "  ${YELLOW}ccs auth list${RESET}"
-  echo -e "  ${YELLOW}ccs auth remove work --force${RESET}"
+  echo -e "  ${YELLOW}ccs auth create work${RESET}                     # Create & login to work profile"
+  echo -e "  ${YELLOW}ccs auth default work${RESET}                    # Set work as default"
+  echo -e "  ${YELLOW}ccs auth list${RESET}                            # List all profiles"
+  echo -e "  ${YELLOW}ccs work \"review code\"${RESET}                   # Use work profile"
+  echo -e "  ${YELLOW}ccs \"review code\"${RESET}                        # Use default profile"
+  echo ""
+  echo -e "${CYAN}Note:${RESET}"
+  echo -e "  By default, ${YELLOW}ccs${RESET} uses Claude CLI defaults from ~/.claude/"
+  echo -e "  Use ${YELLOW}ccs auth default <profile>${RESET} to change the default profile."
   echo ""
 }
 
@@ -749,7 +738,10 @@ auth_create() {
   echo "  Instance: $instance_path"
   echo ""
   echo "Usage:"
-  echo "  ${YELLOW}ccs $profile_name \"your prompt here\"${RESET}"
+  echo "  ${YELLOW}ccs $profile_name \"your prompt here\"${RESET}        # Use this specific profile"
+  echo ""
+  echo "To set as default (so you can use just \"ccs\"):"
+  echo "  ${YELLOW}ccs auth default $profile_name${RESET}"
   echo ""
 }
 

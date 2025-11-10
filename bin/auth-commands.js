@@ -39,11 +39,17 @@ class AuthCommands {
     console.log('');
     console.log(colored('Examples:', 'cyan'));
     console.log(`  ${colored('ccs auth create work', 'yellow')}                     # Create & login to work profile`);
+    console.log(`  ${colored('ccs auth default work', 'yellow')}                    # Set work as default`);
     console.log(`  ${colored('ccs auth list', 'yellow')}                            # List all profiles`);
     console.log(`  ${colored('ccs work "review code"', 'yellow')}                   # Use work profile`);
+    console.log(`  ${colored('ccs "review code"', 'yellow')}                        # Use default profile`);
     console.log('');
     console.log(colored('Options:', 'cyan'));
     console.log(`  ${colored('--force', 'yellow')}                   Allow overwriting existing profile`);
+    console.log('');
+    console.log(colored('Note:', 'cyan'));
+    console.log(`  By default, ${colored('ccs', 'yellow')} uses Claude CLI defaults from ~/.claude/`);
+    console.log(`  Use ${colored('ccs auth default <profile>', 'yellow')} to change the default profile.`);
     console.log('');
   }
 
@@ -119,7 +125,10 @@ class AuthCommands {
           console.log(`  Instance: ${instancePath}`);
           console.log('');
           console.log('Usage:');
-          console.log(`  ${colored(`ccs ${profileName} "your prompt here"`, 'yellow')}`);
+          console.log(`  ${colored(`ccs ${profileName} "your prompt here"`, 'yellow')}        # Use this specific profile`);
+          console.log('');
+          console.log('To set as default (so you can use just "ccs"):');
+          console.log(`  ${colored(`ccs auth default ${profileName}`, 'yellow')}`);
           console.log('');
           process.exit(0);
         } else {
