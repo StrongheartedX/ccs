@@ -2,6 +2,14 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [4.3.4] - 2025-11-22
+
+### Fixed
+- **CCS Update Command**: Enhanced `ccs update` to support multiple package managers
+- Added automatic detection for npm, yarn, pnpm, and bun package managers
+- Update commands now use the appropriate package manager automatically
+- Improved installation method detection for more reliable updates
+
 ## [4.3.3] - 2025-11-21
 
 ### ⚠️ BREAKING CHANGES

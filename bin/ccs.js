@@ -298,6 +298,150 @@ async function handleSyncCommand() {
   process.exit(0);
 }
 
+/**
+ * Detect installation method
+ * @returns {'npm'|'direct'} - Installation method
+ */
+function detectInstallationMethod() {
+  const scriptPath = process.argv[1];
+
+  // Method 1: Check if script is inside node_modules
+  if (scriptPath.includes('node_modules')) {
+    return 'npm';
+  }
+
+  // Method 2: Check if script is in npm global bin directory
+  // Common patterns for npm global installations
+  const npmGlobalBinPatterns = [
+    /\.npm\/global\/bin\//,           // ~/.npm/global/bin/ccs
+    /\/\.nvm\/versions\/node\/[^\/]+\/bin\//,  // ~/.nvm/versions/node/v22.19.0/bin/ccs
+    /\/usr\/local\/bin\//,           // /usr/local/bin/ccs (if npm global prefix is /usr/local)
+    /\/usr\/bin\//                   // /usr/bin/ccs (if npm global prefix is /usr)
+  ];
+
+  for (const pattern of npmGlobalBinPatterns) {
+    if (pattern.test(scriptPath)) {
+      // Verify this is actually CCS by checking the linked target
+      try {
+        const binDir = path.dirname(scriptPath);
+        const nodeModulesDir = path.join(binDir, '..', 'lib', 'node_modules', '@kaitranntt', 'ccs');
+        const globalModulesDir = path.join(binDir, '..', 'node_modules', '@kaitranntt', 'ccs');
+
+        if (fs.existsSync(nodeModulesDir) || fs.existsSync(globalModulesDir)) {
+          return 'npm';
+        }
+      } catch (err) {
+        // Continue checking other patterns
+      }
+    }
+  }
+
+  // Method 3: Check if package.json exists in parent directory (development mode)
+  const packageJsonPath = path.join(__dirname, '..', 'package.json');
+
+  if (fs.existsSync(packageJsonPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+      // If package.json has name "@kaitranntt/ccs", it's npm install
+      if (pkg.name === '@kaitranntt/ccs') {
+        return 'npm';
+      }
+    } catch (err) {
+      // Ignore parse errors
+    }
+  }
+
+  // Method 4: Check if script is a symlink pointing to node_modules
+  try {
+    const stats = fs.lstatSync(scriptPath);
+    if (stats.isSymbolicLink()) {
+      const targetPath = fs.readlinkSync(scriptPath);
+      if (targetPath.includes('node_modules') || targetPath.includes('@kaitranntt/ccs')) {
+        return 'npm';
+      }
+    }
+  } catch (err) {
+    // Continue to default
+  }
+
+  // Default to direct installation
+  return 'direct';
+}
+
+/**
+ * Detect which package manager was used for installation
+ * @returns {'npm'|'yarn'|'pnpm'|'bun'|'unknown'}
+ */
+function detectPackageManager() {
+  const scriptPath = process.argv[1];
+
+  // Check if script path contains package manager indicators
+  if (scriptPath.includes('.pnpm')) return 'pnpm';
+  if (scriptPath.includes('yarn')) return 'yarn';
+  if (scriptPath.includes('bun')) return 'bun';
+
+  // Check parent directories for lock files
+  const binDir = path.dirname(scriptPath);
+  const fs = require('fs');
+
+  // Check global node_modules parent for lock files
+  let checkDir = binDir;
+  for (let i = 0; i < 5; i++) {
+    if (fs.existsSync(path.join(checkDir, 'pnpm-lock.yaml'))) return 'pnpm';
+    if (fs.existsSync(path.join(checkDir, 'yarn.lock'))) return 'yarn';
+    if (fs.existsSync(path.join(checkDir, 'bun.lockb'))) return 'bun';
+    checkDir = path.dirname(checkDir);
+  }
+
+  // Check if package managers are available on the system
+  const { spawnSync } = require('child_process');
+
+  // Try yarn global list to see if CCS is installed via yarn
+  try {
+    const yarnResult = spawnSync('yarn', ['global', 'list', '--pattern', '@kaitranntt/ccs'], {
+      encoding: 'utf8',
+      shell: true,
+      timeout: 5000
+    });
+    if (yarnResult.status === 0 && yarnResult.stdout.includes('@kaitranntt/ccs')) {
+      return 'yarn';
+    }
+  } catch (err) {
+    // Continue to next check
+  }
+
+  // Try pnpm list -g to see if CCS is installed via pnpm
+  try {
+    const pnpmResult = spawnSync('pnpm', ['list', '-g', '--pattern', '@kaitranntt/ccs'], {
+      encoding: 'utf8',
+      shell: true,
+      timeout: 5000
+    });
+    if (pnpmResult.status === 0 && pnpmResult.stdout.includes('@kaitranntt/ccs')) {
+      return 'pnpm';
+    }
+  } catch (err) {
+    // Continue to next check
+  }
+
+  // Try bun pm ls -g to see if CCS is installed via bun
+  try {
+    const bunResult = spawnSync('bun', ['pm', 'ls', '-g', '--pattern', '@kaitranntt/ccs'], {
+      encoding: 'utf8',
+      shell: true,
+      timeout: 5000
+    });
+    if (bunResult.status === 0 && bunResult.stdout.includes('@kaitranntt/ccs')) {
+      return 'bun';
+    }
+  } catch (err) {
+    // Continue to default
+  }
+
+  // Default to npm
+  return 'npm';
+}
+
 async function handleUpdateCommand() {
   const { checkForUpdates } = require('./utils/update-checker');
   const { spawn } = require('child_process');
@@ -307,8 +451,8 @@ async function handleUpdateCommand() {
   console.log('');
 
   // Detect installation method for proper update source
-  const isNpmInstall = process.argv[1].includes('node_modules');
-  const installMethod = isNpmInstall ? 'npm' : 'direct';
+  const installMethod = detectInstallationMethod();
+  const isNpmInstall = installMethod === 'npm';
 
   // Check for updates (force check)
   const updateResult = await checkForUpdates(CCS_VERSION, true, installMethod);
@@ -323,7 +467,27 @@ async function handleUpdateCommand() {
     console.log('');
     console.log('Try again later or update manually:');
     if (isNpmInstall) {
-      console.log(colored('  npm install -g @kaitranntt/ccs@latest', 'yellow'));
+      const packageManager = detectPackageManager();
+      let manualCommand;
+
+      switch (packageManager) {
+        case 'npm':
+          manualCommand = 'npm install -g @kaitranntt/ccs@latest';
+          break;
+        case 'yarn':
+          manualCommand = 'yarn global add @kaitranntt/ccs@latest';
+          break;
+        case 'pnpm':
+          manualCommand = 'pnpm add -g @kaitranntt/ccs@latest';
+          break;
+        case 'bun':
+          manualCommand = 'bun add -g @kaitranntt/ccs@latest';
+          break;
+        default:
+          manualCommand = 'npm install -g @kaitranntt/ccs@latest';
+      }
+
+      console.log(colored(`  ${manualCommand}`, 'yellow'));
     } else {
       const isWindows = process.platform === 'win32';
       if (isWindows) {
@@ -361,13 +525,38 @@ async function handleUpdateCommand() {
   console.log('');
 
   if (isNpmInstall) {
-    // npm installation - use npm update
-    console.log(colored('Updating via npm...', 'cyan'));
+    // npm installation - detect package manager and update
+    const packageManager = detectPackageManager();
+    let updateCommand, updateArgs;
+
+    switch (packageManager) {
+      case 'npm':
+        updateCommand = 'npm';
+        updateArgs = ['install', '-g', '@kaitranntt/ccs@latest'];
+        break;
+      case 'yarn':
+        updateCommand = 'yarn';
+        updateArgs = ['global', 'add', '@kaitranntt/ccs@latest'];
+        break;
+      case 'pnpm':
+        updateCommand = 'pnpm';
+        updateArgs = ['add', '-g', '@kaitranntt/ccs@latest'];
+        break;
+      case 'bun':
+        updateCommand = 'bun';
+        updateArgs = ['add', '-g', '@kaitranntt/ccs@latest'];
+        break;
+      default:
+        updateCommand = 'npm';
+        updateArgs = ['install', '-g', '@kaitranntt/ccs@latest'];
+    }
+
+    console.log(colored(`Updating via ${packageManager}...`, 'cyan'));
     console.log('');
 
-    const child = spawn('npm', ['install', '-g', '@kaitranntt/ccs@latest'], {
-      stdio: 'inherit',
-      shell: true
+    const child = spawn(updateCommand, updateArgs, {
+      stdio: 'inherit'
+      // No shell needed for direct commands
     });
 
     child.on('exit', (code) => {
@@ -382,7 +571,7 @@ async function handleUpdateCommand() {
         console.log(colored('[X] Update failed', 'red'));
         console.log('');
         console.log('Try manually:');
-        console.log(colored('  npm install -g @kaitranntt/ccs@latest', 'yellow'));
+        console.log(colored(`  ${updateCommand} ${updateArgs.join(' ')}`, 'yellow'));
         console.log('');
       }
       process.exit(code || 0);
@@ -390,10 +579,10 @@ async function handleUpdateCommand() {
 
     child.on('error', (err) => {
       console.log('');
-      console.log(colored('[X] Failed to run npm update', 'red'));
+      console.log(colored(`[X] Failed to run ${packageManager} update`, 'red'));
       console.log('');
       console.log('Try manually:');
-      console.log(colored('  npm install -g @kaitranntt/ccs@latest', 'yellow'));
+      console.log(colored(`  ${updateCommand} ${updateArgs.join(' ')}`, 'yellow'));
       console.log('');
       process.exit(1);
     });
@@ -406,16 +595,19 @@ async function handleUpdateCommand() {
     let command, args;
 
     if (isWindows) {
+      // PowerShell
       command = 'powershell.exe';
-      args = ['-Command', 'irm ccs.kaitran.ca/install | iex'];
+      args = ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command',
+              'irm ccs.kaitran.ca/install | iex'];
     } else {
-      command = 'bash';
+      // Unix (bash with proper shell invocation)
+      command = '/bin/bash';
       args = ['-c', 'curl -fsSL ccs.kaitran.ca/install | bash'];
     }
 
     const child = spawn(command, args, {
-      stdio: 'inherit',
-      shell: true
+      stdio: 'inherit'
+      // Do NOT use shell: true
     });
 
     child.on('exit', (code) => {
