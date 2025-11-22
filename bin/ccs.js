@@ -286,6 +286,11 @@ async function handleSyncCommand() {
 
   console.log('');
 
+  const cleanupResult = installer.cleanupDeprecated();
+  if (cleanupResult.success && cleanupResult.cleanedFiles.length > 0) {
+    console.log('');
+  }
+
   // Then, create symlinks from ~/.ccs/.claude/ to ~/.claude/
   const ClaudeSymlinkManager = require('./utils/claude-symlink-manager');
   const manager = new ClaudeSymlinkManager();

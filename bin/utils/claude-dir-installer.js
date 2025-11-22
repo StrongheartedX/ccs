@@ -149,6 +149,108 @@ class ClaudeDirInstaller {
   }
 
   /**
+   * Clean up deprecated files from previous installations
+   * Removes ccs-delegator.md that was deprecated in v4.3.2
+   * @param {boolean} silent - Suppress console output
+   */
+  cleanupDeprecated(silent = false) {
+    const deprecatedFile = path.join(this.ccsClaudeDir, 'agents', 'ccs-delegator.md');
+    const userSymlinkFile = path.join(this.homeDir, '.claude', 'agents', 'ccs-delegator.md');
+    const migrationMarker = path.join(this.homeDir, '.ccs', '.migrations', 'v435-delegator-cleanup');
+
+    let cleanedFiles = [];
+
+    try {
+      // Check if cleanup already done
+      if (fs.existsSync(migrationMarker)) {
+        return { success: true, cleanedFiles: [] }; // Already cleaned
+      }
+
+      // Clean up user symlink in ~/.claude/agents/ccs-delegator.md FIRST
+      // This ensures we can detect broken symlinks before deleting the target
+      try {
+        const userStats = fs.lstatSync(userSymlinkFile);
+        if (userStats.isSymbolicLink()) {
+          fs.unlinkSync(userSymlinkFile);
+          cleanedFiles.push('user symlink');
+        } else {
+          // It's not a symlink (user created their own file), backup it
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+          const backupPath = `${userSymlinkFile}.backup-${timestamp}`;
+          fs.renameSync(userSymlinkFile, backupPath);
+          if (!silent) console.log(`[i] Backed up user file to ${path.basename(backupPath)}`);
+          cleanedFiles.push('user file (backed up)');
+        }
+      } catch (err) {
+        // File doesn't exist or other error - that's okay
+        if (err.code !== 'ENOENT' && !silent) {
+          console.log(`[!] Failed to remove user symlink: ${err.message}`);
+        }
+      }
+
+      // Clean up package copy in ~/.ccs/.claude/agents/ccs-delegator.md
+      if (fs.existsSync(deprecatedFile)) {
+        try {
+          // Check if file was modified by user (compare with expected content)
+          const shouldBackup = this._shouldBackupDeprecatedFile(deprecatedFile);
+
+          if (shouldBackup) {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+            const backupPath = `${deprecatedFile}.backup-${timestamp}`;
+            fs.renameSync(deprecatedFile, backupPath);
+            if (!silent) console.log(`[i] Backed up modified deprecated file to ${path.basename(backupPath)}`);
+          } else {
+            fs.rmSync(deprecatedFile, { force: true });
+          }
+          cleanedFiles.push('package copy');
+        } catch (err) {
+          if (!silent) console.log(`[!] Failed to remove package copy: ${err.message}`);
+        }
+      }
+
+      // Create migration marker
+      if (cleanedFiles.length > 0) {
+        const migrationsDir = path.dirname(migrationMarker);
+        if (!fs.existsSync(migrationsDir)) {
+          fs.mkdirSync(migrationsDir, { recursive: true, mode: 0o700 });
+        }
+        fs.writeFileSync(migrationMarker, new Date().toISOString());
+
+        if (!silent) {
+          console.log(`[OK] Cleaned up deprecated agent files: ${cleanedFiles.join(', ')}`);
+        }
+      }
+
+      return { success: true, cleanedFiles };
+    } catch (err) {
+      if (!silent) console.log(`[!] Cleanup failed: ${err.message}`);
+      return { success: false, error: err.message, cleanedFiles };
+    }
+  }
+
+  /**
+   * Check if deprecated file should be backed up (user modified)
+   * @param {string} filePath - Path to check
+   * @returns {boolean} True if file should be backed up
+   * @private
+   */
+  _shouldBackupDeprecatedFile(filePath) {
+    try {
+      // Simple heuristic: if file size differs significantly from expected, assume user modified
+      // Expected size for ccs-delegator.md was around 2-3KB
+      const stats = fs.statSync(filePath);
+      const expectedMinSize = 1000; // 1KB minimum
+      const expectedMaxSize = 10000; // 10KB maximum
+
+      // If size is outside expected range, likely user modified
+      return stats.size < expectedMinSize || stats.size > expectedMaxSize;
+    } catch (err) {
+      // If we can't determine, err on side of caution and backup
+      return true;
+    }
+  }
+
+  /**
    * Check if ~/.ccs/.claude/ exists and is valid
    * @returns {boolean} True if directory exists
    */

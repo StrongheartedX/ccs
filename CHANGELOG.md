@@ -2,6 +2,35 @@
 
 Format: [Keep a Changelog](https://keepachangelog.com/)
 
+## [4.3.5] - 2025-11-22
+
+### Changed
+- **Deprecated Agent Cleanup**: Removed deprecated `ccs-delegator.md` agent file from installations
+- Enhanced installation process to automatically clean up obsolete files
+- Improved `ccs sync` command with migration logic for deprecated components
+
+### Removed
+- **ccs-delegator.md**: Agent file deprecated in favor of `ccs-delegation` skill (v4.3.2)
+- Clean up of package copy in `~/.ccs/.claude/agents/ccs-delegator.md`
+- Clean up of user symlink in `~/.claude/agents/ccs-delegator.md`
+
+### Added
+- Automatic migration marker system for tracking cleanup completion
+- Intelligent backup system for user-modified deprecated files
+- Version-aware migration logic following existing patterns
+
+### Migration
+- **Automatic**: Users upgrading from v4.3.2 or earlier will have deprecated files cleaned up automatically
+- **Manual**: Run `ccs sync` to trigger cleanup manually
+- **Backups**: User-modified files are backed up with timestamp before removal
+- **Idempotent**: Cleanup is safe to run multiple times
+
+### Technical Details
+- Integrated into `npm postinstall` script for automatic cleanup on package updates
+- Added to `ccs sync` command for manual cleanup operations
+- Uses migration markers in `~/.ccs/.migrations/v435-delegator-cleanup`
+- Follows existing SharedManager migration patterns for consistency
+
 ## [4.3.4] - 2025-11-22
 
 ### Fixed

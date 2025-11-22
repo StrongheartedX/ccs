@@ -28,8 +28,7 @@ class ClaudeSymlinkManager {
     // CCS items to symlink (selective, item-level)
     this.ccsItems = [
       { source: 'commands/ccs', target: 'commands/ccs', type: 'directory' },
-      { source: 'skills/ccs-delegation', target: 'skills/ccs-delegation', type: 'directory' },
-      { source: 'agents/ccs-delegator.md', target: 'agents/ccs-delegator.md', type: 'file' }
+      { source: 'skills/ccs-delegation', target: 'skills/ccs-delegation', type: 'directory' }
     ];
   }
 

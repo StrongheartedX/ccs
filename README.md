@@ -323,8 +323,7 @@ graph LR
 ~/.ccs/
 ├── .claude/                 # CCS items (ships with package, v4.1)
 │   ├── commands/ccs/        # Delegation commands (/ccs, /ccs:continue)
-│   ├── skills/ccs-delegation/  # AI decision framework
-│   └── agents/ccs-delegator.md # Proactive delegation agent
+│   └── skills/ccs-delegation/  # AI decision framework (replaces deprecated agents)
 ├── shared/                  # Symlinks to ~/.claude/ (for profiles)
 │   ├── agents@ → ~/.claude/agents/
 │   ├── commands@ → ~/.claude/commands/
@@ -341,7 +340,7 @@ graph LR
 ~/.claude/                   # User's Claude directory
 ├── commands/ccs@ → ~/.ccs/.claude/commands/ccs/  # Selective symlink
 ├── skills/ccs-delegation@ → ~/.ccs/.claude/skills/ccs-delegation/
-└── agents/ccs-delegator.md@ → ~/.ccs/.claude/agents/ccs-delegator.md
+# agents/ccs-delegator.md@ → ~/.ccs/.claude/agents/ccs-delegator.md  # Deprecated in v4.3.2
 ```
 
 **Symlink Chain**: `work profile → ~/.ccs/shared/ → ~/.claude/ → ~/.ccs/.claude/` (CCS items)
@@ -507,8 +506,8 @@ Savings:                        $0.0275 (86% reduction)
 ### Documentation
 
 - **Workflow Diagrams**: See [docs/ccs-delegation-diagrams.md](docs/ccs-delegation-diagrams.md) for visual architecture
-- **Skill Reference**: `.claude/skills/ccs-delegation/` for AI decision framework
-- **Agent Docs**: `.claude/agents/ccs-delegator.md` for orchestration patterns
+- **Skill Reference**: `.claude/skills/ccs-delegation/` for AI decision framework (replaces deprecated agents)
+- **Agent Docs**: `.claude/agents/ccs-delegator.md` was deprecated in v4.3.2, functionality moved to ccs-delegation skill
 
 <br>
 

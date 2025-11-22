@@ -1,6 +1,6 @@
 {
   "name": "@kaitranntt/ccs",
-  "version": "4.3.4",
+  "version": "4.3.5",
   "description": "Claude Code Switch - Instant profile switching between Claude Sonnet 4.5 and GLM 4.6",
   "keywords": [
     "cli",
@@ -59,7 +59,7 @@
   },
   "dependencies": {
     "cli-table3": "^0.6.5",
-    "ora": "^5.4.1"
+    "ora": "^9.0.0"
   },
   "devDependencies": {
     "mocha": "^11.7.5"

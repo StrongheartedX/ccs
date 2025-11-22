@@ -109,6 +109,9 @@ function createConfigFiles() {
       const installer = new ClaudeDirInstaller();
       const packageDir = path.join(__dirname, '..');
       installer.install(packageDir);
+
+      // Clean up deprecated files (v4.3.2)
+      installer.cleanupDeprecated();
     } catch (err) {
       console.warn('[!] Failed to install .claude/ directory:', err.message);
       console.warn('    CCS items may not be available');
