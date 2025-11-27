@@ -12,14 +12,24 @@ const os = require('os');
  * Runs when: npm install -g @kaitranntt/ccs
  * Idempotent: Safe to run multiple times (won't overwrite existing configs)
  * Cross-platform: Works on Unix, macOS, Windows
+ *
+ * Test isolation: Set CCS_HOME env var to redirect all operations to a test directory
  */
+
+/**
+ * Get the CCS home directory (respects CCS_HOME env var for test isolation)
+ * @returns {string} Home directory path
+ */
+function getCcsHome() {
+  return process.env.CCS_HOME || os.homedir();
+}
 
 /**
  * Validate created configuration files
  * @returns {object} { success: boolean, errors: string[], warnings: string[] }
  */
 function validateConfiguration() {
-  const homedir = os.homedir();
+  const homedir = getCcsHome();
   const errors = [];
   const warnings = [];
 
@@ -63,8 +73,8 @@ function validateConfiguration() {
 
 function createConfigFiles() {
   try {
-    // Get user home directory (cross-platform)
-    const homedir = os.homedir();
+    // Get user home directory (cross-platform, respects CCS_HOME for test isolation)
+    const homedir = getCcsHome();
     const ccsDir = path.join(homedir, '.ccs');
 
     // Create ~/.ccs/ directory if missing
@@ -106,30 +116,9 @@ function createConfigFiles() {
     }
     console.log('');
 
-    // Copy .claude/ directory from package to ~/.ccs/.claude/ (v4.1.1)
-    try {
-      const ClaudeDirInstaller = require('../dist/utils/claude-dir-installer').default;
-      const installer = new ClaudeDirInstaller();
-      const packageDir = path.join(__dirname, '..');
-      installer.install(packageDir);
-
-      // Clean up deprecated files (v4.3.2)
-      installer.cleanupDeprecated();
-    } catch (err) {
-      console.warn('[!] Failed to install .claude/ directory:', err.message);
-      console.warn('    CCS items may not be available');
-    }
-
-    // Install CCS items to ~/.claude/ (v4.1.0)
-    try {
-      const { ClaudeSymlinkManager } = require('../dist/utils/claude-symlink-manager');
-      const claudeSymlinkManager = new ClaudeSymlinkManager();
-      claudeSymlinkManager.install();
-    } catch (err) {
-      console.warn('[!] CCS item installation warning:', err.message);
-      console.warn('    Run "ccs sync" to retry');
-    }
-    console.log('');
+    // NOTE: .claude/ directory installation moved to "ccs sync" command
+    // Users can run "ccs sync" to install CCS commands/skills to ~/.claude/
+    // This gives users control over when to modify their Claude configuration
 
     // Create config.json if missing
     const configPath = path.join(ccsDir, 'config.json');

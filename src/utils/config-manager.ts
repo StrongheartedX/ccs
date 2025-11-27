@@ -10,10 +10,26 @@ import { error } from './helpers';
 // const RecoveryManager = require('./recovery-manager');
 
 /**
+ * Get the CCS home directory (respects CCS_HOME env var for test isolation)
+ * @returns Home directory path
+ */
+export function getCcsHome(): string {
+  return process.env.CCS_HOME || os.homedir();
+}
+
+/**
+ * Get the CCS directory path (~/.ccs)
+ * @returns Path to .ccs directory
+ */
+export function getCcsDir(): string {
+  return path.join(getCcsHome(), '.ccs');
+}
+
+/**
  * Get config file path
  */
 export function getConfigPath(): string {
-  return process.env.CCS_CONFIG || path.join(os.homedir(), '.ccs', 'config.json');
+  return process.env.CCS_CONFIG || path.join(getCcsHome(), '.ccs', 'config.json');
 }
 
 /**
