@@ -2,10 +2,60 @@
 set -euo pipefail
 
 # ============================================================================
-# CCS Installation Script (v4.5.0)
-# Bootstrap-based: Installs lightweight shell wrappers that delegate to Node.js
-# Requires: Node.js 14+ (checked during install, enforced by bootstrap)
+# CCS Installation Script (v4.5.0) - DEPRECATED
+# DEPRECATED: This installer is deprecated. Use npm instead.
+# Bootstrap-based: Installs lightweight shell wrappers (LEGACY)
+# Requires: Node.js 14+ (npm recommended)
 # ============================================================================
+
+# --- Deprecation Notice ---
+echo ""
+echo "======================================================================="
+echo "                                                                       "
+echo "  [!] DEPRECATION NOTICE                                               "
+echo "                                                                       "
+echo "  Native shell installers are deprecated and will be removed           "
+echo "  in a future version. Please use npm installation instead:            "
+echo "                                                                       "
+echo "    npm install -g @kaitranntt/ccs                                     "
+echo "                                                                       "
+echo "  Proceeding with legacy install (auto-runs npm if available)...       "
+echo "                                                                       "
+echo "======================================================================="
+echo ""
+sleep 3  # Give users time to read
+
+# --- Auto-redirect to npm installation ---
+if command -v npm &> /dev/null; then
+  echo "[i] Node.js detected, using npm installation (recommended)..."
+  echo ""
+  npm install -g @kaitranntt/ccs
+  exit_code=$?
+
+  if [ $exit_code -eq 0 ]; then
+    echo ""
+    echo "[OK] CCS installed via npm successfully!"
+    echo ""
+    echo "Quick start:"
+    echo "  ccs              # Use Claude (default)"
+    echo "  ccs glm          # Use GLM"
+    echo "  ccs --help       # Show all commands"
+    echo ""
+    exit 0
+  else
+    echo ""
+    echo "[!] npm installation failed. Falling back to legacy install..."
+    echo ""
+    sleep 2
+  fi
+else
+  echo "[!] npm not found. Falling back to legacy install..."
+  echo "[!] Install Node.js from https://nodejs.org for the recommended method."
+  echo ""
+  sleep 2
+fi
+
+# Continue with legacy bash installation...
 
 # --- Configuration ---
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"

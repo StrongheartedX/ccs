@@ -1,6 +1,7 @@
-# CCS Installation Script (v4.5.0) - Windows PowerShell
-# Bootstrap-based: Installs lightweight shell wrappers that delegate to Node.js
-# Requires: Node.js 14+ (checked during install, enforced by bootstrap)
+# CCS Installation Script (v4.5.0) - Windows PowerShell - DEPRECATED
+# DEPRECATED: This installer is deprecated. Use npm instead.
+# Bootstrap-based: Installs lightweight shell wrappers (LEGACY)
+# Requires: Node.js 14+ (npm recommended)
 # https://github.com/kaitranntt/ccs
 
 param(
@@ -8,6 +9,55 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+# --- Deprecation Notice ---
+Write-Host ""
+Write-Host "=======================================================================" -ForegroundColor Yellow
+Write-Host "                                                                       " -ForegroundColor Yellow
+Write-Host "  [!] DEPRECATION NOTICE                                               " -ForegroundColor Yellow
+Write-Host "                                                                       " -ForegroundColor Yellow
+Write-Host "  Native shell installers are deprecated and will be removed           " -ForegroundColor Yellow
+Write-Host "  in a future version. Please use npm installation instead:            " -ForegroundColor Yellow
+Write-Host "                                                                       " -ForegroundColor Yellow
+Write-Host "    npm install -g @kaitranntt/ccs                                     " -ForegroundColor Yellow
+Write-Host "                                                                       " -ForegroundColor Yellow
+Write-Host "  Proceeding with legacy install (auto-runs npm if available)...       " -ForegroundColor Yellow
+Write-Host "                                                                       " -ForegroundColor Yellow
+Write-Host "=======================================================================" -ForegroundColor Yellow
+Write-Host ""
+Start-Sleep -Seconds 3
+
+# --- Auto-redirect to npm installation ---
+if (Get-Command npm -ErrorAction SilentlyContinue) {
+    Write-Host "[i] Node.js detected, using npm installation (recommended)..." -ForegroundColor Cyan
+    Write-Host ""
+
+    npm install -g "@kaitranntt/ccs"
+
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host ""
+        Write-Host "[OK] CCS installed via npm successfully!" -ForegroundColor Green
+        Write-Host ""
+        Write-Host "Quick start:"
+        Write-Host "  ccs              # Use Claude (default)"
+        Write-Host "  ccs glm          # Use GLM"
+        Write-Host "  ccs --help       # Show all commands"
+        Write-Host ""
+        exit 0
+    } else {
+        Write-Host ""
+        Write-Host "[!] npm installation failed. Falling back to legacy install..." -ForegroundColor Yellow
+        Write-Host ""
+        Start-Sleep -Seconds 2
+    }
+} else {
+    Write-Host "[!] npm not found. Falling back to legacy install..." -ForegroundColor Yellow
+    Write-Host "[!] Install Node.js from https://nodejs.org for the recommended method." -ForegroundColor Yellow
+    Write-Host ""
+    Start-Sleep -Seconds 2
+}
+
+# Continue with legacy PowerShell installation...
 
 # Configuration
 $CcsDir = "$env:USERPROFILE\.ccs"
