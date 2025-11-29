@@ -121,8 +121,9 @@ export function getProviderTokenDir(provider: CLIProxyProvider): string {
 }
 
 /**
- * Provider-specific auth file prefixes
+ * Provider-specific auth file prefixes (fallback detection)
  * CLIProxyAPI names auth files with provider prefix (e.g., "antigravity-user@email.json")
+ * Note: Gemini tokens may NOT have prefix - CLIProxyAPI uses {email}-{projectID}.json format
  */
 const PROVIDER_AUTH_PREFIXES: Record<CLIProxyProvider, string[]> = {
   gemini: ['gemini-', 'google-'],
@@ -131,10 +132,37 @@ const PROVIDER_AUTH_PREFIXES: Record<CLIProxyProvider, string[]> = {
 };
 
 /**
+ * Provider type values inside token JSON files
+ * CLIProxyAPI sets "type" field in token JSON (e.g., {"type": "gemini"})
+ */
+const PROVIDER_TYPE_VALUES: Record<CLIProxyProvider, string[]> = {
+  gemini: ['gemini'],
+  codex: ['codex'],
+  agy: ['antigravity'],
+};
+
+/**
+ * Check if a JSON file contains a token for the given provider
+ * Reads the file and checks the "type" field
+ */
+function isTokenFileForProvider(filePath: string, provider: CLIProxyProvider): boolean {
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    const data = JSON.parse(content);
+    const typeValue = (data.type || '').toLowerCase();
+    const validTypes = PROVIDER_TYPE_VALUES[provider] || [];
+    return validTypes.includes(typeValue);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Check if provider has valid authentication
  * CLIProxyAPI stores OAuth tokens as JSON files in the auth directory.
- * Files are named with provider prefix (e.g., "antigravity-user@email.json").
- * We MUST check for provider-specific files, not just any .json file.
+ * Detection strategy:
+ * 1. First check by filename prefix (fast path)
+ * 2. If no match, check JSON content for "type" field (Gemini uses {email}-{projectID}.json without prefix)
  */
 export function isAuthenticated(provider: CLIProxyProvider): boolean {
   const tokenDir = getProviderTokenDir(provider);
@@ -143,22 +171,30 @@ export function isAuthenticated(provider: CLIProxyProvider): boolean {
     return false;
   }
 
-  // Get valid prefixes for this provider
   const validPrefixes = PROVIDER_AUTH_PREFIXES[provider] || [];
 
-  // Check for provider-specific token files
   try {
     const files = fs.readdirSync(tokenDir);
-    const providerTokenFiles = files.filter((f) => {
-      // Must be a token-like file
-      if (!f.endsWith('.json') && !f.endsWith('.token') && f !== 'credentials') {
-        return false;
-      }
-      // Must have provider-specific prefix
+    const jsonFiles = files.filter(
+      (f) => f.endsWith('.json') || f.endsWith('.token') || f === 'credentials'
+    );
+
+    // Strategy 1: Check by filename prefix (fast path for antigravity, codex)
+    const prefixMatch = jsonFiles.some((f) => {
       const lowerFile = f.toLowerCase();
       return validPrefixes.some((prefix) => lowerFile.startsWith(prefix));
     });
-    return providerTokenFiles.length > 0;
+    if (prefixMatch) return true;
+
+    // Strategy 2: Check JSON content for "type" field (needed for Gemini)
+    for (const f of jsonFiles) {
+      const filePath = path.join(tokenDir, f);
+      if (isTokenFileForProvider(filePath, provider)) {
+        return true;
+      }
+    }
+
+    return false;
   } catch {
     return false;
   }
@@ -166,32 +202,43 @@ export function isAuthenticated(provider: CLIProxyProvider): boolean {
 
 /**
  * Get detailed auth status for provider
+ * Uses same detection strategy as isAuthenticated: prefix first, then content
  */
 export function getAuthStatus(provider: CLIProxyProvider): AuthStatus {
   const tokenDir = getProviderTokenDir(provider);
   let tokenFiles: string[] = [];
   let lastAuth: Date | undefined;
 
-  // Get valid prefixes for this provider
   const validPrefixes = PROVIDER_AUTH_PREFIXES[provider] || [];
 
   if (fs.existsSync(tokenDir)) {
     const files = fs.readdirSync(tokenDir);
-    // Only include provider-specific files
-    tokenFiles = files.filter((f) => {
-      if (!f.endsWith('.json') && !f.endsWith('.token') && f !== 'credentials') {
-        return false;
-      }
+    const jsonFiles = files.filter(
+      (f) => f.endsWith('.json') || f.endsWith('.token') || f === 'credentials'
+    );
+
+    // Check each file: by prefix OR by content
+    tokenFiles = jsonFiles.filter((f) => {
       const lowerFile = f.toLowerCase();
-      return validPrefixes.some((prefix) => lowerFile.startsWith(prefix));
+      // Strategy 1: prefix match
+      if (validPrefixes.some((prefix) => lowerFile.startsWith(prefix))) {
+        return true;
+      }
+      // Strategy 2: content match (for Gemini tokens without prefix)
+      const filePath = path.join(tokenDir, f);
+      return isTokenFileForProvider(filePath, provider);
     });
 
     // Get most recent modification time
     for (const file of tokenFiles) {
       const filePath = path.join(tokenDir, file);
-      const stats = fs.statSync(filePath);
-      if (!lastAuth || stats.mtime > lastAuth) {
-        lastAuth = stats.mtime;
+      try {
+        const stats = fs.statSync(filePath);
+        if (!lastAuth || stats.mtime > lastAuth) {
+          lastAuth = stats.mtime;
+        }
+      } catch {
+        // Skip if can't stat file
       }
     }
   }
@@ -364,16 +411,16 @@ export async function triggerOAuth(
       clearTimeout(timeout);
 
       if (code === 0) {
-        if (!headless) spinner.succeed(`Authenticated with ${oauthConfig.displayName}`);
-
-        // Verify token was created
+        // Verify token was created BEFORE showing success
         if (isAuthenticated(provider)) {
+          if (!headless) spinner.succeed(`Authenticated with ${oauthConfig.displayName}`);
           console.log('[OK] Authentication successful');
           resolve(true);
         } else {
           if (!headless) spinner.fail('Authentication incomplete');
           console.error('[X] Token not found after authentication');
-          console.error('    The OAuth flow may have been cancelled');
+          console.error('    The OAuth flow may have been cancelled or port 8085 was in use');
+          console.error('    Try: pkill -f cli-proxy-api && ccs gemini --auth');
           resolve(false);
         }
       } else {
