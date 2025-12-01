@@ -208,10 +208,11 @@ git push -u origin feat/my-feature
 gh pr create --base beta --title "feat(scope): add new feature"
 # → Merge triggers npm @beta release for testing
 
-# 5. After testing in beta, promote to main
+# 5. After testing in beta, promote to main (MUST use feat: or fix: prefix!)
 git checkout beta
-gh pr create --base main --title "chore: promote beta to main"
+gh pr create --base main --title "feat(release): promote beta to main"
 # → Merge triggers npm @latest release
+# WARNING: Using "chore:" will NOT trigger a release!
 
 # 6. Clean up
 git checkout beta
@@ -264,6 +265,7 @@ git push origin beta
 4. **`beta` must always be up-to-date with `main`**
 5. **Delete feature branches after merge**
 6. **Test in `@beta` before promoting to `@latest`**
+7. **beta→main PRs MUST use `feat:` or `fix:` prefix** - `chore:` won't trigger npm release
 
 ## Automated Releases (DO NOT MANUALLY TAG)
 
