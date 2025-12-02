@@ -6,6 +6,7 @@ import * as os from 'os';
 import * as fs from 'fs';
 import { SessionManager } from './session-manager';
 import { SettingsParser } from './settings-parser';
+import { ui } from '../utils/ui';
 
 // Type definitions for delegation responses
 interface ClaudeMessage {
@@ -214,6 +215,9 @@ export class HeadlessExecutor {
       console.error(`[i] Claude CLI args: ${args.join(' ')}`);
     }
 
+    // Initialize UI before spawning
+    await ui.init();
+
     // Execute with spawn
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
@@ -225,7 +229,7 @@ export class HeadlessExecutor {
       if (showProgress) {
         const modelName =
           profile === 'glm' ? 'GLM-4.6' : profile === 'kimi' ? 'Kimi' : profile.toUpperCase();
-        console.error(`[i] Delegating to ${modelName}...`);
+        console.error(ui.info(`Delegating to ${modelName}...`));
       }
 
       const proc = spawn(claudeCli, args, {
@@ -274,7 +278,7 @@ export class HeadlessExecutor {
       if (showProgress) {
         progressInterval = setInterval(() => {
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-          process.stderr.write(`[i] Still running... ${elapsed}s elapsed\r`);
+          process.stderr.write(`${ui.info(`Still running... ${elapsed}s elapsed`)}\r`);
         }, 5000);
       }
 
@@ -445,9 +449,9 @@ export class HeadlessExecutor {
         if (showProgress) {
           const durationSec = (duration / 1000).toFixed(1);
           if (timedOut) {
-            console.error(`[i] Execution timed out after ${durationSec}s`);
+            console.error(ui.warn(`Execution timed out after ${durationSec}s`));
           } else {
-            console.error(`[i] Execution completed in ${durationSec}s`);
+            console.error(ui.info(`Execution completed in ${durationSec}s`));
           }
           console.error(''); // Blank line before formatted output
         }

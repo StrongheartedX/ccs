@@ -435,7 +435,142 @@ for (const [flag, handler] of Object.entries(commandHandlers)) {
 }
 ```
 
-## Delegation System Patterns (v4.0+)
+## UI System Patterns (Phase 5, v4.5.0+)
+
+### Central UI Module (src/utils/ui.ts)
+
+#### Initialization Pattern
+```typescript
+import { ui } from '../utils/ui';
+
+// Initialize UI (call once at startup)
+async function main() {
+  await ui.init();
+  // UI functions now available
+}
+```
+
+#### Semantic Color Usage
+```typescript
+// Apply semantic colors
+ui.color('Success!', 'success')        // Green bold
+ui.color('Error!', 'error')            // Red bold
+ui.color('Warning!', 'warning')        // Yellow
+ui.color('Info', 'info')               // Cyan
+ui.color('Command: ccs', 'command')    // Yellow italic
+ui.color('/path/to/file', 'path')      // Cyan underline
+```
+
+#### ASCII Status Indicators (NO EMOJIS)
+```typescript
+// Preferred: ASCII indicators only
+ui.ok('Installation complete')         // [OK] Installation complete
+ui.fail('Build failed')                // [X] Build failed
+ui.warn('Deprecated feature')          // [!] Deprecated feature
+ui.info('Checking system')             // [i] Checking system
+
+// NEVER use emoji (violates CLAUDE.md)
+// DON'T: console.log('✓ Success') or '❌ Error'
+```
+
+#### Box & Table Rendering
+```typescript
+// Styled boxes
+ui.box('Content here', {
+  title: 'Header',
+  borderColor: '#00ECFA',
+  padding: 1
+});
+
+ui.errorBox('Error message', 'ERROR');
+ui.infoBox('Info content', 'INFO');
+
+// Styled tables
+ui.table([
+  ['Column 1', 'Column 2'],
+  ['Data 1', 'Data 2']
+], {
+  head: ['Header 1', 'Header 2'],
+  style: 'unicode'
+});
+```
+
+#### Spinner & Progress
+```typescript
+// Simple spinner (falls back to plain text in non-TTY)
+const spin = await ui.spinner('Processing...');
+await doWork();
+spin.succeed('Done!');
+
+// Spinner with message update
+const spin = await ui.spinner('Loading');
+spin.update('Still loading...');
+spin.succeed('Completed');
+```
+
+#### Task Lists (Listr2 Integration - Phase 5)
+```typescript
+// Create task list with intelligent renderer selection
+const ctx = await ui.taskList([
+  {
+    title: 'Install dependencies',
+    task: async () => {
+      await installDeps();
+    }
+  },
+  {
+    title: 'Build project',
+    task: async () => {
+      await build();
+    },
+    skip: () => !needsBuild() ? 'Already built' : undefined
+  }
+], {
+  concurrent: false  // Set true for parallel execution
+});
+
+// Renderer selection (automatic):
+// - TTY: Default renderer with subtask hierarchy
+// - Non-TTY: Simple renderer (plain text)
+// - CI environment: Simple renderer
+// - Claude Code context: Fallback spinner-based
+```
+
+#### Context Detection
+```typescript
+// Check if running in interactive TTY
+if (ui.isInteractive()) {
+  // Can use full spinner/box features
+}
+
+// Check if running inside Claude Code tool
+if (ui.isClaudeCodeContext()) {
+  // May need fallback rendering
+}
+```
+
+### UI Compliance Rules (STRICT)
+
+**Mandatory**:
+- ALWAYS call `await ui.init()` before using any UI functions
+- ASCII status indicators ONLY: [OK], [X], [!], [i] - NO EMOJIS
+- Respect NO_COLOR and FORCE_COLOR environment variables
+- Use semantic colors (success, error, warning, info, dim, primary, secondary, command, path)
+
+**Patterns**:
+- Status messages: `ui.ok()`, `ui.fail()`, `ui.warn()`, `ui.info()`
+- Styled output: `ui.box()`, `ui.table()`, `ui.spinner()`
+- Progress: Use `ui.taskList()` for multi-step operations (Phase 5)
+- Fallback-first: Always test in non-TTY (pipe) mode
+
+**Testing**:
+```bash
+# Test in non-TTY (pipes/CI)
+ccs doctor | cat        # Forces plain text output
+NO_COLOR=1 ccs doctor  # Disables colors
+```
+
+## Delegation System Patterns (v4.0+, Phase 5 Enhanced)
 
 ### Stream-JSON Parsing
 
@@ -532,12 +667,76 @@ function executeHeadless(claudeCli, profile, prompt, sessionId = null) {
 }
 ```
 
-### Result Formatting Pattern
+### Result Formatting Pattern (Phase 5 Enhanced - Async)
 
-#### Cost and Duration Extraction
-```javascript
-// Extract cost and duration from Claude CLI output
-function parseExecutionStats(output) {
+#### Async Result Formatter with UI Integration
+```typescript
+// result-formatter.ts - Phase 5 now fully async
+import { ui } from '../utils/ui';
+
+class ResultFormatter {
+  // Initialize UI and format result
+  static async format(result: ExecutionResult): Promise<string> {
+    await ui.init();  // Phase 5: Initialize UI layer
+
+    // Build styled output
+    let output = '';
+
+    // Header box with status indicator
+    const modelName = this.getModelDisplayName(result.profile);
+    const headerIcon = result.success ? '[i]' : '[X]';
+    output += ui.box(`${headerIcon} Delegated to ${modelName}`, {
+      borderStyle: 'round',
+      padding: 0,
+    });
+    output += '\n\n';
+
+    // Info table with styled columns
+    output += this.formatInfoTable(result);
+
+    // Error details if needed
+    if (result.errors && result.errors.length > 0) {
+      output += '\n' + ui.errorBox('Execution Errors', 'ERRORS');
+    }
+
+    return output;
+  }
+
+  // Phase 5: Table formatting
+  private static formatInfoTable(result: ExecutionResult): string {
+    const rows = [
+      ['Working Directory', result.cwd],
+      ['Model', this.getModelDisplayName(result.profile)],
+      ['Duration', `${(result.duration / 1000).toFixed(2)}s`],
+      ['Exit Code', result.exitCode === 0 ? '[OK]' : '[X]'],
+    ];
+
+    if (result.totalCost) {
+      rows.push(['Total Cost', `$${result.totalCost.toFixed(4)}`]);
+    }
+
+    return ui.table(rows, {
+      style: 'unicode',
+      wordWrap: true
+    });
+  }
+}
+
+// Usage in delegation-handler.ts
+const formatted = await ResultFormatter.format(result);  // Phase 5: Now async!
+console.log(formatted);
+```
+
+#### Cost and Duration Extraction (Unchanged from v4.0)
+```typescript
+// Extract cost and duration from stream-JSON output
+interface ExecutionStats {
+  cost: number | null;
+  duration: number | null;
+  exitCode: number;
+}
+
+function parseExecutionStats(output: string): ExecutionStats {
   const costRegex = /Cost:\s+\$(\d+\.\d+)/;
   const durationRegex = /Duration:\s+(\d+)ms/;
 
@@ -546,19 +745,9 @@ function parseExecutionStats(output) {
 
   return {
     cost: costMatch ? parseFloat(costMatch[1]) : null,
-    duration: durationMatch ? parseInt(durationMatch[1]) : null
+    duration: durationMatch ? parseInt(durationMatch[1]) : null,
+    exitCode: 0
   };
-}
-
-// Format results
-function formatResults(exitCode, stats) {
-  const status = exitCode === 0 ? '[OK]' : '[X]';
-  const costStr = stats.cost ? `\$${stats.cost.toFixed(4)}` : 'N/A';
-  const durationStr = stats.duration ? `${(stats.duration / 1000).toFixed(2)}s` : 'N/A';
-
-  console.log(`\n${status} Execution complete`);
-  console.log(`  Cost: ${costStr}`);
-  console.log(`  Duration: ${durationStr}`);
 }
 ```
 
@@ -960,10 +1149,19 @@ These code standards ensure the CCS codebase remains:
 - **Compatible**: Cross-platform symlinking, Windows fallbacks, unified behavior
 - **Extensible**: Clean subsystem boundaries, reusable patterns
 - **Type-Safe**: Enhanced ESLint strictness enforces zero-tolerance for code quality issues
+- **User-Friendly**: Semantic UI system with intelligent fallback rendering (Phase 5)
+
+**Phase 5 (2025-12-01) - UI & Listr2 Integration**:
+- **Central UI Module**: src/utils/ui.ts with semantic colors, status indicators, boxes, tables
+- **Listr2 Integration**: Task list progress with intelligent renderer selection
+- **Claude Code Detection**: Automatic fallback for tool context (isClaudeCodeContext)
+- **Async Formatting**: Result formatter now async with ui.init() call
+- **Compliance**: ASCII-only indicators ([OK], [X], [!], [i]), NO_COLOR respect
 
 **v4.x Specific Standards**:
 - **Delegation patterns**: Stream-JSON parsing, session management, headless execution
 - **Symlinking patterns**: Cross-platform symlink creation, validation, repair
+- **UI patterns**: Semantic colors, status indicators, boxes, tables, spinners, task lists
 - **Subsystem organization**: Clear separation (auth, delegation, glmt, management, utils)
 - **Naming conventions**: handler, executor, manager, validator, formatter, parser suffixes
 
@@ -973,4 +1171,4 @@ These code standards ensure the CCS codebase remains:
 - **No shell dependencies**: error-codes.sh, progress-indicator.sh, prompt.sh removed
 - **First-run bootstrap**: Auto-installs @kaitranntt/ccs npm package globally
 
-Following these standards helps maintain the quality, modularity, and extensibility of the v4.x architecture while enabling future development with AI delegation, shared data management, and comprehensive diagnostics.
+Following these standards helps maintain the quality, modularity, and extensibility of the v4.x architecture while enabling future development with AI delegation, shared data management, and comprehensive diagnostics. Phase 5 adds a professional UI layer that gracefully degrades in non-TTY environments while maintaining strict compliance with project constraints.

@@ -2,12 +2,13 @@
 
 /**
  * Formats delegation execution results for display
- * Creates ASCII box output with file change tracking
+ * Creates styled box output with file change tracking
  */
 
 import * as path from 'path';
 import { execSync } from 'child_process';
 import * as fs from 'fs';
+import { ui } from '../utils/ui';
 
 interface ExecutionResult {
   profile: string;
@@ -55,19 +56,15 @@ class ResultFormatter {
   /**
    * Format execution result with complete source-of-truth
    */
-  static format(result: ExecutionResult): string {
+  static async format(result: ExecutionResult): Promise<string> {
+    await ui.init();
+
     const {
       profile,
-      cwd,
-      exitCode,
       stdout,
       stderr,
-      duration,
       success,
       content,
-      sessionId,
-      totalCost,
-      numTurns,
       subtype,
       permissionDenials,
       errors,
@@ -90,15 +87,25 @@ class ResultFormatter {
     // Build formatted output
     let output = '';
 
-    // Header
-    output += this.formatHeader(profile, success);
+    // Header box
+    const modelName = this.getModelDisplayName(profile);
+    const headerIcon = success ? '[i]' : '[X]';
+    output += ui.box(`${headerIcon} Delegated to ${modelName} (ccs:${profile})`, {
+      borderStyle: 'round',
+      padding: 0,
+    });
+    output += '\n\n';
 
-    // Info box (file detection handled by delegated session itself)
-    output += this.formatInfoBox(cwd, profile, duration, exitCode, sessionId, totalCost, numTurns);
+    // Info table
+    output += this.formatInfoTable(result);
+    output += '\n';
 
     // Task output
-    output += '\n';
-    output += this.formatOutput(displayOutput);
+    if (displayOutput?.trim()) {
+      output += displayOutput.trim() + '\n';
+    } else {
+      output += ui.info('No output from delegated task') + '\n';
+    }
 
     // Permission denials if present
     if (permissionDenials && permissionDenials.length > 0) {
@@ -115,12 +122,14 @@ class ResultFormatter {
     // Stderr if present
     if (stderr && stderr.trim()) {
       output += '\n';
-      output += this.formatStderr(stderr);
+      output += ui.warn('Stderr:') + '\n';
+      output += stderr.trim() + '\n';
     }
 
     // Footer
     output += '\n';
-    output += this.formatFooter(success, duration);
+    output += success ? ui.ok('Delegation completed') : ui.fail('Delegation failed');
+    output += '\n';
 
     return output;
   }
@@ -242,107 +251,36 @@ class ResultFormatter {
   }
 
   /**
-   * Format header with delegation indicator
+   * Format info as table
    */
-  private static formatHeader(profile: string, success: boolean): string {
-    const modelName = this.getModelDisplayName(profile);
-    const icon = success ? '[i]' : '[X]';
-    return `${icon} Delegated to ${modelName} (ccs:${profile})\n`;
-  }
-
-  /**
-   * Format info box with delegation details
-   */
-  private static formatInfoBox(
-    cwd: string,
-    profile: string,
-    duration: number,
-    exitCode: number,
-    sessionId?: string,
-    totalCost?: number,
-    numTurns?: number
-  ): string {
+  private static formatInfoTable(result: ExecutionResult): string {
+    const { cwd, profile, duration, exitCode, sessionId, totalCost, numTurns } = result;
     const modelName = this.getModelDisplayName(profile);
     const durationSec = (duration / 1000).toFixed(1);
 
-    // Calculate box width (fit longest line + padding)
-    const maxWidth = 70;
-    const cwdLine = `Working Directory: ${cwd}`;
-    const boxWidth = Math.min(Math.max(cwdLine.length + 4, 50), maxWidth);
-
-    const lines: string[] = [
-      `Working Directory: ${this.truncate(cwd, boxWidth - 22)}`,
-      `Model: ${modelName}`,
-      `Duration: ${durationSec}s`,
-      `Exit Code: ${exitCode}`,
+    const rows: string[][] = [
+      ['Working Dir', this.truncate(cwd, 40)],
+      ['Model', modelName],
+      ['Duration', `${durationSec}s`],
+      ['Exit Code', `${exitCode}`],
     ];
 
-    // Add JSON-specific fields if available
     if (sessionId) {
-      // Abbreviate session ID (Git-style first 8 chars) to prevent wrapping
       const shortId = sessionId.length > 8 ? sessionId.substring(0, 8) : sessionId;
-      lines.push(`Session ID: ${shortId}`);
+      rows.push(['Session', shortId]);
     }
+
     if (totalCost !== undefined && totalCost !== null) {
-      lines.push(`Cost: $${totalCost.toFixed(4)}`);
+      rows.push(['Cost', `$${totalCost.toFixed(4)}`]);
     }
+
     if (numTurns) {
-      lines.push(`Turns: ${numTurns}`);
+      rows.push(['Turns', `${numTurns}`]);
     }
 
-    let box = '';
-    box += '╔' + '═'.repeat(boxWidth - 2) + '╗\n';
-
-    for (const line of lines) {
-      const padding = boxWidth - line.length - 4;
-      box += '║ ' + line + ' '.repeat(Math.max(0, padding)) + ' ║\n';
-    }
-
-    box += '╚' + '═'.repeat(boxWidth - 2) + '╝';
-
-    return box;
-  }
-
-  /**
-   * Format task output
-   */
-  private static formatOutput(output: string): string {
-    if (!output || !output.trim()) {
-      return '[i] No output from delegated task\n';
-    }
-
-    return output.trim() + '\n';
-  }
-
-  /**
-   * Format stderr output
-   */
-  private static formatStderr(stderr: string): string {
-    return `[!] Stderr:\n${stderr.trim()}\n\n`;
-  }
-
-  /**
-   * Format file list (created or modified) - Currently unused
-   */
-  /*
-  private static formatFileList(label: string, files: string[]): string {
-    let output = `[i] ${label} Files:\n`;
-
-    for (const file of files) {
-      output += `  - ${file}\n`;
-    }
-
-    return output;
-  }
-  */
-
-  /**
-   * Format footer with completion status
-   */
-  private static formatFooter(success: boolean, _duration: number): string {
-    const icon = success ? '[OK]' : '[X]';
-    const status = success ? 'Delegation completed' : 'Delegation failed';
-    return `${icon} ${status}\n`;
+    return ui.table(rows, {
+      colWidths: [15, 45],
+    });
   }
 
   /**
@@ -372,10 +310,11 @@ class ResultFormatter {
   /**
    * Format minimal result (for quick tasks)
    */
-  static formatMinimal(result: ExecutionResult): string {
+  static async formatMinimal(result: ExecutionResult): Promise<string> {
+    await ui.init();
     const { profile, success, duration } = result;
     const modelName = this.getModelDisplayName(profile);
-    const icon = success ? '[OK]' : '[X]';
+    const icon = success ? ui.ok('') : ui.fail('');
     const durationSec = (duration / 1000).toFixed(1);
 
     return `${icon} ${modelName} delegation ${success ? 'completed' : 'failed'} (${durationSec}s)\n`;
@@ -384,8 +323,8 @@ class ResultFormatter {
   /**
    * Format verbose result (with full details)
    */
-  static formatVerbose(result: ExecutionResult): string {
-    const basic = this.format(result);
+  static async formatVerbose(result: ExecutionResult): Promise<string> {
+    const basic = await this.format(result);
 
     // Add additional debug info
     let verbose = basic;
@@ -413,47 +352,50 @@ class ResultFormatter {
   /**
    * Format timeout error (session exceeded time limit)
    */
-  private static formatTimeoutError(result: ExecutionResult): string {
-    const { profile, cwd, duration, sessionId, totalCost, numTurns, permissionDenials } = result;
+  private static async formatTimeoutError(result: ExecutionResult): Promise<string> {
+    await ui.init();
+
+    const { profile, duration, sessionId, totalCost, permissionDenials } = result;
+    const modelName = this.getModelDisplayName(profile);
+    const timeoutMin = (duration / 60000).toFixed(1);
 
     let output = '';
 
-    // Header
-    output += this.formatHeader(profile, false);
-
-    // Info box
-    output += this.formatInfoBox(cwd, profile, duration, 0, sessionId, totalCost, numTurns);
-
-    // Timeout message
+    // Error header
+    output += ui.errorBox(
+      `Execution Timeout\n\n` +
+        `Delegation to ${modelName} exceeded time limit.\n` +
+        `Session was gracefully terminated after ${timeoutMin} minutes.`,
+      'TIMEOUT'
+    );
     output += '\n';
-    const timeoutMin = (duration / 60000).toFixed(1);
-    output += `[!] Execution timed out after ${timeoutMin} minutes\n\n`;
-    output += 'The delegated session exceeded its time limit before completing the task.\n';
-    output += 'Session was gracefully terminated and saved for continuation.\n';
 
-    // Permission denials if present
+    // Info table
+    output += this.formatInfoTable(result);
+    output += '\n';
+
+    // Permission denials
     if (permissionDenials && permissionDenials.length > 0) {
-      output += '\n';
+      output += ui.warn('Permission denials may have caused delays:') + '\n';
       output += this.formatPermissionDenials(permissionDenials);
       output += '\n';
-      output += 'The task may require permissions that were denied.\n';
-      output += 'Consider running with --permission-mode bypassPermissions or execute manually.\n';
     }
 
     // Suggestions
-    output += '\n';
-    output += 'Suggestions:\n';
-    output += `  - Continue session: ccs ${profile}:continue -p "finish the task"\n`;
-    output += `  - Increase timeout: ccs ${profile} -p "task" --timeout ${duration * 2}\n`;
-    output += '  - Break task into smaller steps\n';
-    output += '  - Run task manually in main Claude session\n';
+    output += ui.header('SUGGESTIONS') + '\n';
+    output += `  Continue session:\n`;
+    output += `    ${ui.color(`ccs ${profile}:continue "finish the task"`, 'command')}\n\n`;
+    output += `  Increase timeout:\n`;
+    output += `    ${ui.color(`ccs ${profile} --timeout ${Math.round((duration * 2) / 1000)}`, 'command')}\n\n`;
+    output += `  Break into smaller tasks\n\n`;
 
-    output += '\n';
-    // Abbreviate session ID (Git-style first 8 chars)
-    const shortId = sessionId && sessionId.length > 8 ? sessionId.substring(0, 8) : sessionId;
-    output += `[i] Session persisted with ID: ${shortId}\n`;
+    // Session info
+    if (sessionId) {
+      const shortId = sessionId.length > 8 ? sessionId.substring(0, 8) : sessionId;
+      output += ui.dim(`Session persisted: ${shortId}`) + '\n';
+    }
     if (totalCost !== undefined && totalCost !== null) {
-      output += `[i] Cost: $${totalCost.toFixed(4)}\n`;
+      output += ui.dim(`Cost: $${totalCost.toFixed(4)}`) + '\n';
     }
 
     return output;
@@ -463,14 +405,13 @@ class ResultFormatter {
    * Format permission denials
    */
   private static formatPermissionDenials(denials: PermissionDenial[]): string {
-    let output = '[!] Permission Denials:\n';
+    let output = ui.warn('Permission Denials:') + '\n';
 
     for (const denial of denials) {
       const tool = denial.tool_name || 'Unknown';
       const input = denial.tool_input || {};
-      const command = input.command || input.description || JSON.stringify(input);
-
-      output += `  - ${tool}: ${command}\n`;
+      const cmd = input.command || input.description || JSON.stringify(input);
+      output += `  - ${tool}: ${this.truncate(cmd, 50)}\n`;
     }
 
     return output;
@@ -480,11 +421,11 @@ class ResultFormatter {
    * Format errors array
    */
   private static formatErrors(errors: ErrorInfo[]): string {
-    let output = '[X] Errors:\n';
+    let output = ui.fail('Errors:') + '\n';
 
     for (const error of errors) {
-      const message = error.message || error.error || JSON.stringify(error);
-      output += `  - ${message}\n`;
+      const msg = error.message || error.error || JSON.stringify(error);
+      output += `  - ${msg}\n`;
     }
 
     return output;

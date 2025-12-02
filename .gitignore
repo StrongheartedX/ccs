@@ -30,3 +30,5 @@ dist/
 # Package lock files (keep package-lock.json but ignore others)
 yarn.lock
 pnpm-lock.yaml
+
+.claude/active-plan

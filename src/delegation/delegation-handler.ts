@@ -45,7 +45,7 @@ export class DelegationHandler {
       const result = await HeadlessExecutor.execute(parsed.profile, parsed.prompt, parsed.options);
 
       // 5. Format and display results
-      const formatted = ResultFormatter.format(result);
+      const formatted = await ResultFormatter.format(result);
       console.log(formatted);
 
       // 6. Exit with proper code
@@ -83,7 +83,7 @@ export class DelegationHandler {
       sessionId: lastSession.sessionId,
     });
 
-    const formatted = ResultFormatter.format(result);
+    const formatted = await ResultFormatter.format(result);
     console.log(formatted);
 
     process.exit(result.exitCode || 0);

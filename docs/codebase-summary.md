@@ -23,7 +23,7 @@ CCS (Claude Code Switch) v4.5.0 is a lightweight CLI wrapper enabling instant pr
 - **Phase 02 (2025-11-28)**: Modular command architecture, native installer deprecation, main file 44.6% reduction
 - **v4.5.0**: npm-first distribution, TypeScript package with quality gates, modular commands, text-only output (no emojis)
 
-## Core Components (Phase 02 Complete - 2025-11-28)
+## Core Components (Phase 05 Complete - 2025-12-01 | UI Phase 1 + Listr2)
 
 ### 1. Main Entry Point (`src/ccs.ts` - 593 lines, 44.6% reduction)
 
@@ -103,16 +103,16 @@ interface CommandHandler {
 - **shell-executor.ts** (1.5KB): Cross-platform shell command execution with process management
 - **package-manager-detector.ts** (3.8KB): Package manager detection (npm, yarn, pnpm, bun)
 
-### 3. Delegation System (`src/delegation/` - ~1,200 lines)
+### 3. Delegation System (`src/delegation/` - ~1,200 lines, Phase 5 Enhanced)
 
-**New in v4.0**: Complete delegation subsystem
+**New in v4.0**: Complete delegation subsystem; **Phase 5 Enhanced** with UI layer & Listr2
 
 **Components**:
-- **delegation-handler.js** (~300 lines): Routes `-p` commands, validates profiles
-- **headless-executor.js** (~400 lines): Executes Claude CLI in headless mode with stream-JSON
-- **session-manager.js** (~200 lines): Manages delegation session persistence (continue support)
-- **result-formatter.js** (~150 lines): Formats execution results with cost/duration
-- **settings-parser.js** (~150 lines): Parses profile settings for validation
+- **delegation-handler.ts** (~300 lines): Routes `-p` commands, validates profiles; async formatting
+- **headless-executor.ts** (~400 lines): Executes Claude CLI in headless mode with stream-JSON; UI progress
+- **session-manager.ts** (~200 lines): Manages delegation session persistence (continue support)
+- **result-formatter.ts** (~150 lines): **Async formatting** with styled boxes and tables (Phase 5)
+- **settings-parser.ts** (~150 lines): Parses profile settings for validation
 
 **Key Features**:
 - **Stream-JSON output**: Real-time tool visibility (`--output-format stream-json --verbose`)
@@ -121,6 +121,11 @@ interface CommandHandler {
 - **Signal handling**: Ctrl+C kills child processes properly
 - **Cost tracking**: USD cost display per delegation
 - **13 Claude Code tools** supported: Bash, Read, Write, Edit, Glob, Grep, NotebookEdit, SlashCommand, TodoWrite, etc.
+- **Phase 5 Enhancements**:
+  - **Styled output**: UI layer integration for semantic boxes and tables
+  - **Async formatting**: Result formatter now fully async with ui.init() call
+  - **Listr2 integration**: Optional task list progress in TTY mode
+  - **Fallback chain**: Graceful degradation for non-TTY/CI environments
 
 **Delegation Flow**:
 ```
@@ -271,20 +276,20 @@ src/                         # TypeScript source files (Phase 02 Modular Archite
 │   ├── instance-manager.ts    # Instance lifecycle (~220 lines)
 │   ├── recovery-manager.ts    # Auto-recovery (~80 lines)
 │   └── shared-manager.ts      # Shared symlinking (~50 lines)
-├── utils/              # Utilities (expanded in v4.x + Phase 02, UI Phase 1)
+├── utils/              # Utilities (expanded in v4.x + Phase 02 + Phase 05, UI + Listr2)
 │   ├── claude-detector.ts         # CLI detection (~70 lines)
 │   ├── claude-dir-installer.ts    # .claude/ installer (v4.1.1, ~150 lines)
 │   ├── claude-symlink-manager.ts  # Selective symlinks (v4.1, ~200 lines)
 │   ├── config-manager.ts          # Config management (~80 lines)
-│   ├── shell-executor.ts          # 1.5KB - Cross-platform execution (Phase 02 NEW)
-│   ├── package-manager-detector.ts # 3.8KB - Package manager detection (Phase 02 NEW)
-│   ├── ui.ts                      # 5.2KB - Central UI abstraction (UI Phase 1 NEW)
-│   ├── delegation-validator.js    # Delegation validation (v4.0, ~100 lines)
-│   ├── error-codes.js             # Error codes (~50 lines)
-│   ├── error-manager.js           # Error handling (~200 lines)
-│   ├── helpers.js                 # Utilities (~100 lines)
-│   ├── progress-indicator.js      # Progress display (~150 lines)
-│   ├── prompt.js                  # User prompting (~100 lines)
+│   ├── shell-executor.ts          # 1.5KB - Cross-platform execution (Phase 02)
+│   ├── package-manager-detector.ts # 3.8KB - Package manager detection (Phase 02)
+│   ├── ui.ts                      # 5.2KB - Central UI abstraction (Phase 5, Listr2 integration)
+│   ├── delegation-validator.ts    # Delegation validation (v4.0, ~100 lines)
+│   ├── error-codes.ts             # Error codes (~50 lines)
+│   ├── error-manager.ts           # Error handling (~200 lines)
+│   ├── helpers.ts                 # Utilities (~100 lines)
+│   ├── progress-indicator.ts      # Progress display (~150 lines)
+│   ├── prompt.ts                  # User prompting (~100 lines)
 │   ├── shell-completion.ts        # Shell completion (v4.1.4, ~250 lines)
 │   └── update-checker.ts          # Update checker (v4.1, ~100 lines)
 ├── types/                   # TypeScript type definitions
@@ -427,9 +432,9 @@ Claude CLI: Read credentials from instance, execute
 
 ## Key Features (v4.5.0 - Phase 02 Complete, UI Phase 1)
 
-### 0. Central UI Abstraction Layer (UI Phase 1 - 2025-12-01)
+### 0. Central UI Abstraction Layer (UI Phase 1 - 2025-12-01, Phase 5 Complete)
 - **New Module**: src/utils/ui.ts (5.2KB) - Semantic, TTY-aware CLI styling
-- **Dependencies**: chalk@5.6.2, boxen@8.0.1, gradient-string@3.0.0, cli-table3@0.6.5, ora@5.4.1
+- **Dependencies**: chalk@5.6.2, boxen@8.0.1, gradient-string@3.0.0, cli-table3@0.6.5, ora@5.4.1, listr2@8.0.0
 - **Features**:
   - Semantic color system (success, error, warning, info, dim, primary, secondary, command, path)
   - ASCII-only status indicators ([OK], [X], [!], [i]) - NO EMOJIS per CLAUDE.md
@@ -438,10 +443,15 @@ Claude CLI: Read credentials from instance, execute
   - Table rendering via cli-table3
   - Spinner/progress (ora wrapper with fallback)
   - Section headers with optional gradient
+  - **Listr2 task lists** (Phase 5 NEW) - intelligent renderer selection:
+    - TTY mode: Default renderer with subtask hierarchy
+    - Non-TTY/CI: Simple renderer for clean output
+    - Claude Code detection: Automatic fallback for tool context
   - Lazy loading of ESM modules for CommonJS compatibility
-- **Type Support**: SemanticColor, BoxOptions, TableOptions, SpinnerOptions, SpinnerController
+- **Type Support**: SemanticColor, BoxOptions, TableOptions, SpinnerOptions, SpinnerController, TaskItem, TaskListOptions
 - **Compliance**: Strict CLAUDE.md adherence (no emojis, TTY-aware, NO_COLOR respect)
 - **Fallback Architecture**: Works in non-TTY environments with graceful degradation
+- **Claude Code Integration** (Phase 5): `isClaudeCodeContext()` detection for adaptive UI rendering
 
 ### 1. npm-First Installation (Phase 02 - 2025-11-28)
 - **Recommended method**: All users directed to npm installation
@@ -568,6 +578,14 @@ Claude CLI: Read credentials from instance, execute
 5. **Cost optimization**: Model selection based on task complexity
 
 ## Summary
+
+**CCS Phase 5 Achievements (2025-12-01, UI + Listr2 Integration)**:
+- **Listr2 Task Lists**: Integrated task list progress display with intelligent renderer selection
+- **Claude Code Detection**: Automatic fallback for tool context via `isClaudeCodeContext()`
+- **Async Result Formatting**: Delegation system now fully async with ui initialization
+- **UI Layer Integration**: Styled boxes and tables for enhanced delegation output
+- **Adaptive Rendering**: TTY (default), non-TTY (simple), CI (simple), Claude Code (fallback)
+- **Type System**: TaskItem, TaskListOptions for task list operations
 
 **CCS UI Phase 1 Achievements (2025-12-01)**:
 - **Central UI Module**: Introduced src/utils/ui.ts for semantic, TTY-aware CLI styling

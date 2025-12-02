@@ -31,12 +31,16 @@ type GradientStringInstance = typeof import('gradient-string').default;
 // ora v9 is ESM-only, imported dynamically at runtime
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type OraModule = any;
+// listr2 v9 is ESM-only, imported dynamically at runtime
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ListrClass = any;
 
 // Module cache for lazy loading
 let chalkModule: ChalkInstance | null = null;
 let boxenModule: BoxenFunction | null = null;
 let gradientModule: GradientStringInstance | null = null;
 let oraModule: OraModule | null = null;
+let listrModule: ListrClass | null = null;
 
 // Initialization state
 let initialized = false;
@@ -64,17 +68,19 @@ export async function initUI(): Promise<void> {
 
   try {
     // Dynamic import for ESM-only packages
-    const [chalkImport, boxenImport, gradientImport, oraImport] = await Promise.all([
+    const [chalkImport, boxenImport, gradientImport, oraImport, listrImport] = await Promise.all([
       import('chalk'),
       import('boxen'),
       import('gradient-string'),
       import('ora'),
+      import('listr2'),
     ]);
 
     chalkModule = chalkImport.default;
     boxenModule = boxenImport.default;
     gradientModule = gradientImport.default;
     oraModule = oraImport.default;
+    listrModule = listrImport.Listr;
     initialized = true;
   } catch (_e) {
     // Fallback: UI works without colors if imports fail
@@ -453,6 +459,117 @@ export function hr(char = '─', width = 60): string {
 }
 
 // =============================================================================
+// TASK LISTS (Listr2 Integration)
+// =============================================================================
+
+/**
+ * Detect if running inside Claude Code tool context
+ *
+ * Heuristics:
+ * - No TTY (stdout captured)
+ * - CI-like environment
+ * - CLAUDE_CODE env var set
+ */
+export function isClaudeCodeContext(): boolean {
+  return (
+    !process.stdout.isTTY ||
+    !!process.env.CI ||
+    !!process.env.CLAUDE_CODE ||
+    process.env.TERM === 'dumb'
+  );
+}
+
+/**
+ * Task list item interface
+ */
+export interface TaskItem<T> {
+  title: string;
+  task: (ctx: T) => Promise<void> | void;
+  skip?: () => boolean | string;
+}
+
+/**
+ * Task list options
+ */
+export interface TaskListOptions {
+  concurrent?: boolean;
+}
+
+/**
+ * Create a task list for progress display
+ * Uses Listr2 in TTY mode, falls back to spinners in non-TTY
+ */
+export async function taskList<T>(tasks: TaskItem<T>[], options: TaskListOptions = {}): Promise<T> {
+  // Lazy load Listr2 if not already loaded
+  if (!listrModule && isInteractive()) {
+    try {
+      const listr2 = await import('listr2');
+      listrModule = listr2.Listr;
+    } catch (_e) {
+      // Fallback to sequential execution with spinners
+      return runTasksFallback(tasks);
+    }
+  }
+
+  if (listrModule && isInteractive()) {
+    // Determine renderer based on context
+    // Use 'simple' in non-TTY, CI, or Claude Code context
+    const useSimple = isClaudeCodeContext();
+
+    const list = new listrModule(
+      tasks.map((t) => ({
+        title: t.title,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        task: async (ctx: any) => t.task(ctx),
+        skip: t.skip,
+      })),
+      {
+        concurrent: options.concurrent ?? false,
+        renderer: useSimple ? 'simple' : 'default',
+        rendererOptions: {
+          showSubtasks: true,
+          collapseSubtasks: false,
+        },
+      }
+    );
+
+    return list.run({} as T);
+  }
+
+  // Fallback: non-interactive or Listr2 not available
+  return runTasksFallback(tasks);
+}
+
+/**
+ * Fallback task runner (no Listr2)
+ * Uses spinners for sequential task execution
+ */
+async function runTasksFallback<T>(tasks: TaskItem<T>[]): Promise<T> {
+  const ctx = {} as T;
+
+  for (const task of tasks) {
+    if (task.skip) {
+      const skipResult = task.skip();
+      if (skipResult) {
+        console.log(info(`${task.title} [skipped]`));
+        continue;
+      }
+    }
+
+    const spin = await spinner(task.title);
+    try {
+      await task.task(ctx);
+      spin.succeed();
+    } catch (e) {
+      spin.fail(`${task.title}: ${(e as Error).message}`);
+      throw e;
+    }
+  }
+
+  return ctx;
+}
+
+// =============================================================================
 // UNIFIED EXPORT OBJECT
 // =============================================================================
 
@@ -460,6 +577,7 @@ export const ui = {
   // Initialization
   init: initUI,
   isInteractive,
+  isClaudeCodeContext,
 
   // Colors
   color,
@@ -481,6 +599,7 @@ export const ui = {
 
   // Progress
   spinner,
+  taskList,
 
   // Headers
   header,
