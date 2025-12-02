@@ -127,7 +127,7 @@ api-keys:
 
 # OAuth tokens stored in auth/ directory
 # CLIProxyAPI auto-discovers auth files in subdirectories
-auth-dir: "${authDir}"
+auth-dir: "${authDir.replace(/\\/g, '/')}"
 
 # All providers configured - routes by model name
 # No provider-specific sections needed - OAuth auth files provide credentials
