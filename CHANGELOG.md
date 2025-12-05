@@ -1,3 +1,21 @@
+# [5.8.0](https://github.com/kaitranntt/ccs/compare/v5.7.0...v5.8.0) (2025-12-05)
+
+
+### Bug Fixes
+
+* **agy:** enable claude model thinking via antigravity profile ([6f19440](https://github.com/kaitranntt/ccs/commit/6f194404722e63990f64d250d08c5f5e33235e05))
+* **agy:** preserve user settings during model switch ([f5c31da](https://github.com/kaitranntt/ccs/commit/f5c31dab55033cd8db99247ca9eab8a47fcb24fb))
+* **agy:** remove max_thinking_tokens when switching to non-claude model ([6decd15](https://github.com/kaitranntt/ccs/commit/6decd157e5e7b4d19ed3dac2cfdcb0131ce9d782))
+* **cliproxy:** consolidate download ui to single spinner ([ace5ba8](https://github.com/kaitranntt/ccs/commit/ace5ba87502c51a7e8fe35df5fe4a8f7aaacd173))
+* **cliproxy:** only remove provider-specific auth files on logout ([4770047](https://github.com/kaitranntt/ccs/commit/47700474a40539fad85c58fc5c971b85ddab45c4))
+* **skill:** use yaml block scalar for ccs-delegation description ([26154c3](https://github.com/kaitranntt/ccs/commit/26154c3e13b14d76fee87473b84365457139c553))
+
+
+### Features
+
+* **agy:** disable thinking toggle for claude models via antigravity ([f5a1b81](https://github.com/kaitranntt/ccs/commit/f5a1b81e553d2d057dc1f49fabac1945a83fc361)), closes [#415](https://github.com/kaitranntt/ccs/issues/415)
+* **delegation:** add passthrough args for claude cli flags ([26d72cf](https://github.com/kaitranntt/ccs/commit/26d72cfa5bbd7ea5d4a42dc7d5c4010ae5247711))
+
 # [5.7.0](https://github.com/kaitranntt/ccs/compare/v5.6.0...v5.7.0) (2025-12-05)
 
 
