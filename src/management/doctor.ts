@@ -956,6 +956,49 @@ class Doctor {
   }
 
   /**
+   * Fix detected issues
+   * Currently fixes: shared symlinks broken by Claude CLI's atomic writes
+   */
+  async fixIssues(): Promise<void> {
+    console.log('');
+    console.log(header('ATTEMPTING FIXES'));
+    console.log('');
+
+    let fixed = 0;
+
+    // Fix shared symlinks (settings.json broken by Claude CLI toggle thinking, etc.)
+    const sharedSettings = path.join(this.homedir, '.ccs', 'shared', 'settings.json');
+    if (fs.existsSync(sharedSettings)) {
+      try {
+        const stats = fs.lstatSync(sharedSettings);
+        if (!stats.isSymbolicLink()) {
+          const spinner = ora('Fixing shared settings.json symlink').start();
+          try {
+            // Import and use SharedManager to fix symlinks
+            const SharedManagerModule = await import('./shared-manager');
+            const SharedManager = SharedManagerModule.default;
+            const sharedManager = new SharedManager();
+            sharedManager.ensureSharedDirectories();
+            spinner.succeed(ok('Fixed') + ' Shared settings.json symlink restored');
+            fixed++;
+          } catch (err) {
+            spinner.fail(fail('Failed') + ` Could not fix: ${(err as Error).message}`);
+          }
+        }
+      } catch (_err) {
+        // Ignore stat errors
+      }
+    }
+
+    if (fixed > 0) {
+      console.log('');
+      console.log(ok(`[OK] Fixed ${fixed} issue(s)`));
+    } else {
+      console.log(info('[i] No fixable issues detected'));
+    }
+  }
+
+  /**
    * Check if the health check results are healthy
    */
   isHealthy(): boolean {

@@ -32,6 +32,15 @@ export async function handleSyncCommand(): Promise<void> {
   manager.install(false);
 
   console.log('');
+
+  // Repair shared symlinks (~/.ccs/shared/ → ~/.claude/)
+  // This fixes symlinks broken by Claude CLI's atomic writes (e.g., toggle thinking)
+  const SharedManager = (await import('../management/shared-manager')).default;
+  const sharedManager = new SharedManager();
+  sharedManager.ensureSharedDirectories();
+  console.log(colored('[OK]', 'green') + ' Shared symlinks verified');
+
+  console.log('');
   console.log(colored('[OK] Sync complete!', 'green'));
   console.log('');
 
