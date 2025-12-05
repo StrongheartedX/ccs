@@ -1,3 +1,17 @@
+# [5.7.0](https://github.com/kaitranntt/ccs/compare/v5.6.0...v5.7.0) (2025-12-05)
+
+
+### Bug Fixes
+
+* **ci:** add path filtering to deploy-ccs-worker pull request trigger ([64a8e86](https://github.com/kaitranntt/ccs/commit/64a8e86db4be7dd96d19654e1e91827ae62e0f7e))
+* **doctor:** repair shared settings.json symlink broken by claude cli ([1471bd2](https://github.com/kaitranntt/ccs/commit/1471bd2152b8eec376b7c0b5d13499546477c0cb)), closes [#57](https://github.com/kaitranntt/ccs/issues/57)
+* **types:** add forceversion to binarymanagerconfig interface ([3bb1ea7](https://github.com/kaitranntt/ccs/commit/3bb1ea7541fcf1bd38818b941ef3c5997d8daeb5))
+
+
+### Features
+
+* **cliproxy:** add iFlow OAuth provider support ([#55](https://github.com/kaitranntt/ccs/issues/55)) ([20bf626](https://github.com/kaitranntt/ccs/commit/20bf6266d2817bbceb8a9b5b7914f3ffc9164275))
+
 # [5.6.0](https://github.com/kaitranntt/ccs/compare/v5.5.0...v5.6.0) (2025-12-04)
 
 
