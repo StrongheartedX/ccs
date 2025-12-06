@@ -494,39 +494,85 @@ async function handleRemove(args: string[]): Promise<void> {
 // ============================================================================
 
 /**
- * Show cliproxy command help
+ * Show cliproxy command help with styled UI
  */
-function showHelp(): void {
+async function showHelp(): Promise<void> {
+  await initUI();
+
   console.log('');
-  console.log('Usage: ccs cliproxy <command> [options]');
+  console.log(header('CLIProxy Management'));
   console.log('');
-  console.log('Manage CLIProxy variants and binary installation.');
+
+  // Usage
+  console.log(subheader('Usage:'));
+  console.log(`  ${color('ccs cliproxy', 'command')} <command> [options]`);
   console.log('');
-  console.log('Profile Commands:');
-  console.log('  create [name]        Create new CLIProxy variant profile');
-  console.log('  list                 List all CLIProxy variant profiles');
-  console.log('  remove <name>        Remove a CLIProxy variant profile');
+
+  // Profile Commands
+  console.log(subheader('Profile Commands:'));
+  const profileCmds: [string, string][] = [
+    ['create [name]', 'Create new CLIProxy variant profile'],
+    ['list', 'List all CLIProxy variant profiles'],
+    ['remove <name>', 'Remove a CLIProxy variant profile'],
+  ];
+  const maxProfileLen = Math.max(...profileCmds.map(([cmd]) => cmd.length));
+  for (const [cmd, desc] of profileCmds) {
+    console.log(`  ${color(cmd.padEnd(maxProfileLen + 2), 'command')} ${desc}`);
+  }
   console.log('');
-  console.log('Binary Commands:');
-  console.log('  --install <version>  Install a specific binary version');
-  console.log('  --latest             Install the latest binary version');
+
+  // Binary Commands
+  console.log(subheader('Binary Commands:'));
+  const binaryCmds: [string, string][] = [
+    ['--install <version>', 'Install a specific binary version'],
+    ['--latest', 'Install the latest binary version'],
+  ];
+  const maxBinaryLen = Math.max(...binaryCmds.map(([cmd]) => cmd.length));
+  for (const [cmd, desc] of binaryCmds) {
+    console.log(`  ${color(cmd.padEnd(maxBinaryLen + 2), 'command')} ${desc}`);
+  }
   console.log('');
-  console.log('Create Options:');
-  console.log('  --provider <name>    Provider (gemini, codex, agy, qwen)');
-  console.log('  --model <model>      Model name');
-  console.log('  --force              Overwrite existing variant');
-  console.log('  --yes, -y            Skip confirmation prompts');
+
+  // Create Options
+  console.log(subheader('Create Options:'));
+  const createOpts: [string, string][] = [
+    ['--provider <name>', 'Provider (gemini, codex, agy, qwen)'],
+    ['--model <model>', 'Model name'],
+    ['--force', 'Overwrite existing variant'],
+    ['--yes, -y', 'Skip confirmation prompts'],
+  ];
+  const maxOptLen = Math.max(...createOpts.map(([opt]) => opt.length));
+  for (const [opt, desc] of createOpts) {
+    console.log(`  ${color(opt.padEnd(maxOptLen + 2), 'command')} ${desc}`);
+  }
   console.log('');
-  console.log('Examples:');
-  console.log('  ccs cliproxy create                    Interactive wizard');
-  console.log('  ccs cliproxy create g3 --provider gemini --model gemini-3-pro-preview');
-  console.log('  ccs cliproxy list                      Show all variants');
-  console.log('  ccs cliproxy remove g3                 Remove variant');
-  console.log('  ccs cliproxy --latest                  Update binary');
+
+  // Examples
+  console.log(subheader('Examples:'));
+  console.log(
+    `  $ ${color('ccs cliproxy create', 'command')}                    ${dim('# Interactive wizard')}`
+  );
+  console.log(`  $ ${color('ccs cliproxy create g3 --provider gemini', 'command')}`);
+  console.log(
+    `    ${color('--model gemini-3-pro-preview', 'command')}            ${dim('# Non-interactive')}`
+  );
+  console.log(
+    `  $ ${color('ccs cliproxy list', 'command')}                       ${dim('# Show all variants')}`
+  );
+  console.log(
+    `  $ ${color('ccs cliproxy remove g3', 'command')}                  ${dim('# Remove variant')}`
+  );
+  console.log(
+    `  $ ${color('ccs cliproxy --latest', 'command')}                   ${dim('# Update binary')}`
+  );
   console.log('');
-  console.log('Notes:');
-  console.log(`  Default fallback version: ${CLIPROXY_FALLBACK_VERSION}`);
-  console.log('  Releases: https://github.com/router-for-me/CLIProxyAPI/releases');
+
+  // Notes
+  console.log(subheader('Notes:'));
+  console.log(`  Default fallback version: ${color(CLIPROXY_FALLBACK_VERSION, 'info')}`);
+  console.log(
+    `  Releases: ${color('https://github.com/router-for-me/CLIProxyAPI/releases', 'path')}`
+  );
   console.log('');
 }
 
@@ -576,6 +622,8 @@ async function showStatus(verbose: boolean): Promise<void> {
     }
   }
 
+  console.log('');
+  console.log(dim(`Run "ccs cliproxy --help" for all available commands`));
   console.log('');
 }
 
@@ -657,7 +705,7 @@ export async function handleCliproxyCommand(args: string[]): Promise<void> {
 
   // Handle --help
   if (args.includes('--help') || args.includes('-h')) {
-    showHelp();
+    await showHelp();
     return;
   }
 
