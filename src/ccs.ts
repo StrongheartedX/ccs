@@ -290,6 +290,13 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Special case: config command (web dashboard)
+  if (firstArg === 'config') {
+    const { handleConfigCommand } = await import('./commands/config-command');
+    await handleConfigCommand(args.slice(1));
+    return;
+  }
+
   // Special case: headless delegation (-p flag)
   if (args.includes('-p') || args.includes('--prompt')) {
     const { DelegationHandler } = await import('./delegation/delegation-handler');
