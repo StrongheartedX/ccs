@@ -27,6 +27,9 @@
   --ring: oklch(0.2 0.02 40); /* Match primary */
   --radius: 0.5rem;
 
+  --popover: oklch(0.9635 0.0067 97.35); /* Match background */
+  --popover-foreground: oklch(0.2 0.02 40); /* Match foreground */
+
   /* Sidebar colors - Light */
   --sidebar: oklch(0.9635 0.0067 97.35); /* Pampas */
   --sidebar-foreground: oklch(0.2 0.02 40);
@@ -62,6 +65,9 @@
   --input: oklch(0.35 0.01 40);
 
   --ring: oklch(0.9635 0.0067 97.35);
+
+  --popover: oklch(0.21 0.006 100); /* Match dark bg */
+  --popover-foreground: oklch(0.9635 0.0067 97.35); /* Match dark fg */
 
   /* Sidebar Dark Theme */
   --sidebar: oklch(0.21 0.006 100); /* Match bg */

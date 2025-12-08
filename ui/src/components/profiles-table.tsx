@@ -20,17 +20,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Trash2, Edit, Settings } from 'lucide-react';
+import { MoreHorizontal, Trash2, Edit } from 'lucide-react';
 import { useDeleteProfile } from '@/hooks/use-profiles';
 import type { Profile } from '@/lib/api-client';
 
 interface ProfilesTableProps {
   data: Profile[];
-  onEdit?: (profile: Profile) => void;
   onEditSettings?: (profile: Profile) => void;
 }
 
-export function ProfilesTable({ data, onEdit, onEditSettings }: ProfilesTableProps) {
+export function ProfilesTable({ data, onEditSettings }: ProfilesTableProps) {
   const deleteMutation = useDeleteProfile();
 
   const columns: ColumnDef<Profile>[] = [
@@ -64,22 +63,16 @@ export function ProfilesTable({ data, onEdit, onEditSettings }: ProfilesTablePro
               <MoreHorizontal className="w-4 h-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {onEdit && (
-              <DropdownMenuItem onClick={() => onEdit(row.original)}>
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Profile
-              </DropdownMenuItem>
-            )}
+          <DropdownMenuContent align="end" className="bg-white dark:bg-zinc-950 border shadow-md">
             {onEditSettings && (
               <DropdownMenuItem onClick={() => onEditSettings(row.original)}>
-                <Settings className="w-4 h-4 mr-2" />
-                Edit Settings
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="text-red-600"
+              className="text-red-600 focus:text-red-600 focus:bg-red-100/50"
               onClick={() => deleteMutation.mutate(row.original.name)}
             >
               <Trash2 className="w-4 h-4 mr-2" />

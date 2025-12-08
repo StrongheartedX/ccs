@@ -42,6 +42,10 @@ interface SettingsDialogProps {
  * Inner component that manages local edits state
  * Gets unmounted/remounted via key prop when dialog closes/opens
  */
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+
 function SettingsDialogContent({
   profileName,
   onClose,
@@ -147,42 +151,94 @@ function SettingsDialogContent({
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Environment Settings: {profileName}</DialogTitle>
+        <DialogTitle>Edit Profile: {profileName}</DialogTitle>
         <DialogDescription>
-          Edit environment variables for this profile. Sensitive keys are masked.
+          Configure environment variables and settings for this profile.
         </DialogDescription>
       </DialogHeader>
 
       {isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-muted-foreground">Loading settings...</span>
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          <span className="ml-3 text-muted-foreground">Loading settings...</span>
         </div>
-      ) : currentSettings?.env && Object.keys(currentSettings.env).length > 0 ? (
-        <div className="space-y-4">
-          {Object.entries(currentSettings.env).map(([key, value]) => (
-            <div key={key}>
-              <Label>{key}</Label>
-              {isSensitiveKey(key) ? (
-                <MaskedInput value={value} onChange={(e) => updateEnvValue(key, e.target.value)} />
-              ) : (
-                <Input
-                  value={value}
-                  onChange={(e) => updateEnvValue(key, e.target.value)}
-                  className="font-mono"
-                />
-              )}
-            </div>
-          ))}
+      ) : (
+        <div className="flex flex-col h-[60vh]">
+          <Tabs defaultValue="env" className="flex-1 flex flex-col overflow-hidden">
+            <TabsList className="w-full justify-start border-b rounded-none p-0 h-auto bg-transparent">
+              <TabsTrigger
+                value="env"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
+              >
+                Environment
+              </TabsTrigger>
+              <TabsTrigger
+                value="general"
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2"
+              >
+                General
+              </TabsTrigger>
+            </TabsList>
 
-          {data && (
-            <div className="pt-4 text-xs text-muted-foreground border-t">
-              <p>Path: {data.path}</p>
-              <p>Last modified: {new Date(data.mtime).toLocaleString()}</p>
-            </div>
-          )}
+            <TabsContent value="env" className="flex-1 overflow-hidden p-4 pt-4 m-0">
+              <ScrollArea className="h-full pr-4">
+                {currentSettings?.env && Object.keys(currentSettings.env).length > 0 ? (
+                  <div className="space-y-6">
+                    {Object.entries(currentSettings.env).map(([key, value]) => (
+                      <div key={key} className="space-y-2">
+                        <Label className="text-sm font-medium text-foreground">{key}</Label>
+                        {isSensitiveKey(key) ? (
+                          <MaskedInput
+                            value={value}
+                            onChange={(e) => updateEnvValue(key, e.target.value)}
+                            className="font-mono text-sm"
+                          />
+                        ) : (
+                          <Input
+                            value={value}
+                            onChange={(e) => updateEnvValue(key, e.target.value)}
+                            className="font-mono text-sm"
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-muted-foreground bg-muted/30 rounded-lg border border-dashed">
+                    <p>No environment variables configured.</p>
+                    <p className="text-xs mt-1">Add variables in your settings.json file.</p>
+                  </div>
+                )}
+              </ScrollArea>
+            </TabsContent>
 
-          <div className="flex justify-end gap-2 pt-4">
+            <TabsContent value="general" className="p-4 m-0">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Profile Information</CardTitle>
+                  <CardDescription>Details about this configuration file.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {data && (
+                    <>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <span className="font-medium text-muted-foreground">Path</span>
+                        <code className="col-span-2 bg-muted p-1 rounded text-xs break-all">
+                          {data.path}
+                        </code>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-sm">
+                        <span className="font-medium text-muted-foreground">Last Modified</span>
+                        <span className="col-span-2">{new Date(data.mtime).toLocaleString()}</span>
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+
+          <div className="pt-4 mt-auto border-t flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               <X className="w-4 h-4 mr-2" /> Cancel
             </Button>
@@ -193,15 +249,11 @@ function SettingsDialogContent({
                 </>
               ) : (
                 <>
-                  <Save className="w-4 h-4 mr-2" /> Save
+                  <Save className="w-4 h-4 mr-2" /> Save Changes
                 </>
               )}
             </Button>
           </div>
-        </div>
-      ) : (
-        <div className="py-8 text-center text-muted-foreground">
-          No environment variables configured for this profile.
         </div>
       )}
 
@@ -231,7 +283,7 @@ export function SettingsDialog({ open, onClose, profileName }: SettingsDialogPro
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-3xl max-h-[80vh] overflow-y-auto">
         {/* Key prop ensures fresh state on each open */}
         {open && profileName && (
           <SettingsDialogContent

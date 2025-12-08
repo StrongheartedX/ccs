@@ -19,11 +19,6 @@ export function ApiPage() {
   const [settingsProfileName, setSettingsProfileName] = useState<string | null>(null);
   const { data, isLoading } = useProfiles();
 
-  const handleEdit = (profile: Profile) => {
-    setEditingProfile(profile);
-    setDialogOpen(true);
-  };
-
   const handleEditSettings = (profile: Profile) => {
     setSettingsProfileName(profile.name);
     setSettingsDialogOpen(true);
@@ -57,11 +52,7 @@ export function ApiPage() {
       {isLoading ? (
         <div className="text-muted-foreground">Loading profiles...</div>
       ) : (
-        <ProfilesTable
-          data={data?.profiles || []}
-          onEdit={handleEdit}
-          onEditSettings={handleEditSettings}
-        />
+        <ProfilesTable data={data?.profiles || []} onEditSettings={handleEditSettings} />
       )}
 
       <ProfileDialog open={dialogOpen} onClose={handleCloseDialog} profile={editingProfile} />

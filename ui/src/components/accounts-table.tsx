@@ -29,11 +29,12 @@ export function AccountsTable({ data, defaultAccount }: AccountsTableProps) {
     {
       accessorKey: 'name',
       header: 'Name',
+      size: 200,
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
-          {row.original.name}
+          <span className="font-medium">{row.original.name}</span>
           {row.original.name === defaultAccount && (
-            <span className="text-xs bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+            <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded border border-primary/20">
               default
             </span>
           )}
@@ -43,39 +44,46 @@ export function AccountsTable({ data, defaultAccount }: AccountsTableProps) {
     {
       accessorKey: 'type',
       header: 'Type',
-      cell: ({ row }) => row.original.type || 'oauth',
+      size: 100,
+      cell: ({ row }) => (
+        <span className="capitalize text-muted-foreground">{row.original.type || 'oauth'}</span>
+      ),
     },
     {
       accessorKey: 'created',
       header: 'Created',
+      size: 150,
       cell: ({ row }) => {
         const date = new Date(row.original.created);
-        return date.toLocaleDateString();
+        return <span className="text-muted-foreground">{date.toLocaleDateString()}</span>;
       },
     },
     {
       accessorKey: 'last_used',
       header: 'Last Used',
+      size: 150,
       cell: ({ row }) => {
-        if (!row.original.last_used) return '-';
+        if (!row.original.last_used) return <span className="text-muted-foreground/50">-</span>;
         const date = new Date(row.original.last_used);
-        return date.toLocaleDateString();
+        return <span className="text-muted-foreground">{date.toLocaleDateString()}</span>;
       },
     },
     {
       id: 'actions',
       header: 'Actions',
+      size: 100,
       cell: ({ row }) => {
         const isDefault = row.original.name === defaultAccount;
         return (
           <Button
-            variant={isDefault ? 'outline' : 'default'}
+            variant={isDefault ? 'secondary' : 'default'}
             size="sm"
+            className="h-8 px-2 w-full"
             disabled={isDefault || setDefaultMutation.isPending}
             onClick={() => setDefaultMutation.mutate(row.original.name)}
           >
-            <Check className="w-4 h-4 mr-1" />
-            {isDefault ? 'Default' : 'Set Default'}
+            <Check className={`w-3 h-3 mr-1.5 ${isDefault ? 'opacity-50' : ''}`} />
+            {isDefault ? 'Active' : 'Set Default'}
           </Button>
         );
       },
@@ -111,7 +119,7 @@ export function AccountsTable({ data, defaultAccount }: AccountsTableProps) {
                     type: 'w-[100px]',
                     created: 'w-[150px]',
                     last_used: 'w-[150px]',
-                    actions: 'w-[120px]',
+                    actions: 'w-[100px]',
                   }[header.id] || 'w-auto';
 
                 return (
