@@ -19,6 +19,8 @@ export interface AccountInfo {
   id: string;
   /** Email address from OAuth (if available) */
   email?: string;
+  /** User-friendly nickname for quick reference (auto-generated from email prefix) */
+  nickname?: string;
   /** Provider this account belongs to */
   provider: CLIProxyProvider;
   /** Whether this is the default account for the provider */
@@ -52,6 +54,36 @@ const DEFAULT_REGISTRY: AccountsRegistry = {
   version: 1,
   providers: {},
 };
+
+/**
+ * Generate nickname from email
+ * Takes prefix before @ symbol, sanitizes whitespace
+ * Validation: 1-50 chars, any non-whitespace (permissive per user preference)
+ */
+export function generateNickname(email?: string): string {
+  if (!email) return 'default';
+  const prefix = email.split('@')[0];
+  // Sanitize: remove whitespace, limit to 50 chars
+  return prefix.replace(/\s+/g, '').slice(0, 50) || 'default';
+}
+
+/**
+ * Validate nickname
+ * Rules: 1-50 chars, any non-whitespace allowed (permissive)
+ * @returns null if valid, error message if invalid
+ */
+export function validateNickname(nickname: string): string | null {
+  if (!nickname || nickname.length === 0) {
+    return 'Nickname is required';
+  }
+  if (nickname.length > 50) {
+    return 'Nickname must be 50 characters or less';
+  }
+  if (/\s/.test(nickname)) {
+    return 'Nickname cannot contain whitespace';
+  }
+  return null;
+}
 
 /**
  * Get path to accounts registry file
@@ -140,7 +172,8 @@ export function getAccount(provider: CLIProxyProvider, accountId: string): Accou
 export function registerAccount(
   provider: CLIProxyProvider,
   tokenFile: string,
-  email?: string
+  email?: string,
+  nickname?: string
 ): AccountInfo {
   const registry = loadAccountsRegistry();
 
@@ -161,9 +194,13 @@ export function registerAccount(
   const accountId = email || 'default';
   const isFirstAccount = Object.keys(providerAccounts.accounts).length === 0;
 
+  // Generate nickname if not provided
+  const accountNickname = nickname || generateNickname(email);
+
   // Create or update account
   providerAccounts.accounts[accountId] = {
     email,
+    nickname: accountNickname,
     tokenFile,
     createdAt: new Date().toISOString(),
     lastUsedAt: new Date().toISOString(),
@@ -181,6 +218,7 @@ export function registerAccount(
     provider,
     isDefault: accountId === providerAccounts.default,
     email,
+    nickname: accountNickname,
     tokenFile,
     createdAt: providerAccounts.accounts[accountId].createdAt,
     lastUsedAt: providerAccounts.accounts[accountId].lastUsedAt,
@@ -333,9 +371,10 @@ export function discoverExistingAccounts(): void {
       // Get file stats for creation time
       const stats = fs.statSync(filePath);
 
-      // Register account
+      // Register account with auto-generated nickname
       providerAccounts.accounts[accountId] = {
         email,
+        nickname: generateNickname(email),
         tokenFile: file,
         createdAt: stats.birthtime?.toISOString() || new Date().toISOString(),
         lastUsedAt: stats.mtime?.toISOString(),

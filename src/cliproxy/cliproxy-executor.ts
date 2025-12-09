@@ -123,6 +123,7 @@ export async function execClaudeWithCLIProxy(
   const forceHeadless = args.includes('--headless');
   const forceLogout = args.includes('--logout');
   const forceConfig = args.includes('--config');
+  const addAccount = args.includes('--add');
 
   // Handle --config: configure model selection and exit
   // Pass customSettingsPath for CLIProxy variants to save to correct file
@@ -151,6 +152,7 @@ export async function execClaudeWithCLIProxy(
       const { triggerOAuth } = await import('./auth-handler');
       const authSuccess = await triggerOAuth(provider, {
         verbose,
+        add: addAccount,
         ...(forceHeadless ? { headless: true } : {}),
       });
       if (!authSuccess) {
@@ -260,7 +262,7 @@ export async function execClaudeWithCLIProxy(
   log(`Claude env: ANTHROPIC_MODEL=${envVars.ANTHROPIC_MODEL}`);
 
   // Filter out CCS-specific flags before passing to Claude CLI
-  const ccsFlags = ['--auth', '--headless', '--logout', '--config'];
+  const ccsFlags = ['--auth', '--headless', '--logout', '--config', '--add'];
   const claudeArgs = args.filter((arg) => !ccsFlags.includes(arg));
 
   const isWindows = process.platform === 'win32';

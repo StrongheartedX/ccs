@@ -161,6 +161,7 @@ Claude Code Profile & Model Switcher`.trim();
       ['ccs qwen', 'Qwen Code (qwen3-coder)'],
       ['', ''], // Spacer
       ['ccs <provider> --auth', 'Authenticate only'],
+      ['ccs <provider> --auth --add', 'Add another account'],
       ['ccs <provider> --config', 'Change model (agy, gemini)'],
       ['ccs <provider> --logout', 'Clear authentication'],
       ['ccs <provider> --headless', 'Headless auth (for SSH)'],

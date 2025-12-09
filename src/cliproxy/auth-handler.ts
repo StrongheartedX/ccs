@@ -22,6 +22,7 @@ import { CLIProxyProvider } from './types';
 import {
   AccountInfo,
   discoverExistingAccounts,
+  generateNickname,
   getDefaultAccount,
   getProviderAccounts,
   registerAccount,
@@ -429,14 +430,15 @@ export function clearAuth(provider: CLIProxyProvider): boolean {
  * Auto-detects headless environment and uses --no-browser flag accordingly
  * @param provider - The CLIProxy provider to authenticate
  * @param options - OAuth options
+ * @param options.add - If true, skip confirm prompt when adding another account
  * @returns Account info if successful, null otherwise
  */
 export async function triggerOAuth(
   provider: CLIProxyProvider,
-  options: { verbose?: boolean; headless?: boolean; account?: string } = {}
+  options: { verbose?: boolean; headless?: boolean; account?: string; add?: boolean } = {}
 ): Promise<AccountInfo | null> {
   const oauthConfig = getOAuthConfig(provider);
-  const { verbose = false } = options;
+  const { verbose = false, add = false } = options;
 
   // Auto-detect headless if not explicitly set
   const headless = options.headless ?? isHeadlessEnvironment();
@@ -446,6 +448,34 @@ export async function triggerOAuth(
       console.error(`[auth] ${msg}`);
     }
   };
+
+  // Check for existing accounts and prompt if --add not specified
+  const existingAccounts = getProviderAccounts(provider);
+  if (existingAccounts.length > 0 && !add) {
+    console.log('');
+    console.log(
+      `[i] ${existingAccounts.length} account(s) already authenticated for ${oauthConfig.displayName}`
+    );
+
+    // Import readline for confirm prompt
+    const readline = await import('readline');
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+    });
+
+    const confirmed = await new Promise<boolean>((resolve) => {
+      rl.question('[?] Add another account? (y/N): ', (answer) => {
+        rl.close();
+        resolve(answer.toLowerCase() === 'y' || answer.toLowerCase() === 'yes');
+      });
+    });
+
+    if (!confirmed) {
+      console.log('[i] Cancelled');
+      return null;
+    }
+  }
 
   // Pre-flight check: verify OAuth callback port is available
   const preflight = await preflightOAuthCheck(provider);
@@ -662,8 +692,8 @@ function registerAccountFromToken(
     const data = JSON.parse(content);
     const email = data.email || undefined;
 
-    // Register the account
-    return registerAccount(provider, newestFile, email);
+    // Register the account with auto-generated nickname
+    return registerAccount(provider, newestFile, email, generateNickname(email));
   } catch {
     return null;
   }
