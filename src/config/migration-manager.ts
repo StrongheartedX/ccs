@@ -353,7 +353,7 @@ export async function autoMigrate(): Promise<void> {
         console.log(`  [!] ${warning}`);
       }
     }
-    console.log('  Rollback: ccs migrate --rollback');
+    console.log(`  Rollback: ccs migrate --rollback ${result.backupPath}`);
     console.log('');
   } else {
     console.log('');

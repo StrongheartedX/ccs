@@ -87,7 +87,7 @@ export async function handleMigrateCommand(args: string[]): Promise<void> {
     if (dryRun) {
       console.log('  Run without --dry-run to apply changes');
     } else {
-      console.log('  Rollback: ccs migrate --rollback');
+      console.log(`  Rollback: ccs migrate --rollback ${result.backupPath}`);
     }
     console.log('');
   } else {
