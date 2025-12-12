@@ -124,14 +124,23 @@ describe('unified-config-types', () => {
       expect(isUnifiedConfig(null)).toBe(false);
     });
 
-    it('should return false for wrong version', () => {
+    it('should return true for older version (relaxed validation)', () => {
+      // Fix for issue #82: Relaxed validation accepts version >= 1
+      // to prevent profile loss when loading partially valid configs
       const config = { ...createEmptyUnifiedConfig(), version: 1 };
-      expect(isUnifiedConfig(config)).toBe(false);
+      expect(isUnifiedConfig(config)).toBe(true);
     });
 
-    it('should return false for missing fields', () => {
-      expect(isUnifiedConfig({ version: 2 })).toBe(false);
-      expect(isUnifiedConfig({ version: 2, accounts: {} })).toBe(false);
+    it('should return true for partial configs (relaxed validation)', () => {
+      // Fix for issue #82: Relaxed validation accepts partial configs
+      // Missing sections are merged with defaults in loadOrCreateUnifiedConfig
+      expect(isUnifiedConfig({ version: 2 })).toBe(true);
+      expect(isUnifiedConfig({ version: 2, accounts: {} })).toBe(true);
+    });
+
+    it('should return false for version < 1', () => {
+      expect(isUnifiedConfig({ version: 0 })).toBe(false);
+      expect(isUnifiedConfig({ version: -1 })).toBe(false);
     });
   });
 

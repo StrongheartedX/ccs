@@ -151,17 +151,15 @@ export function createEmptySecretsConfig(): SecretsConfig {
 
 /**
  * Type guard for UnifiedConfig.
+ * Relaxed validation: accepts configs with version >= 1 and any subset of sections.
+ * Missing sections will be filled with defaults during merge.
  */
 export function isUnifiedConfig(obj: unknown): obj is UnifiedConfig {
   if (typeof obj !== 'object' || obj === null) return false;
   const config = obj as Record<string, unknown>;
-  return (
-    typeof config.version === 'number' &&
-    config.version === UNIFIED_CONFIG_VERSION &&
-    typeof config.accounts === 'object' &&
-    typeof config.profiles === 'object' &&
-    typeof config.cliproxy === 'object'
-  );
+  // Only require version to be a number >= 1 (allow future versions)
+  // Sections are optional - will be merged with defaults in loadOrCreateUnifiedConfig
+  return typeof config.version === 'number' && config.version >= 1;
 }
 
 /**

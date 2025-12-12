@@ -91,11 +91,38 @@ export function loadUnifiedConfig(): UnifiedConfig | null {
 }
 
 /**
+ * Merge partial config with defaults.
+ * Preserves existing data while filling in missing sections.
+ */
+function mergeWithDefaults(partial: Partial<UnifiedConfig>): UnifiedConfig {
+  const defaults = createEmptyUnifiedConfig();
+  return {
+    version: partial.version ?? defaults.version,
+    default: partial.default ?? defaults.default,
+    accounts: partial.accounts ?? defaults.accounts,
+    profiles: partial.profiles ?? defaults.profiles,
+    cliproxy: {
+      oauth_accounts: partial.cliproxy?.oauth_accounts ?? defaults.cliproxy.oauth_accounts,
+      providers: defaults.cliproxy.providers, // Always use defaults for providers
+      variants: partial.cliproxy?.variants ?? defaults.cliproxy.variants,
+    },
+    preferences: {
+      ...defaults.preferences,
+      ...partial.preferences,
+    },
+  };
+}
+
+/**
  * Load config, preferring YAML if available, falling back to creating empty config.
+ * Merges with defaults to ensure all sections exist.
  */
 export function loadOrCreateUnifiedConfig(): UnifiedConfig {
   const existing = loadUnifiedConfig();
-  if (existing) return existing;
+  if (existing) {
+    // Merge with defaults to fill any missing sections
+    return mergeWithDefaults(existing);
+  }
 
   // Create empty config
   const config = createEmptyUnifiedConfig();
