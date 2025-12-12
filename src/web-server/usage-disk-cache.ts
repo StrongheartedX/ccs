@@ -12,6 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import type { DailyUsage, MonthlyUsage, SessionUsage } from './usage-types';
+import { ok, info, warn } from '../utils/ui';
 
 // Cache configuration
 const CCS_DIR = path.join(os.homedir(), '.ccs');
@@ -58,7 +59,7 @@ export function readDiskCache(): UsageDiskCache | null {
 
     // Version check - invalidate if schema changed
     if (cache.version !== CACHE_VERSION) {
-      console.log('[i] Cache version mismatch, will refresh');
+      console.log(info('Cache version mismatch, will refresh'));
       return null;
     }
 
@@ -66,7 +67,7 @@ export function readDiskCache(): UsageDiskCache | null {
     return cache;
   } catch (err) {
     // Cache corrupted or unreadable - treat as miss
-    console.log('[i] Cache read failed, will refresh:', (err as Error).message);
+    console.log(info('Cache read failed, will refresh:') + ` ${(err as Error).message}`);
     return null;
   }
 }
@@ -113,10 +114,10 @@ export function writeDiskCache(
     fs.writeFileSync(tempFile, JSON.stringify(cache), 'utf-8');
     fs.renameSync(tempFile, CACHE_FILE);
 
-    console.log('[OK] Disk cache updated');
+    console.log(ok('Disk cache updated'));
   } catch (err) {
     // Non-fatal - we can still serve from memory
-    console.log('[!] Failed to write disk cache:', (err as Error).message);
+    console.log(warn('Failed to write disk cache:') + ` ${(err as Error).message}`);
   }
 }
 
@@ -143,9 +144,9 @@ export function clearDiskCache(): void {
   try {
     if (fs.existsSync(CACHE_FILE)) {
       fs.unlinkSync(CACHE_FILE);
-      console.log('[OK] Disk cache cleared');
+      console.log(ok('Disk cache cleared'));
     }
   } catch (err) {
-    console.log('[!] Failed to clear disk cache:', (err as Error).message);
+    console.log(warn('Failed to clear disk cache:') + ` ${(err as Error).message}`);
   }
 }

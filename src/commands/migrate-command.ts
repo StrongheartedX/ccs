@@ -17,8 +17,11 @@ import {
   getBackupDirectories,
 } from '../config/migration-manager';
 import { hasUnifiedConfig } from '../config/unified-config-loader';
+import { initUI, ok, fail, info, warn, infoBox, dim } from '../utils/ui';
 
 export async function handleMigrateCommand(args: string[]): Promise<void> {
+  await initUI();
+
   // Handle --list-backups
   if (args.includes('--list-backups')) {
     listBackups();
@@ -31,9 +34,9 @@ export async function handleMigrateCommand(args: string[]): Promise<void> {
     const backupPath = args[rollbackIndex + 1];
 
     if (!backupPath) {
-      console.error('[X] Error: --rollback requires backup path');
-      console.log('[i] Usage: ccs migrate --rollback <backup-path>');
-      console.log('[i] Use --list-backups to see available backups');
+      console.error(fail('Error: --rollback requires backup path'));
+      console.log(info('Usage: ccs migrate --rollback <backup-path>'));
+      console.log(info('Use --list-backups to see available backups'));
       process.exit(1);
     }
 
@@ -43,13 +46,13 @@ export async function handleMigrateCommand(args: string[]): Promise<void> {
 
   // Check if already migrated
   if (hasUnifiedConfig() && !needsMigration()) {
-    console.log('[i] Already using unified config format (config.yaml)');
+    console.log(info('Already using unified config format (config.yaml)'));
     return;
   }
 
   // Check if migration is needed
   if (!needsMigration()) {
-    console.log('[i] No migration needed - no legacy config found');
+    console.log(info('No migration needed - no legacy config found'));
     return;
   }
 
@@ -57,7 +60,7 @@ export async function handleMigrateCommand(args: string[]): Promise<void> {
   const dryRun = args.includes('--dry-run');
 
   if (dryRun) {
-    console.log('[i] Dry run - no changes will be made');
+    console.log(info('Dry run - no changes will be made'));
     console.log('');
   }
 
@@ -65,13 +68,11 @@ export async function handleMigrateCommand(args: string[]): Promise<void> {
 
   if (result.success) {
     console.log('');
-    console.log('╭─────────────────────────────────────────────────────────╮');
     if (dryRun) {
-      console.log('│  [i] Dry run - migration preview (no changes made)      │');
+      console.log(infoBox('Dry run - migration preview (no changes made)'));
     } else {
-      console.log('│  [OK] Migrated to unified config (config.yaml)          │');
+      console.log(infoBox('Migrated to unified config (config.yaml)', 'SUCCESS'));
     }
-    console.log('╰─────────────────────────────────────────────────────────╯');
 
     if (result.backupPath && !dryRun) {
       console.log(`  Backup: ${result.backupPath}`);
@@ -80,18 +81,18 @@ export async function handleMigrateCommand(args: string[]): Promise<void> {
 
     if (result.warnings.length > 0) {
       for (const warning of result.warnings) {
-        console.log(`  [!] ${warning}`);
+        console.log(warn(warning));
       }
     }
 
     if (dryRun) {
-      console.log('  Run without --dry-run to apply changes');
+      console.log(dim('  Run without --dry-run to apply changes'));
     } else {
       console.log(`  Rollback: ccs migrate --rollback ${result.backupPath}`);
     }
     console.log('');
   } else {
-    console.error(`[X] Migration failed: ${result.error}`);
+    console.error(fail(`Migration failed: ${result.error}`));
 
     if (result.migratedFiles.length > 0) {
       console.log('');
@@ -104,16 +105,16 @@ export async function handleMigrateCommand(args: string[]): Promise<void> {
 }
 
 async function handleRollback(backupPath: string): Promise<void> {
-  console.log(`[i] Rolling back from: ${backupPath}`);
+  console.log(info(`Rolling back from: ${backupPath}`));
   console.log('');
 
   const success = await rollback(backupPath);
 
   if (success) {
-    console.log('[OK] Rollback complete');
-    console.log('[i] Legacy config restored');
+    console.log(ok('Rollback complete'));
+    console.log(info('Legacy config restored'));
   } else {
-    console.error('[X] Rollback failed');
+    console.error(fail('Rollback failed'));
     process.exit(1);
   }
 }
@@ -122,17 +123,17 @@ function listBackups(): void {
   const backups = getBackupDirectories();
 
   if (backups.length === 0) {
-    console.log('[i] No backup directories found');
+    console.log(info('No backup directories found'));
     return;
   }
 
-  console.log('[i] Available backups (most recent first):');
+  console.log(info('Available backups (most recent first):'));
   console.log('');
   backups.forEach((backup, index) => {
     console.log(`    ${index + 1}. ${backup}`);
   });
   console.log('');
-  console.log('[i] To rollback: ccs migrate --rollback <backup-path>');
+  console.log(info('To rollback: ccs migrate --rollback <backup-path>'));
 }
 
 /**

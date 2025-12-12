@@ -4,14 +4,15 @@
  * Handle sync command for CCS.
  */
 
-import { colored } from '../utils/helpers';
+import { initUI, header, ok } from '../utils/ui';
 
 /**
  * Handle sync command
  */
 export async function handleSyncCommand(): Promise<void> {
+  await initUI();
   console.log('');
-  console.log(colored('Syncing CCS Components...', 'cyan'));
+  console.log(header('Syncing CCS Components...'));
   console.log('');
 
   // First, copy .claude/ directory from package to ~/.ccs/.claude/
@@ -38,10 +39,10 @@ export async function handleSyncCommand(): Promise<void> {
   const SharedManager = (await import('../management/shared-manager')).default;
   const sharedManager = new SharedManager();
   sharedManager.ensureSharedDirectories();
-  console.log(colored('[OK]', 'green') + ' Shared symlinks verified');
+  console.log(ok('Shared symlinks verified'));
 
   console.log('');
-  console.log(colored('[OK] Sync complete!', 'green'));
+  console.log(ok('Sync complete!'));
   console.log('');
 
   process.exit(0);

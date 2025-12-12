@@ -6,6 +6,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import { createFileWatcher, FileChangeEvent } from './file-watcher';
+import { info, warn } from '../utils/ui';
 
 export interface WSMessage {
   type: string;
@@ -29,7 +30,7 @@ export function setupWebSocket(wss: WebSocketServer): { cleanup: () => void } {
   // Handle new connections
   wss.on('connection', (ws) => {
     clients.add(ws);
-    console.log(`[WS] Client connected (${clients.size} total)`);
+    console.log(info(`[WS] Client connected (${clients.size} total)`));
 
     // Send welcome message
     ws.send(JSON.stringify({ type: 'connected', timestamp: Date.now() }));
@@ -40,18 +41,18 @@ export function setupWebSocket(wss: WebSocketServer): { cleanup: () => void } {
         const message = JSON.parse(data.toString());
         handleClientMessage(ws, message);
       } catch {
-        console.log('[WS] Invalid message format');
+        console.log(warn('[WS] Invalid message format'));
       }
     });
 
     // Handle disconnect
     ws.on('close', () => {
       clients.delete(ws);
-      console.log(`[WS] Client disconnected (${clients.size} remaining)`);
+      console.log(info(`[WS] Client disconnected (${clients.size} remaining)`));
     });
 
     ws.on('error', (err) => {
-      console.log(`[WS] Error: ${err.message}`);
+      console.log(warn(`[WS] Error: ${err.message}`));
       clients.delete(ws);
     });
   });
@@ -66,13 +67,13 @@ export function setupWebSocket(wss: WebSocketServer): { cleanup: () => void } {
         // Future: selective subscriptions
         break;
       default:
-        console.log(`[WS] Unknown message type: ${message.type}`);
+        console.log(warn(`[WS] Unknown message type: ${message.type}`));
     }
   }
 
   // Setup file watcher
   const watcher = createFileWatcher((event: FileChangeEvent) => {
-    console.log(`[FS] ${event.type}: ${event.path}`);
+    console.log(info(`[FS] ${event.type}: ${event.path}`));
     broadcast({
       type: event.type,
       path: event.path,

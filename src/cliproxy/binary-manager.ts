@@ -18,6 +18,7 @@ import * as http from 'http';
 import * as crypto from 'crypto';
 import * as zlib from 'zlib';
 import { ProgressIndicator } from '../utils/progress-indicator';
+import { ok, info } from '../utils/ui';
 import { getBinDir, getCliproxyDir } from './config-generator';
 import {
   BinaryInfo,
@@ -100,9 +101,11 @@ export class BinaryManager {
         const updateResult = await this.checkForUpdates();
         if (updateResult.hasUpdate) {
           console.log(
-            `[i] CLIProxyAPI update available: v${updateResult.currentVersion} -> v${updateResult.latestVersion}`
+            info(
+              `CLIProxyAPI update available: v${updateResult.currentVersion} -> v${updateResult.latestVersion}`
+            )
           );
-          console.log(`[i] Updating CLIProxyAPI...`);
+          console.log(info('Updating CLIProxyAPI...'));
 
           // Delete old binary and download new version
           this.deleteBinary();
@@ -435,7 +438,7 @@ export class BinaryManager {
       // Save installed version for future update checks
       this.saveInstalledVersion(this.config.version);
 
-      console.log(`[OK] CLIProxyAPI v${this.config.version} installed successfully`);
+      console.log(ok(`CLIProxyAPI v${this.config.version} installed successfully`));
     } catch (error) {
       spinner.fail('Installation failed');
       throw error;
@@ -938,7 +941,7 @@ export async function installCliproxyVersion(version: string, verbose = false): 
   if (manager.isBinaryInstalled()) {
     const currentVersion = getInstalledCliproxyVersion();
     if (verbose) {
-      console.log(`[i] Removing existing CLIProxyAPI v${currentVersion}`);
+      console.log(info(`Removing existing CLIProxyAPI v${currentVersion}`));
     }
     manager.deleteBinary();
   }

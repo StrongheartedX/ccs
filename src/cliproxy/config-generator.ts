@@ -11,6 +11,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getCcsDir } from '../utils/config-manager';
+import { warn } from '../utils/ui';
 import { CLIProxyProvider, ProviderConfig, ProviderModelMapping } from './types';
 import { getModelMappingFromConfig, getEnvVarsFromConfig } from './base-config-loader';
 
@@ -373,10 +374,10 @@ export function getEffectiveEnvVars(
         }
       } catch {
         // Invalid JSON - fall through to provider defaults
-        console.warn(`[!] Warning: Invalid settings file: ${customSettingsPath}`);
+        console.warn(warn(`Invalid settings file: ${customSettingsPath}`));
       }
     } else {
-      console.warn(`[!] Warning: Settings file not found: ${customSettingsPath}`);
+      console.warn(warn(`Settings file not found: ${customSettingsPath}`));
     }
   }
 

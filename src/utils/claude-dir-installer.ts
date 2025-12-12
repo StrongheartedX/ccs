@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { colored } from './helpers';
+import { ok, warn } from './ui';
 
 // Ora fallback type for when ora is not available
 interface OraSpinner {
@@ -117,7 +117,7 @@ export class ClaudeDirInstaller {
       const msg = `Copied .claude/ items (${itemCount.files} files, ${itemCount.dirs} directories)`;
 
       if (spinner) {
-        spinner.succeed(colored('[OK]', 'green') + ` ${msg}`);
+        spinner.succeed(ok(msg));
       } else {
         console.log(`[OK] ${msg}`);
       }
@@ -126,7 +126,7 @@ export class ClaudeDirInstaller {
       const error = err as Error;
       const msg = `Failed to copy .claude/ directory: ${error.message}`;
       if (spinner) {
-        spinner.fail(colored('[!]', 'yellow') + ` ${msg}`);
+        spinner.fail(warn(msg));
         console.warn('    CCS items may not be available');
       } else {
         console.warn(`[!] ${msg}`);

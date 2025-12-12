@@ -6,7 +6,7 @@ import * as os from 'os';
 import * as fs from 'fs';
 import { SessionManager } from './session-manager';
 import { SettingsParser } from './settings-parser';
-import { ui } from '../utils/ui';
+import { ui, warn, info } from '../utils/ui';
 
 // Type definitions for delegation responses
 interface ClaudeMessage {
@@ -157,9 +157,9 @@ export class HeadlessExecutor {
         args.push('--dangerously-skip-permissions');
         // Warn about dangerous mode
         if (process.env.CCS_DEBUG) {
-          console.warn('[!] WARNING: Using --dangerously-skip-permissions mode');
+          console.warn(warn('WARNING: Using --dangerously-skip-permissions mode'));
           console.warn(
-            '[!] This bypasses ALL permission checks. Use only in trusted environments.'
+            warn('This bypasses ALL permission checks. Use only in trusted environments.')
           );
         }
       } else {
@@ -179,21 +179,23 @@ export class HeadlessExecutor {
               ? lastSession.totalCost.toFixed(4)
               : '0.0000';
           console.error(
-            `[i] Resuming session: ${lastSession.sessionId} (${lastSession.turns} turns, $${cost})`
+            info(
+              `Resuming session: ${lastSession.sessionId} (${lastSession.turns} turns, $${cost})`
+            )
           );
         }
       } else if (sessionId) {
         args.push('--resume', sessionId);
         if (process.env.CCS_DEBUG) {
-          console.error(`[i] Resuming specific session: ${sessionId}`);
+          console.error(info(`Resuming specific session: ${sessionId}`));
         }
       } else {
-        console.warn('[!] No previous session found, starting new session');
+        console.warn(warn('No previous session found, starting new session'));
       }
     } else if (sessionId) {
       args.push('--resume', sessionId);
       if (process.env.CCS_DEBUG) {
-        console.error(`[i] Resuming specific session: ${sessionId}`);
+        console.error(info(`Resuming specific session: ${sessionId}`));
       }
     }
 
@@ -219,7 +221,7 @@ export class HeadlessExecutor {
 
     // Debug log args
     if (process.env.CCS_DEBUG) {
-      console.error(`[i] Claude CLI args: ${args.join(' ')}`);
+      console.error(info(`Claude CLI args: ${args.join(' ')}`));
     }
 
     // Initialize UI before spawning
@@ -256,7 +258,7 @@ export class HeadlessExecutor {
       const cleanupHandler = () => {
         if (!proc.killed) {
           if (process.env.CCS_DEBUG) {
-            console.error('[!] Parent process terminating, killing delegated session...');
+            console.error(warn('Parent process terminating, killing delegated session...'));
           }
           proc.kill('SIGTERM');
           // Force kill if not dead after 2s
@@ -420,7 +422,7 @@ export class HeadlessExecutor {
             // Skip malformed JSON lines (shouldn't happen with stream-json)
             if (process.env.CCS_DEBUG) {
               console.error(
-                `[!] Failed to parse stream-json line: ${(parseError as Error).message}`
+                warn(`Failed to parse stream-json line: ${(parseError as Error).message}`)
               );
             }
           }
@@ -495,7 +497,7 @@ export class HeadlessExecutor {
           // Fallback: no result message found (shouldn't happen)
           result.content = stdout;
           if (process.env.CCS_DEBUG) {
-            console.error(`[!] No result message found in stream-json output`);
+            console.error(warn('No result message found in stream-json output'));
           }
         }
 
@@ -547,7 +549,7 @@ export class HeadlessExecutor {
 
             if (process.env.CCS_DEBUG) {
               console.error(
-                `[!] Timeout reached after ${timeout}ms, sending SIGTERM for graceful shutdown...`
+                warn(`Timeout reached after ${timeout}ms, sending SIGTERM for graceful shutdown...`)
               );
             }
 
@@ -558,7 +560,7 @@ export class HeadlessExecutor {
             setTimeout(() => {
               if (!proc.killed) {
                 if (process.env.CCS_DEBUG) {
-                  console.error(`[!] Process did not terminate gracefully, sending SIGKILL...`);
+                  console.error(warn('Process did not terminate gracefully, sending SIGKILL...'));
                 }
                 proc.kill('SIGKILL');
               }
@@ -632,7 +634,7 @@ export class HeadlessExecutor {
 
         // If not last attempt, retry
         if (attempt < maxRetries) {
-          console.error(`[!] Attempt ${attempt + 1} failed, retrying...`);
+          console.error(warn(`Attempt ${attempt + 1} failed, retrying...`));
           await this._sleep(1000 * (attempt + 1)); // Exponential backoff
           continue;
         }
@@ -644,7 +646,7 @@ export class HeadlessExecutor {
 
         if (attempt < maxRetries) {
           console.error(
-            `[!] Attempt ${attempt + 1} errored: ${(error as Error).message}, retrying...`
+            warn(`Attempt ${attempt + 1} errored: ${(error as Error).message}, retrying...`)
           );
           await this._sleep(1000 * (attempt + 1));
         }

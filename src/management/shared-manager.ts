@@ -9,6 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { ok, info, warn } from '../utils/ui';
 
 interface SharedItem {
   name: string;
@@ -61,7 +62,7 @@ class SharedManager {
       // Check if target points back to our shared dir or link path
       const sharedDir = path.join(this.homeDir, '.ccs', 'shared');
       if (resolvedTarget.startsWith(sharedDir) || resolvedTarget === linkPath) {
-        console.log(`[!] Circular symlink detected: ${target} → ${resolvedTarget}`);
+        console.log(warn(`Circular symlink detected: ${target} → ${resolvedTarget}`));
         return true;
       }
     } catch (_err) {
@@ -79,7 +80,7 @@ class SharedManager {
   ensureSharedDirectories(): void {
     // Create ~/.claude/ if missing
     if (!fs.existsSync(this.claudeDir)) {
-      console.log('[i] Creating ~/.claude/ directory structure');
+      console.log(info('Creating ~/.claude/ directory structure'));
       fs.mkdirSync(this.claudeDir, { recursive: true, mode: 0o700 });
     }
 
@@ -105,7 +106,7 @@ class SharedManager {
 
       // Check for circular symlink
       if (this.detectCircularSymlink(claudePath, sharedPath)) {
-        console.log(`[!] Skipping ${item.name}: circular symlink detected`);
+        console.log(warn(`Skipping ${item.name}: circular symlink detected`));
         continue;
       }
 
@@ -145,7 +146,7 @@ class SharedManager {
             fs.copyFileSync(claudePath, sharedPath);
           }
           console.log(
-            `[!] Symlink failed for ${item.name}, copied instead (enable Developer Mode)`
+            warn(`Symlink failed for ${item.name}, copied instead (enable Developer Mode)`)
           );
         } else {
           throw _err;
@@ -186,7 +187,7 @@ class SharedManager {
             fs.copyFileSync(targetPath, linkPath);
           }
           console.log(
-            `[!] Symlink failed for ${item.name}, copied instead (enable Developer Mode)`
+            warn(`Symlink failed for ${item.name}, copied instead (enable Developer Mode)`)
           );
         } else {
           throw _err;
@@ -212,7 +213,7 @@ class SharedManager {
       }
     }
 
-    console.log('[i] Migrating from v3.1.1 to v3.2.0...');
+    console.log(info('Migrating from v3.1.1 to v3.2.0...'));
 
     // Ensure ~/.claude/ exists
     if (!fs.existsSync(this.claudeDir)) {
@@ -256,7 +257,7 @@ class SharedManager {
           }
 
           if (copied > 0) {
-            console.log(`[OK] Migrated ${copied} ${item.name} to ~/.claude/${item.name}`);
+            console.log(ok(`Migrated ${copied} ${item.name} to ~/.claude/${item.name}`));
           }
         }
 
@@ -265,11 +266,11 @@ class SharedManager {
           // Only copy if ~/.claude/ version doesn't exist
           if (!fs.existsSync(claudePath)) {
             fs.copyFileSync(sharedPath, claudePath);
-            console.log(`[OK] Migrated ${item.name} to ~/.claude/${item.name}`);
+            console.log(ok(`Migrated ${item.name} to ~/.claude/${item.name}`));
           }
         }
       } catch (_err) {
-        console.log(`[!] Failed to migrate ${item.name}: ${(_err as Error).message}`);
+        console.log(warn(`Failed to migrate ${item.name}: ${(_err as Error).message}`));
       }
     }
 
@@ -288,7 +289,7 @@ class SharedManager {
               this.linkSharedDirectories(instancePath);
             }
           } catch (_err) {
-            console.log(`[!] Failed to update instance ${instance}: ${(_err as Error).message}`);
+            console.log(warn(`Failed to update instance ${instance}: ${(_err as Error).message}`));
           }
         }
       } catch (_err) {
@@ -296,7 +297,7 @@ class SharedManager {
       }
     }
 
-    console.log('[OK] Migration to v3.2.0 complete');
+    console.log(ok('Migration to v3.2.0 complete'));
   }
 
   /**
@@ -304,14 +305,14 @@ class SharedManager {
    * Runs once on upgrade
    */
   migrateToSharedSettings(): void {
-    console.log('[i] Migrating instances to shared settings.json...');
+    console.log(info('Migrating instances to shared settings.json...'));
 
     // Ensure ~/.claude/settings.json exists (authoritative source)
     const claudeSettings = path.join(this.claudeDir, 'settings.json');
     if (!fs.existsSync(claudeSettings)) {
       // Create empty settings if missing
       fs.writeFileSync(claudeSettings, JSON.stringify({}, null, 2), 'utf8');
-      console.log('[i] Created ~/.claude/settings.json');
+      console.log(info('Created ~/.claude/settings.json'));
     }
 
     // Ensure shared settings.json symlink exists
@@ -319,7 +320,7 @@ class SharedManager {
 
     // Migrate each instance
     if (!fs.existsSync(this.instancesDir)) {
-      console.log('[i] No instances to migrate');
+      console.log(info('No instances to migrate'));
       return;
     }
 
@@ -348,7 +349,7 @@ class SharedManager {
           const backup = instanceSettings + '.pre-shared-migration';
           if (!fs.existsSync(backup)) {
             fs.copyFileSync(instanceSettings, backup);
-            console.log(`[i] Backed up ${instance}/settings.json`);
+            console.log(info(`Backed up ${instance}/settings.json`));
           }
 
           // Remove old settings.json
@@ -365,18 +366,18 @@ class SharedManager {
           // Windows fallback
           if (process.platform === 'win32') {
             fs.copyFileSync(sharedSettings, instanceSettings);
-            console.log(`[!] Symlink failed for ${instance}, copied instead`);
+            console.log(warn(`Symlink failed for ${instance}, copied instead`));
             migrated++;
           } else {
             throw _err;
           }
         }
       } catch (_err) {
-        console.log(`[!] Failed to migrate ${instance}: ${(_err as Error).message}`);
+        console.log(warn(`Failed to migrate ${instance}: ${(_err as Error).message}`));
       }
     }
 
-    console.log(`[OK] Migrated ${migrated} instance(s), skipped ${skipped}`);
+    console.log(ok(`Migrated ${migrated} instance(s), skipped ${skipped}`));
   }
 
   /**

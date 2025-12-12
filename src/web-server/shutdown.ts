@@ -7,6 +7,7 @@
 
 import { Server as HTTPServer } from 'http';
 import { WebSocketServer } from 'ws';
+import { ok, info, warn } from '../utils/ui';
 
 const SHUTDOWN_TIMEOUT = 10_000; // 10 seconds
 
@@ -19,7 +20,7 @@ export function setupGracefulShutdown(
   cleanup?: () => void
 ): void {
   const shutdown = () => {
-    console.log('\n[i] Shutting down gracefully...');
+    console.log('\n' + info('Shutting down gracefully...'));
 
     // Run cleanup first (closes file watchers + WebSocket clients)
     if (cleanup) {
@@ -28,13 +29,13 @@ export function setupGracefulShutdown(
 
     // Close HTTP server
     server.close(() => {
-      console.log('[OK] Server closed');
+      console.log(ok('Server closed'));
       process.exit(0);
     });
 
     // Force shutdown if graceful shutdown takes too long
     setTimeout(() => {
-      console.log('[!] Force shutdown (timeout exceeded)');
+      console.log(warn('Force shutdown (timeout exceeded)'));
       process.exit(1);
     }, SHUTDOWN_TIMEOUT);
   };
