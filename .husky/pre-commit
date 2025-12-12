@@ -1,7 +1,8 @@
-# Run validation before commit (typecheck + lint + format + tests)
-bun run validate
+# Run quick checks before commit (typecheck + lint + format only)
+# Tests are run by CI - no need to duplicate locally
+bun run typecheck && bun run lint:fix && bun run format:check
 
-# Validate UI if changes detected
+# Validate UI if changes detected (typecheck + lint only)
 if git diff --cached --name-only | grep -q "^ui/"; then
   echo "[i] UI changes detected, running ui:validate..."
   bun run ui:validate

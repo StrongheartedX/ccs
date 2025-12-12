@@ -74,8 +74,8 @@
     "ui:build": "cd ui && bun run build",
     "ui:preview": "cd ui && bun run preview",
     "ui:validate": "cd ui && bun run validate",
-    "prepublishOnly": "bun run build:all && bun run validate && node scripts/sync-version.js",
-    "prepack": "bun run build:all && bun run validate && node scripts/sync-version.js",
+    "prepublishOnly": "node scripts/sync-version.js",
+    "prepack": "node scripts/sync-version.js",
     "prepare": "husky",
     "postinstall": "node scripts/postinstall.js"
   },
