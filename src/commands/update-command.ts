@@ -6,7 +6,7 @@
  */
 
 import { spawn } from 'child_process';
-import { colored } from '../utils/helpers';
+import { initUI, header, ok, fail, warn, info, color } from '../utils/ui';
 import { detectInstallationMethod, detectPackageManager } from '../utils/package-manager-detector';
 import { compareVersionsWithPrerelease } from '../utils/update-checker';
 import { getVersion } from '../utils/version';
@@ -27,11 +27,12 @@ const CCS_VERSION = getVersion();
  * Checks for updates and installs the latest version
  */
 export async function handleUpdateCommand(options: UpdateOptions = {}): Promise<void> {
+  await initUI();
   const { force = false, beta = false } = options;
   const targetTag = beta ? 'dev' : 'latest';
 
   console.log('');
-  console.log(colored('Checking for updates...', 'cyan'));
+  console.log(header('Checking for updates...'));
   console.log('');
 
   const installMethod = detectInstallationMethod();
@@ -39,7 +40,7 @@ export async function handleUpdateCommand(options: UpdateOptions = {}): Promise<
 
   // Force reinstall - skip update check
   if (force) {
-    console.log(colored(`[i] Force reinstall from @${targetTag} channel...`, 'cyan'));
+    console.log(info(`Force reinstall from @${targetTag} channel...`));
     console.log('');
 
     if (isNpmInstall) {
@@ -70,9 +71,7 @@ export async function handleUpdateCommand(options: UpdateOptions = {}): Promise<
   }
 
   // Update available
-  console.log(
-    colored(`[i] Update available: ${updateResult.current} -> ${updateResult.latest}`, 'yellow')
-  );
+  console.log(warn(`Update available: ${updateResult.current} -> ${updateResult.latest}`));
   console.log('');
 
   // Check if this is a downgrade (e.g., stable to older dev)
@@ -84,23 +83,22 @@ export async function handleUpdateCommand(options: UpdateOptions = {}): Promise<
   // This happens when stable user requests @dev but @dev base is older
   if (isDowngrade && beta) {
     console.log(
-      colored(
-        '[!] WARNING: Downgrading from ' +
+      warn(
+        'WARNING: Downgrading from ' +
           (updateResult.current || 'unknown') +
           ' to ' +
-          (updateResult.latest || 'unknown'),
-        'yellow'
+          (updateResult.latest || 'unknown')
       )
     );
-    console.log(colored('[!] Dev channel may be behind stable.', 'yellow'));
+    console.log(warn('Dev channel may be behind stable.'));
     console.log('');
   }
 
   // Show beta warning
   if (beta) {
-    console.log(colored('[!] Installing from @dev channel (unstable)', 'yellow'));
-    console.log(colored('[!] Not recommended for production use', 'yellow'));
-    console.log(colored('[!] Use `ccs update` (without --beta) to return to stable', 'cyan'));
+    console.log(warn('Installing from @dev channel (unstable)'));
+    console.log(warn('Not recommended for production use'));
+    console.log(info('Use `ccs update` (without --beta) to return to stable'));
     console.log('');
   }
 
@@ -119,9 +117,9 @@ function handleCheckFailed(
   isNpmInstall: boolean,
   targetTag: string = 'latest'
 ): void {
-  console.log(colored(`[X] ${message}`, 'red'));
+  console.log(fail(message));
   console.log('');
-  console.log(colored('[i] Possible causes:', 'yellow'));
+  console.log(warn('Possible causes:'));
   console.log('  - Network connection issues');
   console.log('  - Firewall blocking requests');
   console.log('  - GitHub/npm API temporarily unavailable');
@@ -149,13 +147,13 @@ function handleCheckFailed(
         manualCommand = `npm install -g @kaitranntt/ccs@${targetTag}`;
     }
 
-    console.log(colored(`  ${manualCommand}`, 'yellow'));
+    console.log(color(`  ${manualCommand}`, 'command'));
   } else {
     const isWindows = process.platform === 'win32';
     if (isWindows) {
-      console.log(colored('  irm ccs.kaitran.ca/install | iex', 'yellow'));
+      console.log(color('  irm ccs.kaitran.ca/install | iex', 'command'));
     } else {
-      console.log(colored('  curl -fsSL ccs.kaitran.ca/install | bash', 'yellow'));
+      console.log(color('  curl -fsSL ccs.kaitran.ca/install | bash', 'command'));
     }
   }
   console.log('');
@@ -173,14 +171,14 @@ function handleNoUpdate(reason: string | undefined): void {
   switch (reason) {
     case 'dismissed':
       message = `Update dismissed. You are on version ${version}`;
-      console.log(colored(`[i] ${message}`, 'yellow'));
+      console.log(warn(message));
       break;
     case 'cached':
       message = `No updates available (cached result). You are on version ${version}`;
-      console.log(colored(`[i] ${message}`, 'cyan'));
+      console.log(info(message));
       break;
     default:
-      console.log(colored(`[OK] ${message}`, 'green'));
+      console.log(ok(message));
   }
   console.log('');
   process.exit(0);
@@ -231,9 +229,7 @@ async function performNpmUpdate(
       cacheArgs = ['cache', 'clean', '--force'];
   }
 
-  console.log(
-    colored(`${isReinstall ? 'Reinstalling' : 'Updating'} via ${packageManager}...`, 'cyan')
-  );
+  console.log(info(`${isReinstall ? 'Reinstalling' : 'Updating'} via ${packageManager}...`));
   console.log('');
 
   const performUpdate = (): void => {
@@ -244,16 +240,16 @@ async function performNpmUpdate(
     child.on('exit', (code) => {
       if (code === 0) {
         console.log('');
-        console.log(colored(`[OK] ${isReinstall ? 'Reinstall' : 'Update'} successful!`, 'green'));
+        console.log(ok(`${isReinstall ? 'Reinstall' : 'Update'} successful!`));
         console.log('');
-        console.log(`Run ${colored('ccs --version', 'yellow')} to verify`);
+        console.log(`Run ${color('ccs --version', 'command')} to verify`);
         console.log('');
       } else {
         console.log('');
-        console.log(colored(`[X] ${isReinstall ? 'Reinstall' : 'Update'} failed`, 'red'));
+        console.log(fail(`${isReinstall ? 'Reinstall' : 'Update'} failed`));
         console.log('');
         console.log('Try manually:');
-        console.log(colored(`  ${updateCommand} ${updateArgs.join(' ')}`, 'yellow'));
+        console.log(color(`  ${updateCommand} ${updateArgs.join(' ')}`, 'command'));
         console.log('');
       }
       process.exit(code || 0);
@@ -261,35 +257,30 @@ async function performNpmUpdate(
 
     child.on('error', () => {
       console.log('');
-      console.log(
-        colored(
-          `[X] Failed to run ${packageManager} ${isReinstall ? 'reinstall' : 'update'}`,
-          'red'
-        )
-      );
+      console.log(fail(`Failed to run ${packageManager} ${isReinstall ? 'reinstall' : 'update'}`));
       console.log('');
       console.log('Try manually:');
-      console.log(colored(`  ${updateCommand} ${updateArgs.join(' ')}`, 'yellow'));
+      console.log(color(`  ${updateCommand} ${updateArgs.join(' ')}`, 'command'));
       console.log('');
       process.exit(1);
     });
   };
 
   if (cacheCommand && cacheArgs) {
-    console.log(colored('Clearing package cache...', 'cyan'));
+    console.log(info('Clearing package cache...'));
     const cacheChild = spawn(cacheCommand, cacheArgs, {
       stdio: 'inherit',
     });
 
     cacheChild.on('exit', (code) => {
       if (code !== 0) {
-        console.log(colored('[!] Cache clearing failed, proceeding anyway...', 'yellow'));
+        console.log(warn('Cache clearing failed, proceeding anyway...'));
       }
       performUpdate();
     });
 
     cacheChild.on('error', () => {
-      console.log(colored('[!] Cache clearing failed, proceeding anyway...', 'yellow'));
+      console.log(warn('Cache clearing failed, proceeding anyway...'));
       performUpdate();
     });
   } else {
@@ -301,13 +292,13 @@ async function performNpmUpdate(
  * Handle direct install beta not supported error
  */
 function handleDirectBetaNotSupported(): void {
-  console.log(colored('[X] --beta flag requires npm installation', 'red'));
+  console.log(fail('--beta flag requires npm installation'));
   console.log('');
   console.log('Current installation method: direct installer');
   console.log('To use beta releases, install via npm:');
   console.log('');
-  console.log(colored('  npm install -g @kaitranntt/ccs', 'yellow'));
-  console.log(colored('  ccs update --beta', 'yellow'));
+  console.log(color('  npm install -g @kaitranntt/ccs', 'command'));
+  console.log(color('  ccs update --beta', 'command'));
   console.log('');
   console.log('Or continue using stable releases via direct installer.');
   console.log('');
@@ -318,7 +309,7 @@ function handleDirectBetaNotSupported(): void {
  * Perform update via direct installer (curl/irm)
  */
 async function performDirectUpdate(): Promise<void> {
-  console.log(colored('Updating via installer...', 'cyan'));
+  console.log(info('Updating via installer...'));
   console.log('');
 
   const isWindows = process.platform === 'win32';
@@ -346,19 +337,19 @@ async function performDirectUpdate(): Promise<void> {
   child.on('exit', (code) => {
     if (code === 0) {
       console.log('');
-      console.log(colored('[OK] Update successful!', 'green'));
+      console.log(ok('Update successful!'));
       console.log('');
-      console.log(`Run ${colored('ccs --version', 'yellow')} to verify`);
+      console.log(`Run ${color('ccs --version', 'command')} to verify`);
       console.log('');
     } else {
       console.log('');
-      console.log(colored('[X] Update failed', 'red'));
+      console.log(fail('Update failed'));
       console.log('');
       console.log('Try manually:');
       if (isWindows) {
-        console.log(colored('  irm ccs.kaitran.ca/install | iex', 'yellow'));
+        console.log(color('  irm ccs.kaitran.ca/install | iex', 'command'));
       } else {
-        console.log(colored('  curl -fsSL ccs.kaitran.ca/install | bash', 'yellow'));
+        console.log(color('  curl -fsSL ccs.kaitran.ca/install | bash', 'command'));
       }
       console.log('');
     }
@@ -367,13 +358,13 @@ async function performDirectUpdate(): Promise<void> {
 
   child.on('error', () => {
     console.log('');
-    console.log(colored('[X] Failed to run installer', 'red'));
+    console.log(fail('Failed to run installer'));
     console.log('');
     console.log('Try manually:');
     if (isWindows) {
-      console.log(colored('  irm ccs.kaitran.ca/install | iex', 'yellow'));
+      console.log(color('  irm ccs.kaitran.ca/install | iex', 'command'));
     } else {
-      console.log(colored('  curl -fsSL ccs.kaitran.ca/install | bash', 'yellow'));
+      console.log(color('  curl -fsSL ccs.kaitran.ca/install | bash', 'command'));
     }
     console.log('');
     process.exit(1);

@@ -18,6 +18,7 @@ import { getCcsDir } from '../utils/config-manager';
 import type { ProfileConfig, AccountConfig, CLIProxyVariantConfig } from './unified-config-types';
 import { createEmptyUnifiedConfig } from './unified-config-types';
 import { saveUnifiedConfig, hasUnifiedConfig } from './unified-config-loader';
+import { infoBox, warn } from '../utils/ui';
 
 const BACKUP_DIR_PREFIX = 'backup-v1-';
 
@@ -343,23 +344,19 @@ export async function autoMigrate(): Promise<void> {
 
   if (result.success) {
     console.log('');
-    console.log('╭─────────────────────────────────────────────────────────╮');
-    console.log('│  [OK] Migrated to unified config (config.yaml)          │');
-    console.log('╰─────────────────────────────────────────────────────────╯');
+    console.log(infoBox('Migrated to unified config (config.yaml)', 'SUCCESS'));
     console.log(`  Backup: ${result.backupPath}`);
     console.log(`  Items:  ${result.migratedFiles.length} migrated`);
     if (result.warnings.length > 0) {
       for (const warning of result.warnings) {
-        console.log(`  [!] ${warning}`);
+        console.log(warn(warning));
       }
     }
     console.log(`  Rollback: ccs migrate --rollback ${result.backupPath}`);
     console.log('');
   } else {
     console.log('');
-    console.log('╭─────────────────────────────────────────────────────────╮');
-    console.log('│  [!] Migration failed - using legacy config             │');
-    console.log('╰─────────────────────────────────────────────────────────╯');
+    console.log(infoBox('Migration failed - using legacy config', 'WARNING'));
     console.log(`  Error: ${result.error}`);
     console.log('  Retry: ccs migrate');
     console.log('');

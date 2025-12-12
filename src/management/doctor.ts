@@ -1153,9 +1153,9 @@ class Doctor {
 
     if (fixed > 0) {
       console.log('');
-      console.log(ok(`[OK] Fixed ${fixed} issue(s)`));
+      console.log(ok(`Fixed ${fixed} issue(s)`));
     } else {
-      console.log(info('[i] No fixable issues detected'));
+      console.log(info('No fixable issues detected'));
     }
   }
 

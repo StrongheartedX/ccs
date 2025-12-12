@@ -5,6 +5,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { info } from '../utils/ui';
 
 /**
  * Recovery Manager Class
@@ -123,13 +124,13 @@ class RecoveryManager {
     if (this.recovered.length === 0) return;
 
     console.log('');
-    console.log('[i] Auto-recovery completed:');
+    console.log(info('Auto-recovery completed:'));
     this.recovered.forEach((msg) => console.log(`    - ${msg}`));
 
     // Show login hint if created Claude settings
     if (this.recovered.some((msg) => msg.includes('settings.json'))) {
       console.log('');
-      console.log('[i] Next step: Login to Claude CLI');
+      console.log(info('Next step: Login to Claude CLI'));
       console.log('    Run: claude /login');
     }
 

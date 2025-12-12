@@ -16,6 +16,7 @@ import { execSync, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import { ProgressIndicator } from '../utils/progress-indicator';
+import { ok, fail, info, warn } from '../utils/ui';
 import { ensureCLIProxyBinary } from './binary-manager';
 import { generateConfig, getProviderAuthDir } from './config-generator';
 import { CLIProxyProvider } from './types';
@@ -460,7 +461,9 @@ export async function triggerOAuth(
   if (existingAccounts.length > 0 && !add) {
     console.log('');
     console.log(
-      `[i] ${existingAccounts.length} account(s) already authenticated for ${oauthConfig.displayName}`
+      info(
+        `${existingAccounts.length} account(s) already authenticated for ${oauthConfig.displayName}`
+      )
     );
 
     // Import readline for confirm prompt
@@ -478,7 +481,7 @@ export async function triggerOAuth(
     });
 
     if (!confirmed) {
-      console.log('[i] Cancelled');
+      console.log(info('Cancelled'));
       return null;
     }
   }
@@ -487,12 +490,12 @@ export async function triggerOAuth(
   const preflight = await preflightOAuthCheck(provider);
   if (!preflight.ready) {
     console.log('');
-    console.log('[!] OAuth pre-flight check failed:');
+    console.log(warn('OAuth pre-flight check failed:'));
     for (const issue of preflight.issues) {
       console.log(`    ${issue}`);
     }
     console.log('');
-    console.log('[i] Resolve the port conflict and try again.');
+    console.log(info('Resolve the port conflict and try again.'));
     return null;
   }
 
@@ -501,7 +504,7 @@ export async function triggerOAuth(
   try {
     binaryPath = await ensureCLIProxyBinary(verbose);
   } catch (error) {
-    console.error('[X] Failed to prepare CLIProxy binary');
+    console.error(fail('Failed to prepare CLIProxy binary'));
     throw error;
   }
 
@@ -532,12 +535,12 @@ export async function triggerOAuth(
   // Show appropriate message
   console.log('');
   if (headless) {
-    console.log(`[i] Headless mode detected - manual authentication required`);
-    console.log(`[i] ${oauthConfig.displayName} will display an OAuth URL below`);
+    console.log(info('Headless mode detected - manual authentication required'));
+    console.log(info(`${oauthConfig.displayName} will display an OAuth URL below`));
     console.log('');
   } else {
-    console.log(`[i] Opening browser for ${oauthConfig.displayName} authentication...`);
-    console.log('[i] Complete the login in your browser.');
+    console.log(info(`Opening browser for ${oauthConfig.displayName} authentication...`));
+    console.log(info('Complete the login in your browser.'));
     console.log('');
   }
 
@@ -572,7 +575,7 @@ export async function triggerOAuth(
           if (urlMatch && !urlDisplayed) {
             console.log(`    ${urlMatch[0]}`);
             console.log('');
-            console.log('[i] Waiting for authentication... (press Ctrl+C to cancel)');
+            console.log(info('Waiting for authentication... (press Ctrl+C to cancel)'));
             urlDisplayed = true;
           }
         }
@@ -590,7 +593,7 @@ export async function triggerOAuth(
         if (urlMatch) {
           console.log(`    ${urlMatch[0]}`);
           console.log('');
-          console.log('[i] Waiting for authentication... (press Ctrl+C to cancel)');
+          console.log(info('Waiting for authentication... (press Ctrl+C to cancel)'));
           urlDisplayed = true;
         }
       }
@@ -601,7 +604,7 @@ export async function triggerOAuth(
     const timeout = setTimeout(() => {
       if (!headless) spinner.fail('Authentication timeout');
       authProcess.kill();
-      console.error(`[X] OAuth timed out after ${headless ? 5 : 2} minutes`);
+      console.error(fail(`OAuth timed out after ${headless ? 5 : 2} minutes`));
       console.error('');
       if (!headless) {
         console.error('Troubleshooting:');
@@ -618,14 +621,14 @@ export async function triggerOAuth(
         // Verify token was created BEFORE showing success
         if (isAuthenticated(provider)) {
           if (!headless) spinner.succeed(`Authenticated with ${oauthConfig.displayName}`);
-          console.log('[OK] Authentication successful');
+          console.log(ok('Authentication successful'));
 
           // Register the account in accounts registry
           const account = registerAccountFromToken(provider, tokenDir, nickname);
           resolve(account);
         } else {
           if (!headless) spinner.fail('Authentication incomplete');
-          console.error('[X] Token not found after authentication');
+          console.error(fail('Token not found after authentication'));
           // Qwen uses Device Code Flow (polling), others use Authorization Code Flow (callback)
           if (provider === 'qwen') {
             console.error('    Qwen uses Device Code Flow - ensure you completed auth in browser');
@@ -639,14 +642,14 @@ export async function triggerOAuth(
         }
       } else {
         if (!headless) spinner.fail('Authentication failed');
-        console.error(`[X] CLIProxyAPI auth exited with code ${code}`);
+        console.error(fail(`CLIProxyAPI auth exited with code ${code}`));
         if (stderrData && !urlDisplayed) {
           console.error(`    ${stderrData.trim().split('\n')[0]}`);
         }
         // Show headless hint if we detected headless environment
         if (headless && !urlDisplayed) {
           console.error('');
-          console.error('[i] No OAuth URL was displayed. Try with --verbose for details.');
+          console.error(info('No OAuth URL was displayed. Try with --verbose for details.'));
         }
         resolve(null);
       }
@@ -655,7 +658,7 @@ export async function triggerOAuth(
     authProcess.on('error', (error) => {
       clearTimeout(timeout);
       if (!headless) spinner.fail('Authentication error');
-      console.error(`[X] Failed to start auth process: ${error.message}`);
+      console.error(fail(`Failed to start auth process: ${error.message}`));
       resolve(null);
     });
   });
@@ -735,7 +738,7 @@ export async function ensureAuth(
 
   // Not authenticated - trigger OAuth
   const oauthConfig = getOAuthConfig(provider);
-  console.log(`[i] ${oauthConfig.displayName} authentication required`);
+  console.log(info(`${oauthConfig.displayName} authentication required`));
 
   const account = await triggerOAuth(provider, options);
   return account !== null;

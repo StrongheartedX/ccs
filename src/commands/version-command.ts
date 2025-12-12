@@ -7,29 +7,30 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { colored } from '../utils/helpers';
+import { initUI, header, subheader, color, warn } from '../utils/ui';
 import { getConfigPath } from '../utils/config-manager';
 import { getVersion } from '../utils/version';
 
 /**
  * Handle version command
  */
-export function handleVersionCommand(): void {
-  console.log(colored(`CCS (Claude Code Switch) v${getVersion()}`, 'bold'));
+export async function handleVersionCommand(): Promise<void> {
+  await initUI();
+  console.log(header(`CCS (Claude Code Switch) v${getVersion()}`));
   console.log('');
 
-  console.log(colored('Installation:', 'cyan'));
+  console.log(subheader('Installation:'));
   const installLocation = process.argv[1] || '(not found)';
-  console.log(`  ${colored('Location:'.padEnd(17), 'cyan')} ${installLocation}`);
+  console.log(`  ${color('Location:'.padEnd(17), 'info')} ${installLocation}`);
 
   const ccsDir = path.join(os.homedir(), '.ccs');
-  console.log(`  ${colored('CCS Directory:'.padEnd(17), 'cyan')} ${ccsDir}`);
+  console.log(`  ${color('CCS Directory:'.padEnd(17), 'info')} ${ccsDir}`);
 
   const configPath = getConfigPath();
-  console.log(`  ${colored('Config:'.padEnd(17), 'cyan')} ${configPath}`);
+  console.log(`  ${color('Config:'.padEnd(17), 'info')} ${configPath}`);
 
   const profilesJson = path.join(os.homedir(), '.ccs', 'profiles.json');
-  console.log(`  ${colored('Profiles:'.padEnd(17), 'cyan')} ${profilesJson}`);
+  console.log(`  ${color('Profiles:'.padEnd(17), 'info')} ${profilesJson}`);
 
   // Delegation status
   const delegationSessionsPath = path.join(os.homedir(), '.ccs', 'delegation-sessions.json');
@@ -57,29 +58,31 @@ export function handleVersionCommand(): void {
   const delegationEnabled = delegationConfigured || hasValidApiKeys;
 
   if (delegationEnabled) {
-    console.log(`  ${colored('Delegation:'.padEnd(17), 'cyan')} Enabled`);
+    console.log(`  ${color('Delegation:'.padEnd(17), 'info')} Enabled`);
   } else {
-    console.log(`  ${colored('Delegation:'.padEnd(17), 'cyan')} Not configured`);
+    console.log(`  ${color('Delegation:'.padEnd(17), 'info')} Not configured`);
   }
 
   console.log('');
 
   if (readyProfiles.length > 0) {
-    console.log(colored('Delegation Ready:', 'cyan'));
+    console.log(subheader('Delegation Ready:'));
     console.log(
-      `  ${colored('[OK]', 'yellow')} ${readyProfiles.join(', ')} profiles are ready for delegation`
+      `  ${color('[OK]', 'warning')} ${readyProfiles.join(', ')} profiles are ready for delegation`
     );
     console.log('');
   } else if (delegationEnabled) {
-    console.log(colored('Delegation Ready:', 'cyan'));
-    console.log(`  ${colored('[!]', 'yellow')} Delegation configured but no valid API keys found`);
+    console.log(subheader('Delegation Ready:'));
+    console.log(warn('Delegation configured but no valid API keys found'));
     console.log('');
   }
 
-  console.log(`${colored('Documentation:', 'cyan')} https://github.com/kaitranntt/ccs`);
-  console.log(`${colored('License:', 'cyan')} MIT`);
+  console.log(
+    `${subheader('Documentation:')} ${color('https://github.com/kaitranntt/ccs', 'path')}`
+  );
+  console.log(`${subheader('License:')} MIT`);
   console.log('');
-  console.log(colored("Run 'ccs --help' for usage information", 'yellow'));
+  console.log(color("Run 'ccs --help' for usage information", 'command'));
 
   process.exit(0);
 }

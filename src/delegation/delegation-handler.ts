@@ -5,6 +5,7 @@ import { SessionManager } from './session-manager';
 import { ResultFormatter } from './result-formatter';
 import { DelegationValidator } from '../utils/delegation-validator';
 import { SettingsParser } from './settings-parser';
+import { fail } from '../utils/ui';
 
 interface ParsedArgs {
   profile: string;
@@ -52,7 +53,7 @@ export class DelegationHandler {
       // 6. Exit with proper code
       process.exit(result.exitCode || 0);
     } catch (error) {
-      console.error(`[X] Delegation error: ${(error as Error).message}`);
+      console.error(fail(`Delegation error: ${(error as Error).message}`));
       if (process.env.CCS_DEBUG) {
         console.error((error as Error).stack);
       }
@@ -72,7 +73,7 @@ export class DelegationHandler {
     const lastSession = sessionMgr.getLastSession(baseProfile);
 
     if (!lastSession) {
-      console.error(`[X] No previous session found for ${baseProfile}`);
+      console.error(fail(`No previous session found for ${baseProfile}`));
       console.error(`    Start a new session first with: ccs ${baseProfile} -p "task"`);
       process.exit(1);
     }
@@ -148,7 +149,7 @@ export class DelegationHandler {
     const index = pIndex !== -1 ? pIndex : promptIndex;
 
     if (index === -1 || index === args.length - 1) {
-      console.error('[X] Missing prompt after -p flag');
+      console.error(fail('Missing prompt after -p flag'));
       console.error('    Usage: ccs glm -p "task description"');
       process.exit(1);
     }
@@ -228,7 +229,7 @@ export class DelegationHandler {
    */
   _validateProfile(profile: string): void {
     if (!profile) {
-      console.error('[X] No profile specified');
+      console.error(fail('No profile specified'));
       console.error('    Usage: ccs <profile> -p "task"');
       console.error('    Examples: ccs glm -p "task", ccs kimi -p "task"');
       process.exit(1);
@@ -237,7 +238,7 @@ export class DelegationHandler {
     // Use DelegationValidator to check profile
     const validation = DelegationValidator.validate(profile);
     if (!validation.valid) {
-      console.error(`[X] Profile '${profile}' is not configured for delegation`);
+      console.error(fail(`Profile '${profile}' is not configured for delegation`));
       console.error(`    ${validation.error}`);
       console.error('');
       console.error('    Run: ccs doctor');

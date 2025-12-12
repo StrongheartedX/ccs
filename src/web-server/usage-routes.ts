@@ -38,6 +38,7 @@ import {
   clearDiskCache,
   getCacheAge,
 } from './usage-disk-cache';
+import { ok, info, fail } from '../utils/ui';
 
 // ============================================================================
 // Multi-Instance Support - Aggregate usage from CCS profiles
@@ -66,7 +67,7 @@ function getInstancePaths(): string[] {
         return fs.existsSync(projectsPath);
       });
   } catch {
-    console.error('[!] Failed to read CCS instances directory');
+    console.error(fail('Failed to read CCS instances directory'));
     return [];
   }
 }
@@ -87,7 +88,7 @@ async function loadInstanceData(instancePath: string): Promise<{
   } catch (_err) {
     // Instance may have no usage data - that's OK
     const instanceName = path.basename(instancePath);
-    console.log(`[i] No usage data in instance: ${instanceName}`);
+    console.log(info(`No usage data in instance: ${instanceName}`));
     return { daily: [], monthly: [], session: [] };
   }
 }
@@ -283,7 +284,7 @@ async function getCachedData<T>(key: string, ttl: number, loader: () => Promise<
           persistCacheIfComplete();
         })
         .catch((err) => {
-          console.error(`[!] Background refresh failed for ${key}:`, err);
+          console.error(fail(`Background refresh failed for ${key}: ${err}`));
         })
         .finally(() => {
           pendingRequests.delete(key);
@@ -376,7 +377,7 @@ async function refreshFromSource(): Promise<{
       instanceDataResults.push(data);
     } catch (err) {
       const instanceName = path.basename(instancePath);
-      console.error(`[!] Failed to load instance ${instanceName}:`, err);
+      console.error(fail(`Failed to load instance ${instanceName}: ${err}`));
     }
   }
 
@@ -392,7 +393,7 @@ async function refreshFromSource(): Promise<{
   }
 
   if (instanceDataResults.length > 0) {
-    console.log(`[i] Aggregated usage data from ${instanceDataResults.length} CCS instance(s)`);
+    console.log(info(`Aggregated usage data from ${instanceDataResults.length} CCS instance(s)`));
   }
 
   // Merge all data sources
@@ -453,7 +454,7 @@ export async function prewarmUsageCache(): Promise<{
   source: string;
 }> {
   const start = Date.now();
-  console.log('[i] Pre-warming usage cache...');
+  console.log(info('Pre-warming usage cache...'));
 
   try {
     const diskCache = readDiskCache();
@@ -468,7 +469,7 @@ export async function prewarmUsageCache(): Promise<{
 
       const elapsed = Date.now() - start;
       console.log(
-        `[OK] Usage cache ready from disk (${elapsed}ms, cached ${getCacheAge(diskCache)})`
+        ok(`Usage cache ready from disk (${elapsed}ms, cached ${getCacheAge(diskCache)})`)
       );
       return { timestamp: now, elapsed, source: 'disk-fresh' };
     }
@@ -483,15 +484,17 @@ export async function prewarmUsageCache(): Promise<{
 
       const elapsed = Date.now() - start;
       console.log(
-        `[OK] Usage cache ready from disk (${elapsed}ms, stale ${getCacheAge(diskCache)}, refreshing...)`
+        ok(
+          `Usage cache ready from disk (${elapsed}ms, stale ${getCacheAge(diskCache)}, refreshing...)`
+        )
       );
 
       // Background refresh
       if (!isRefreshing) {
         isRefreshing = true;
         refreshFromSource()
-          .then(() => console.log('[OK] Background refresh complete'))
-          .catch((err) => console.error('[!] Background refresh failed:', err))
+          .then(() => console.log(ok('Background refresh complete')))
+          .catch((err) => console.error(fail(`Background refresh failed: ${err}`)))
           .finally(() => {
             isRefreshing = false;
           });
@@ -501,14 +504,14 @@ export async function prewarmUsageCache(): Promise<{
     }
 
     // No usable disk cache - refresh from source (blocking for first startup only)
-    console.log('[i] No disk cache, loading from source...');
+    console.log(info('No disk cache, loading from source...'));
     await refreshFromSource();
 
     const elapsed = Date.now() - start;
-    console.log(`[OK] Usage cache ready (${elapsed}ms)`);
+    console.log(ok(`Usage cache ready (${elapsed}ms)`));
     return { timestamp: Date.now(), elapsed, source: 'fresh' };
   } catch (err) {
-    console.error('[!] Failed to prewarm usage cache:', err);
+    console.error(fail(`Failed to prewarm usage cache: ${err}`));
     throw err;
   }
 }

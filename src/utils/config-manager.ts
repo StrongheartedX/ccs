@@ -2,8 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { Config, isConfig, Settings, isSettings } from '../types';
-import { expandPath } from './helpers';
-import { error } from './helpers';
+import { expandPath, error } from './helpers';
+import { info } from './ui';
 
 // TODO: Replace with proper imports after converting these files
 // const { ErrorManager } = require('./error-manager');
@@ -107,7 +107,7 @@ export function getSettingsPath(profile: string): string {
       // const recovery = new RecoveryManager();
       // recovery.ensureClaudeSettings();
 
-      console.log('[i] Auto-created missing settings file');
+      console.log(info('Auto-created missing settings file'));
     } else {
       error(`Settings file not found: ${expandedPath}`);
     }

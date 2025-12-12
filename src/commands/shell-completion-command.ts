@@ -4,15 +4,16 @@
  * Handle --shell-completion command for CCS.
  */
 
-import { colored } from '../utils/helpers';
+import { initUI, header, ok, fail, color } from '../utils/ui';
 
 /**
  * Handle shell completion command
  */
 export async function handleShellCompletionCommand(args: string[]): Promise<void> {
+  await initUI();
   const { ShellCompletionInstaller } = await import('../utils/shell-completion');
 
-  console.log(colored('Shell Completion Installer', 'bold'));
+  console.log(header('Shell Completion Installer'));
   console.log('');
 
   // Parse flags
@@ -30,28 +31,28 @@ export async function handleShellCompletionCommand(args: string[]): Promise<void
     });
 
     if (result.alreadyInstalled && !force) {
-      console.log(colored('[OK] Shell completion already installed', 'green'));
-      console.log(`    Use ${colored('--force', 'yellow')} to reinstall`);
+      console.log(ok('Shell completion already installed'));
+      console.log(`    Use ${color('--force', 'warning')} to reinstall`);
       console.log('');
       return;
     }
 
-    console.log(colored('[OK] Shell completion installed successfully!', 'green'));
+    console.log(ok('Shell completion installed successfully!'));
     console.log('');
     console.log(result.message);
     console.log('');
-    console.log(colored('To activate:', 'cyan'));
+    console.log(color('To activate:', 'info'));
     console.log(`  ${result.reload}`);
     console.log('');
-    console.log(colored('Then test:', 'cyan'));
+    console.log(color('Then test:', 'info'));
     console.log('  ccs <TAB>        # See available profiles');
     console.log('  ccs auth <TAB>   # See auth subcommands');
     console.log('');
   } catch (error) {
     const err = error as Error;
-    console.error(colored('[X] Error:', 'red'), err.message);
+    console.error(fail(`Error: ${err.message}`));
     console.error('');
-    console.error(colored('Usage:', 'yellow'));
+    console.error(color('Usage:', 'warning'));
     console.error('  ccs --shell-completion           # Auto-detect shell');
     console.error('  ccs --shell-completion --bash    # Install for bash');
     console.error('  ccs --shell-completion --zsh     # Install for zsh');

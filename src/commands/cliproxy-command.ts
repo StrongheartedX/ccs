@@ -945,21 +945,21 @@ async function showStatus(verbose: boolean): Promise<void> {
 async function installVersion(version: string, verbose: boolean): Promise<void> {
   // Validate version format (basic semver check)
   if (!/^\d+\.\d+\.\d+$/.test(version)) {
-    console.error('[X] Invalid version format. Expected format: X.Y.Z (e.g., 6.5.53)');
+    console.error(fail('Invalid version format. Expected format: X.Y.Z (e.g., 6.5.53)'));
     process.exit(1);
   }
 
-  console.log(`[i] Installing CLIProxyAPI v${version}...`);
+  console.log(info(`Installing CLIProxyAPI v${version}...`));
   console.log('');
 
   try {
     await installCliproxyVersion(version, verbose);
     console.log('');
-    console.log(`[OK] CLIProxyAPI v${version} installed successfully`);
+    console.log(ok(`CLIProxyAPI v${version} installed successfully`));
   } catch (error) {
     const err = error as Error;
     console.error('');
-    console.error(`[X] Failed to install CLIProxyAPI v${version}`);
+    console.error(fail(`Failed to install CLIProxyAPI v${version}`));
     console.error(`    ${err.message}`);
     console.error('');
     console.error('Possible causes:');
@@ -977,29 +977,29 @@ async function installVersion(version: string, verbose: boolean): Promise<void> 
  * Install latest version
  */
 async function installLatest(verbose: boolean): Promise<void> {
-  console.log('[i] Fetching latest CLIProxyAPI version...');
+  console.log(info('Fetching latest CLIProxyAPI version...'));
 
   try {
     const latestVersion = await fetchLatestCliproxyVersion();
     const currentVersion = getInstalledCliproxyVersion();
 
     if (isCLIProxyInstalled() && latestVersion === currentVersion) {
-      console.log(`[OK] Already running latest version: v${latestVersion}`);
+      console.log(ok(`Already running latest version: v${latestVersion}`));
       return;
     }
 
-    console.log(`[i] Latest version: v${latestVersion}`);
+    console.log(info(`Latest version: v${latestVersion}`));
     if (isCLIProxyInstalled()) {
-      console.log(`[i] Current version: v${currentVersion}`);
+      console.log(info(`Current version: v${currentVersion}`));
     }
     console.log('');
 
     await installCliproxyVersion(latestVersion, verbose);
     console.log('');
-    console.log(`[OK] CLIProxyAPI updated to v${latestVersion}`);
+    console.log(ok(`CLIProxyAPI updated to v${latestVersion}`));
   } catch (error) {
     const err = error as Error;
-    console.error(`[X] Failed to install latest version: ${err.message}`);
+    console.error(fail(`Failed to install latest version: ${err.message}`));
     process.exit(1);
   }
 }

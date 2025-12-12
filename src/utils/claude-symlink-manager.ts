@@ -15,7 +15,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { colored } from './helpers';
+import { ok, color } from './ui';
 
 // Ora fallback type for when ora is not available
 interface OraSpinner {
@@ -121,7 +121,7 @@ export class ClaudeSymlinkManager {
 
     const msg = `${installed}/${this.ccsItems.length} items installed to ~/.claude/`;
     if (spinner) {
-      spinner.succeed(colored('[OK]', 'green') + ` ${msg}`);
+      spinner.succeed(ok(msg));
     } else {
       console.log(`[OK] ${msg}`);
     }
@@ -395,7 +395,7 @@ export class ClaudeSymlinkManager {
    */
   sync(): void {
     console.log('');
-    console.log(colored('Syncing CCS Components...', 'cyan'));
+    console.log(color('Syncing CCS Components...', 'info'));
     console.log('');
     this.install(false);
   }

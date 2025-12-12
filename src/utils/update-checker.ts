@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as https from 'https';
-import { colored } from './helpers';
+import { warn, color } from './ui';
 
 const CACHE_DIR = path.join(os.homedir(), '.ccs', 'cache');
 const UPDATE_CHECK_FILE = path.join(CACHE_DIR, 'update-check.json');
@@ -305,13 +305,11 @@ export async function checkForUpdates(
  */
 export function showUpdateNotification(updateInfo: { current: string; latest: string }): void {
   console.log('');
-  console.log(colored('═══════════════════════════════════════════════════════', 'cyan'));
-  console.log(
-    colored(`  Update available: ${updateInfo.current} → ${updateInfo.latest}`, 'yellow')
-  );
-  console.log(colored('═══════════════════════════════════════════════════════', 'cyan'));
+  console.log(color('═══════════════════════════════════════════════════════', 'info'));
+  console.log(warn(`Update available: ${updateInfo.current} → ${updateInfo.latest}`));
+  console.log(color('═══════════════════════════════════════════════════════', 'info'));
   console.log('');
-  console.log(`  Run ${colored('ccs update', 'yellow')} to update`);
+  console.log(`  Run ${color('ccs update', 'command')} to update`);
   console.log('');
 }
 
