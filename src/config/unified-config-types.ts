@@ -63,6 +63,18 @@ export interface CLIProxyVariantConfig {
 }
 
 /**
+ * CLIProxy logging configuration.
+ * Controls whether CLIProxyAPI writes logs to disk.
+ * Logs can grow to several GB if left enabled.
+ */
+export interface CLIProxyLoggingConfig {
+  /** Enable logging to file (default: false to prevent disk bloat) */
+  enabled?: boolean;
+  /** Enable request logging for debugging (default: false) */
+  request_log?: boolean;
+}
+
+/**
  * CLIProxy configuration section.
  */
 export interface CLIProxyConfig {
@@ -72,6 +84,8 @@ export interface CLIProxyConfig {
   providers: readonly string[];
   /** User-defined provider variants */
   variants: Record<string, CLIProxyVariantConfig>;
+  /** Logging configuration (disabled by default) */
+  logging?: CLIProxyLoggingConfig;
 }
 
 /**
@@ -130,6 +144,10 @@ export function createEmptyUnifiedConfig(): UnifiedConfig {
       oauth_accounts: {},
       providers: ['gemini', 'codex', 'agy', 'qwen', 'iflow'],
       variants: {},
+      logging: {
+        enabled: false,
+        request_log: false,
+      },
     },
     preferences: {
       theme: 'system',

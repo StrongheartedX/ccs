@@ -252,6 +252,13 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Special case: cleanup command
+  if (firstArg === 'cleanup' || firstArg === '--cleanup') {
+    const { handleCleanupCommand } = await import('./commands/cleanup-command');
+    await handleCleanupCommand(args.slice(1));
+    return;
+  }
+
   // Special case: migrate command
   if (firstArg === 'migrate' || firstArg === '--migrate') {
     const { handleMigrateCommand, printMigrateHelp } = await import('./commands/migrate-command');

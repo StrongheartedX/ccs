@@ -186,6 +186,7 @@ Claude Code Profile & Model Switcher`.trim();
   // Diagnostics
   printSubSection('Diagnostics', [
     ['ccs doctor', 'Run health check and diagnostics'],
+    ['ccs cleanup', 'Remove old CLIProxy logs'],
     ['ccs config', 'Open web configuration dashboard'],
     ['ccs config --port 3000', 'Use specific port'],
     ['ccs sync', 'Sync delegation commands and skills'],

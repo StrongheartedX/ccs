@@ -105,6 +105,11 @@ function mergeWithDefaults(partial: Partial<UnifiedConfig>): UnifiedConfig {
       oauth_accounts: partial.cliproxy?.oauth_accounts ?? defaults.cliproxy.oauth_accounts,
       providers: defaults.cliproxy.providers, // Always use defaults for providers
       variants: partial.cliproxy?.variants ?? defaults.cliproxy.variants,
+      logging: {
+        enabled: partial.cliproxy?.logging?.enabled ?? defaults.cliproxy.logging?.enabled ?? false,
+        request_log:
+          partial.cliproxy?.logging?.request_log ?? defaults.cliproxy.logging?.request_log ?? false,
+      },
     },
     preferences: {
       ...defaults.preferences,
