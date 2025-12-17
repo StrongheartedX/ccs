@@ -142,6 +142,15 @@ function mergeWithDefaults(partial: Partial<UnifiedConfig>): UnifiedConfig {
             partial.websearch?.gemini?.timeout ?? // Legacy fallback
             55,
         },
+        opencode: {
+          enabled: partial.websearch?.providers?.opencode?.enabled ?? false,
+          model: partial.websearch?.providers?.opencode?.model ?? 'opencode/gpt-5-nano',
+          timeout: partial.websearch?.providers?.opencode?.timeout ?? 60,
+        },
+        grok: {
+          enabled: partial.websearch?.providers?.grok?.enabled ?? false,
+          timeout: partial.websearch?.providers?.grok?.timeout ?? 55,
+        },
       },
       // Legacy fields (keep for backwards compatibility during read)
       gemini: partial.websearch?.gemini,
@@ -359,19 +368,21 @@ export interface GeminiWebSearchInfo {
 /**
  * Get websearch configuration.
  * Returns defaults if not configured.
- * Simplified: Gemini CLI only (future CLI tools can be added).
+ * Supports Gemini CLI, OpenCode, and Grok CLI providers.
  */
 export function getWebSearchConfig(): {
   enabled: boolean;
   providers?: {
     gemini?: GeminiWebSearchInfo;
+    opencode?: { enabled?: boolean; model?: string; timeout?: number };
+    grok?: { enabled?: boolean; timeout?: number };
   };
   // Legacy fields (deprecated)
   gemini?: { enabled?: boolean; timeout?: number };
 } {
   const config = loadOrCreateUnifiedConfig();
 
-  // Build provider config from new format or legacy fallbacks
+  // Build provider configs
   const geminiConfig: GeminiWebSearchInfo = {
     enabled:
       config.websearch?.providers?.gemini?.enabled ?? config.websearch?.gemini?.enabled ?? true,
@@ -379,13 +390,27 @@ export function getWebSearchConfig(): {
       config.websearch?.providers?.gemini?.timeout ?? config.websearch?.gemini?.timeout ?? 55,
   };
 
-  // Auto-disable master switch if Gemini is not enabled
-  const enabled = geminiConfig.enabled && (config.websearch?.enabled ?? true);
+  const opencodeConfig = {
+    enabled: config.websearch?.providers?.opencode?.enabled ?? false,
+    model: config.websearch?.providers?.opencode?.model ?? 'opencode/gpt-5-nano',
+    timeout: config.websearch?.providers?.opencode?.timeout ?? 60,
+  };
+
+  const grokConfig = {
+    enabled: config.websearch?.providers?.grok?.enabled ?? false,
+    timeout: config.websearch?.providers?.grok?.timeout ?? 55,
+  };
+
+  // Auto-enable master switch if ANY provider is enabled
+  const anyProviderEnabled = geminiConfig.enabled || opencodeConfig.enabled || grokConfig.enabled;
+  const enabled = anyProviderEnabled && (config.websearch?.enabled ?? true);
 
   return {
     enabled,
     providers: {
       gemini: geminiConfig,
+      opencode: opencodeConfig,
+      grok: grokConfig,
     },
     // Legacy field for backwards compatibility
     gemini: config.websearch?.gemini,
