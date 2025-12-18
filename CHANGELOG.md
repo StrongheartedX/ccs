@@ -1,3 +1,21 @@
+# [6.2.0](https://github.com/kaitranntt/ccs/compare/v6.1.0...v6.2.0) (2025-12-18)
+
+
+### Bug Fixes
+
+* **ui:** improve account flow viz layout to fill available width ([7b876d2](https://github.com/kaitranntt/ccs/commit/7b876d23647eb190156e832df0b9bac6b7a6935f))
+* **ui:** improve account-flow-viz layout and styling ([ee85a1f](https://github.com/kaitranntt/ccs/commit/ee85a1fd82c570e4c9296c746673c57a140f1677))
+* **ui:** optimize bundle size and fix calendar crash ([572703f](https://github.com/kaitranntt/ccs/commit/572703f4399ae49dc73c3e1bdf00611a859a0f0f))
+* **ui:** unify account card padding and fix SVG glow filter ([ab4c95b](https://github.com/kaitranntt/ccs/commit/ab4c95bac9a64145ab24ccc1f8f143be4f64d06b))
+
+
+### Features
+
+* **cliproxy:** remove thinking token cap and update agy haiku model ([925ac8e](https://github.com/kaitranntt/ccs/commit/925ac8e1d47066bf6bfa2e9a36a31ee972a1beb8))
+* **ui:** add ClaudeKit badge and Sponsor buttons to navbar ([9028b74](https://github.com/kaitranntt/ccs/commit/9028b742f8f764217ccb04335d94c88966cbbb71))
+* **ui:** add multi-zone layout and enhanced drag features to account flow viz ([365f820](https://github.com/kaitranntt/ccs/commit/365f820c55106b7a4c1e2af40637144fb58c7644))
+* **ui:** extend privacy mode to blur cost/token values in analytics ([2bf7992](https://github.com/kaitranntt/ccs/commit/2bf7992a8a6cb316b252c6b6e20df7860b1b2b8e))
+
 # [6.1.0](https://github.com/kaitranntt/ccs/compare/v6.0.0...v6.1.0) (2025-12-17)
 
 
