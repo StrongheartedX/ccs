@@ -1,12 +1,3 @@
-#!/usr/bin/env node
-/**
- * CCS (Claude Code Switch) - Entry Point
- *
- * Instant profile switching for Claude CLI.
- * Supports multiple accounts, alternative models (GLM, Kimi),
- * and cost-optimized delegation.
- */
-
 import { spawn, ChildProcess } from 'child_process';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -32,6 +23,16 @@ import { handleUpdateCommand } from './commands/update-command';
 
 // Import extracted utility functions
 import { execClaude, escapeShellArg } from './utils/shell-executor';
+
+// Version and Update check utilities
+import { getVersion } from './utils/version';
+import {
+  checkForUpdates,
+  showUpdateNotification,
+  checkCachedUpdate,
+  isCacheStale,
+} from './utils/update-checker';
+import { detectInstallationMethod } from './utils/package-manager-detector';
 
 // ========== Profile Detection ==========
 
@@ -66,7 +67,8 @@ async function execClaudeWithProxy(
   // 1. Read settings to get API key
   const settingsPath = getSettingsPath(profileName);
   const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-  const apiKey = settings.env.ANTHROPIC_AUTH_TOKEN;
+  const envData = settings.env;
+  const apiKey = envData['ANTHROPIC_AUTH_TOKEN'];
 
   if (!apiKey || apiKey === 'YOUR_GLM_API_KEY_HERE') {
     console.error('[X] GLMT profile requires Z.AI API key');
@@ -87,7 +89,7 @@ async function execClaudeWithProxy(
     env: {
       ...process.env,
       ANTHROPIC_AUTH_TOKEN: apiKey,
-      ANTHROPIC_BASE_URL: settings.env.ANTHROPIC_BASE_URL,
+      ANTHROPIC_BASE_URL: envData['ANTHROPIC_BASE_URL'],
     },
   });
 
@@ -211,18 +213,73 @@ interface ProfileError extends Error {
   suggestions?: string[];
 }
 
+/**
+ * Perform background update check (refreshes cache, no notification)
+ */
+async function refreshUpdateCache(): Promise<void> {
+  try {
+    const currentVersion = getVersion();
+    const installMethod = detectInstallationMethod();
+    // Force=true to always fetch fresh data
+    await checkForUpdates(currentVersion, true, installMethod);
+  } catch (_e) {
+    // Silently fail - update check shouldn't crash main CLI
+  }
+}
+
+/**
+ * Show update notification if cached result indicates update available
+ * Returns true if notification was shown
+ */
+async function showCachedUpdateNotification(): Promise<boolean> {
+  try {
+    const currentVersion = getVersion();
+    const updateInfo = checkCachedUpdate(currentVersion);
+
+    if (updateInfo) {
+      await showUpdateNotification(updateInfo);
+      return true;
+    }
+  } catch (_e) {
+    // Silently fail
+  }
+  return false;
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
+  const firstArg = args[0];
+
+  // Trigger update check early for ALL commands except version/help/update
+  // Only if TTY and not CI to avoid noise in automated environments
+  const skipUpdateCheck = [
+    'version',
+    '--version',
+    '-v',
+    'help',
+    '--help',
+    '-h',
+    'update',
+    '--update',
+  ];
+  if (process.stdout.isTTY && !process.env['CI'] && !skipUpdateCheck.includes(firstArg)) {
+    // 1. Show cached update notification (async for proper UI)
+    await showCachedUpdateNotification();
+
+    // 2. Refresh cache in background if stale (non-blocking)
+    if (isCacheStale()) {
+      refreshUpdateCache();
+    }
+  }
 
   // Auto-migrate to unified config format (silent if already migrated)
   // Skip if user is explicitly running migrate command
-  if (args[0] !== 'migrate') {
+  if (firstArg !== 'migrate') {
     const { autoMigrate } = await import('./config/migration-manager');
     await autoMigrate();
   }
 
   // Special case: version command (check BEFORE profile detection)
-  const firstArg = args[0];
   if (firstArg === 'version' || firstArg === '--version' || firstArg === '-v') {
     handleVersionCommand();
   }
@@ -343,6 +400,27 @@ async function main(): Promise<void> {
     return;
   }
 
+  // Special case: copilot command (GitHub Copilot integration)
+  // Only route to command handler for known subcommands, otherwise treat as profile
+  const COPILOT_SUBCOMMANDS = [
+    'auth',
+    'status',
+    'models',
+    'start',
+    'stop',
+    'enable',
+    'disable',
+    'help',
+    '--help',
+    '-h',
+  ];
+  if (firstArg === 'copilot' && args.length > 1 && COPILOT_SUBCOMMANDS.includes(args[1])) {
+    // `ccs copilot <subcommand>` - route to copilot command handler
+    const { handleCopilotCommand } = await import('./commands/copilot-command');
+    const exitCode = await handleCopilotCommand(args.slice(1));
+    process.exit(exitCode);
+  }
+
   // Special case: headless delegation (-p flag)
   if (args.includes('-p') || args.includes('--prompt')) {
     const { DelegationHandler } = await import('./delegation/delegation-handler');
@@ -389,6 +467,16 @@ async function main(): Promise<void> {
       const provider = profileInfo.provider || (profileInfo.name as CLIProxyProvider);
       const customSettingsPath = profileInfo.settingsPath; // undefined for hardcoded profiles
       await execClaudeWithCLIProxy(claudeCli, provider, remainingArgs, { customSettingsPath });
+    } else if (profileInfo.type === 'copilot') {
+      // COPILOT FLOW: GitHub Copilot subscription via copilot-api proxy
+      const { executeCopilotProfile } = await import('./copilot');
+      const copilotConfig = profileInfo.copilotConfig;
+      if (!copilotConfig) {
+        console.error('[X] Copilot configuration not found');
+        process.exit(1);
+      }
+      const exitCode = await executeCopilotProfile(copilotConfig, remainingArgs);
+      process.exit(exitCode);
     } else if (profileInfo.type === 'settings') {
       // Settings-based profiles (glm, glmt, kimi) are third-party providers
       // WebSearch is server-side tool - third-party providers have no access

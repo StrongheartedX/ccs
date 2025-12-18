@@ -1688,3 +1688,315 @@ apiRoutes.get('/websearch/status', (_req: Request, res: Response): void => {
     res.status(500).json({ error: (error as Error).message });
   }
 });
+
+// ============================================================================
+// COPILOT API ROUTES
+// GitHub Copilot integration via copilot-api proxy
+// ============================================================================
+
+import {
+  checkAuthStatus as checkCopilotAuth,
+  startAuthFlow as startCopilotAuth,
+  getCopilotStatus,
+  startDaemon as startCopilotDaemon,
+  stopDaemon as stopCopilotDaemon,
+  getAvailableModels as getCopilotModels,
+  isCopilotApiInstalled,
+  ensureCopilotApi,
+  installCopilotApiVersion,
+  getCopilotApiInfo,
+  getInstalledVersion as getCopilotInstalledVersion,
+} from '../copilot';
+import { DEFAULT_COPILOT_CONFIG } from '../config/unified-config-types';
+import { loadOrCreateUnifiedConfig } from '../config/unified-config-loader';
+
+/**
+ * GET /api/copilot/status - Get Copilot status (auth + daemon + install info)
+ */
+apiRoutes.get('/copilot/status', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const config = loadOrCreateUnifiedConfig();
+    const copilotConfig = config.copilot ?? DEFAULT_COPILOT_CONFIG;
+    const status = await getCopilotStatus(copilotConfig);
+    const installed = isCopilotApiInstalled();
+    const version = getCopilotInstalledVersion();
+
+    res.json({
+      enabled: copilotConfig.enabled,
+      installed,
+      version,
+      authenticated: status.auth.authenticated,
+      daemon_running: status.daemon.running,
+      port: copilotConfig.port,
+      model: copilotConfig.model,
+      account_type: copilotConfig.account_type,
+      auto_start: copilotConfig.auto_start,
+      rate_limit: copilotConfig.rate_limit,
+      wait_on_limit: copilotConfig.wait_on_limit,
+    });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/copilot/config - Get Copilot configuration
+ */
+apiRoutes.get('/copilot/config', (_req: Request, res: Response): void => {
+  try {
+    const config = loadOrCreateUnifiedConfig();
+    const copilotConfig = config.copilot ?? DEFAULT_COPILOT_CONFIG;
+    res.json(copilotConfig);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * PUT /api/copilot/config - Update Copilot configuration
+ */
+apiRoutes.put('/copilot/config', (req: Request, res: Response): void => {
+  try {
+    const updates = req.body;
+    const config = loadOrCreateUnifiedConfig();
+
+    // Merge updates with existing config
+    config.copilot = {
+      enabled: updates.enabled ?? config.copilot?.enabled ?? DEFAULT_COPILOT_CONFIG.enabled,
+      auto_start:
+        updates.auto_start ?? config.copilot?.auto_start ?? DEFAULT_COPILOT_CONFIG.auto_start,
+      port: updates.port ?? config.copilot?.port ?? DEFAULT_COPILOT_CONFIG.port,
+      account_type:
+        updates.account_type ?? config.copilot?.account_type ?? DEFAULT_COPILOT_CONFIG.account_type,
+      rate_limit:
+        updates.rate_limit !== undefined
+          ? updates.rate_limit
+          : (config.copilot?.rate_limit ?? DEFAULT_COPILOT_CONFIG.rate_limit),
+      wait_on_limit:
+        updates.wait_on_limit ??
+        config.copilot?.wait_on_limit ??
+        DEFAULT_COPILOT_CONFIG.wait_on_limit,
+      model: updates.model ?? config.copilot?.model ?? DEFAULT_COPILOT_CONFIG.model,
+      // Model mapping for opus/sonnet/haiku tiers
+      opus_model:
+        updates.opus_model !== undefined ? updates.opus_model : config.copilot?.opus_model,
+      sonnet_model:
+        updates.sonnet_model !== undefined ? updates.sonnet_model : config.copilot?.sonnet_model,
+      haiku_model:
+        updates.haiku_model !== undefined ? updates.haiku_model : config.copilot?.haiku_model,
+    };
+
+    saveUnifiedConfig(config);
+    res.json({ success: true, copilot: config.copilot });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/copilot/auth/start - Start GitHub OAuth flow
+ * Note: This is a long-running operation that opens browser
+ */
+apiRoutes.post('/copilot/auth/start', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await startCopilotAuth();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/copilot/auth/status - Get auth status only
+ */
+apiRoutes.get('/copilot/auth/status', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const status = await checkCopilotAuth();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/copilot/models - Get available models
+ */
+apiRoutes.get('/copilot/models', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const config = loadOrCreateUnifiedConfig();
+    const port = config.copilot?.port ?? DEFAULT_COPILOT_CONFIG.port;
+    const currentModel = config.copilot?.model ?? DEFAULT_COPILOT_CONFIG.model;
+    const models = await getCopilotModels(port);
+
+    // Mark current model
+    const modelsWithCurrent = models.map((m) => ({
+      ...m,
+      isCurrent: m.id === currentModel,
+    }));
+
+    res.json({ models: modelsWithCurrent, current: currentModel });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/copilot/daemon/start - Start copilot-api daemon
+ */
+apiRoutes.post('/copilot/daemon/start', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const config = loadOrCreateUnifiedConfig();
+    const copilotConfig = config.copilot ?? DEFAULT_COPILOT_CONFIG;
+    const result = await startCopilotDaemon(copilotConfig);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/copilot/daemon/stop - Stop copilot-api daemon
+ */
+apiRoutes.post('/copilot/daemon/stop', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await stopCopilotDaemon();
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/copilot/install - Install copilot-api
+ * Auto-installs latest version or specific version if provided
+ */
+apiRoutes.post('/copilot/install', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { version } = req.body || {};
+
+    if (version) {
+      // Install specific version
+      await installCopilotApiVersion(version);
+    } else {
+      // Install latest version
+      await ensureCopilotApi();
+    }
+
+    const info = getCopilotApiInfo();
+    res.json({
+      success: true,
+      installed: info.installed,
+      version: info.version,
+      path: info.path,
+    });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/copilot/info - Get copilot-api installation info
+ */
+apiRoutes.get('/copilot/info', (_req: Request, res: Response): void => {
+  try {
+    const info = getCopilotApiInfo();
+    res.json(info);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/copilot/settings/raw - Get raw copilot.settings.json
+ * Returns the raw JSON content for editing in the code editor
+ */
+apiRoutes.get('/copilot/settings/raw', (_req: Request, res: Response): void => {
+  try {
+    const settingsPath = path.join(getCcsDir(), 'copilot.settings.json');
+    const config = loadOrCreateUnifiedConfig();
+    const copilotConfig = config.copilot ?? DEFAULT_COPILOT_CONFIG;
+
+    // Default model for all tiers
+    const defaultModel = copilotConfig.model;
+
+    // If file doesn't exist, return default structure with all model mappings
+    if (!fs.existsSync(settingsPath)) {
+      // Create settings structure matching CLIProxy pattern - always include all model mappings
+      // Use 127.0.0.1 instead of localhost for more reliable local connections
+      const defaultSettings = {
+        env: {
+          ANTHROPIC_BASE_URL: `http://127.0.0.1:${copilotConfig.port}`,
+          ANTHROPIC_AUTH_TOKEN: 'copilot-managed',
+          ANTHROPIC_MODEL: defaultModel,
+          ANTHROPIC_DEFAULT_OPUS_MODEL: copilotConfig.opus_model || defaultModel,
+          ANTHROPIC_DEFAULT_SONNET_MODEL: copilotConfig.sonnet_model || defaultModel,
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: copilotConfig.haiku_model || defaultModel,
+        },
+      };
+
+      res.json({
+        settings: defaultSettings,
+        mtime: Date.now(),
+        path: `~/.ccs/copilot.settings.json`,
+        exists: false,
+      });
+      return;
+    }
+
+    const content = fs.readFileSync(settingsPath, 'utf-8');
+    const settings = JSON.parse(content);
+    const stat = fs.statSync(settingsPath);
+
+    res.json({
+      settings,
+      mtime: stat.mtimeMs,
+      path: `~/.ccs/copilot.settings.json`,
+      exists: true,
+    });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * PUT /api/copilot/settings/raw - Save raw copilot.settings.json
+ * Saves the raw JSON content from the code editor
+ */
+apiRoutes.put('/copilot/settings/raw', (req: Request, res: Response): void => {
+  try {
+    const { settings, expectedMtime } = req.body;
+    const settingsPath = path.join(getCcsDir(), 'copilot.settings.json');
+
+    // Check for conflict if file exists and expectedMtime provided
+    if (fs.existsSync(settingsPath) && expectedMtime) {
+      const stat = fs.statSync(settingsPath);
+      if (Math.abs(stat.mtimeMs - expectedMtime) > 1000) {
+        res.status(409).json({ error: 'File modified externally', mtime: stat.mtimeMs });
+        return;
+      }
+    }
+
+    // Write settings file atomically
+    const tempPath = settingsPath + '.tmp';
+    fs.writeFileSync(tempPath, JSON.stringify(settings, null, 2) + '\n');
+    fs.renameSync(tempPath, settingsPath);
+
+    // Also sync model mappings back to unified config
+    const config = loadOrCreateUnifiedConfig();
+    const env = settings.env || {};
+
+    config.copilot = {
+      ...(config.copilot ?? DEFAULT_COPILOT_CONFIG),
+      model: env.ANTHROPIC_MODEL || config.copilot?.model || DEFAULT_COPILOT_CONFIG.model,
+      opus_model: env.ANTHROPIC_DEFAULT_OPUS_MODEL || undefined,
+      sonnet_model: env.ANTHROPIC_DEFAULT_SONNET_MODEL || undefined,
+      haiku_model: env.ANTHROPIC_DEFAULT_HAIKU_MODEL || undefined,
+    };
+    saveUnifiedConfig(config);
+
+    const stat = fs.statSync(settingsPath);
+    res.json({ success: true, mtime: stat.mtimeMs });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});

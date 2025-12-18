@@ -6,7 +6,6 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as https from 'https';
-import { warn, color } from './ui';
 
 const CACHE_DIR = path.join(os.homedir(), '.ccs', 'cache');
 const UPDATE_CHECK_FILE = path.join(CACHE_DIR, 'update-check.json');
@@ -301,15 +300,24 @@ export async function checkForUpdates(
 }
 
 /**
- * Show update notification
+ * Show update notification (async - initializes UI first)
  */
-export function showUpdateNotification(updateInfo: { current: string; latest: string }): void {
+export async function showUpdateNotification(updateInfo: {
+  current: string;
+  latest: string;
+}): Promise<void> {
+  // Lazy import UI to ensure modules are loaded
+  const { initUI, warnBox, color } = await import('./ui');
+  await initUI();
+
+  const content = [
+    `Update available: ${updateInfo.current} -> ${updateInfo.latest}`,
+    '',
+    `Run ${color('ccs update', 'command')} to update`,
+  ].join('\n');
+
   console.log('');
-  console.log(color('═══════════════════════════════════════════════════════', 'info'));
-  console.log(warn(`Update available: ${updateInfo.current} → ${updateInfo.latest}`));
-  console.log(color('═══════════════════════════════════════════════════════', 'info'));
-  console.log('');
-  console.log(`  Run ${color('ccs update', 'command')} to update`);
+  console.log(warnBox(content, 'UPDATE AVAILABLE'));
   console.log('');
 }
 
@@ -320,4 +328,37 @@ export function dismissUpdate(version: string): void {
   const cache = readCache();
   cache.dismissed_version = version;
   writeCache(cache);
+}
+
+/**
+ * Check cached update result synchronously (no network call)
+ * Returns update info if cached result indicates update available, null otherwise
+ */
+export function checkCachedUpdate(
+  currentVersion: string
+): { current: string; latest: string } | null {
+  const cache = readCache();
+
+  // Check if cache has a newer version
+  if (
+    cache.latest_version &&
+    compareVersionsWithPrerelease(cache.latest_version, currentVersion) > 0
+  ) {
+    // Don't show if user dismissed this version
+    if (cache.dismissed_version === cache.latest_version) {
+      return null;
+    }
+    return { current: currentVersion, latest: cache.latest_version };
+  }
+
+  return null;
+}
+
+/**
+ * Check if cache is stale (older than CHECK_INTERVAL)
+ */
+export function isCacheStale(): boolean {
+  const cache = readCache();
+  const now = Date.now();
+  return now - cache.last_check >= CHECK_INTERVAL;
 }

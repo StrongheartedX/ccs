@@ -566,7 +566,7 @@ export function ProviderEditor({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-lg font-semibold">{displayName}</h2>
-              {data && (
+              {data?.path && (
                 <Badge variant="outline" className="text-xs">
                   {data.path.replace(/^.*\//, '')}
                 </Badge>

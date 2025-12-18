@@ -21,6 +21,7 @@ const CliproxyPage = lazy(() =>
 const CliproxyControlPanelPage = lazy(() =>
   import('@/pages/cliproxy-control-panel').then((m) => ({ default: m.CliproxyControlPanelPage }))
 );
+const CopilotPage = lazy(() => import('@/pages/copilot').then((m) => ({ default: m.CopilotPage })));
 const AccountsPage = lazy(() =>
   import('@/pages/accounts').then((m) => ({ default: m.AccountsPage }))
 );
@@ -43,6 +44,7 @@ export default function App() {
                 <Route path="/api" element={<ApiPage />} />
                 <Route path="/cliproxy" element={<CliproxyPage />} />
                 <Route path="/cliproxy/control-panel" element={<CliproxyControlPanelPage />} />
+                <Route path="/copilot" element={<CopilotPage />} />
                 <Route path="/accounts" element={<AccountsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/health" element={<HealthPage />} />

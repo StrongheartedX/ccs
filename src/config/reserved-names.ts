@@ -9,6 +9,8 @@ export const RESERVED_PROFILE_NAMES = [
   'agy',
   'qwen',
   'iflow',
+  // Copilot API (GitHub Copilot proxy)
+  'copilot',
   // CLI commands and special names
   'default',
   'config',

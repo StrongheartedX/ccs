@@ -46,9 +46,15 @@ export function ProfileEditor({ profileName, onDelete }: ProfileEditorProps) {
   const queryClient = useQueryClient();
 
   // Fetch settings for selected profile
-  const { data, isLoading, refetch } = useQuery<SettingsResponse>({
+  const { data, isLoading, isError, refetch } = useQuery<SettingsResponse>({
     queryKey: ['settings', profileName],
-    queryFn: () => fetch(`/api/settings/${profileName}/raw`).then((r) => r.json()),
+    queryFn: async () => {
+      const res = await fetch(`/api/settings/${profileName}/raw`);
+      if (!res.ok) {
+        throw new Error(`Failed to load settings: ${res.status}`);
+      }
+      return res.json();
+    },
   });
 
   // Derive raw JSON content
@@ -427,7 +433,7 @@ export function ProfileEditor({ profileName, onDelete }: ProfileEditorProps) {
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold">{profileName}</h2>
-            {data && (
+            {data?.path && (
               <Badge variant="outline" className="text-xs">
                 {data.path.replace(/^.*\//, '')}
               </Badge>
@@ -472,6 +478,18 @@ export function ProfileEditor({ profileName, onDelete }: ProfileEditorProps) {
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
           <span className="ml-3 text-muted-foreground">Loading settings...</span>
+        </div>
+      ) : isError ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Failed to load settings for this profile.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => refetch()}>
+              <RefreshCw className="w-4 h-4 mr-1" />
+              Retry
+            </Button>
+          </div>
         </div>
       ) : (
         // Split Layout (40% Left / 60% Right)

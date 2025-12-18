@@ -10,6 +10,7 @@ import {
   ChevronRight,
   BarChart3,
   Gauge,
+  Github,
 } from 'lucide-react';
 import {
   Sidebar,
@@ -54,6 +55,7 @@ const navGroups = [
           { path: '/cliproxy/control-panel', icon: Gauge, label: 'Control Panel' },
         ],
       },
+      { path: '/copilot', icon: Github, label: 'GitHub Copilot' },
       {
         path: '/accounts',
         icon: Users,

@@ -13,8 +13,9 @@
  * Unified config version.
  * Version 2 = YAML unified format
  * Version 3 = WebSearch config with model configuration for Gemini/OpenCode
+ * Version 4 = Copilot API integration (GitHub Copilot proxy)
  */
-export const UNIFIED_CONFIG_VERSION = 3;
+export const UNIFIED_CONFIG_VERSION = 4;
 
 /**
  * Account configuration (formerly in profiles.json).
@@ -149,6 +150,42 @@ export interface WebSearchProvidersConfig {
 }
 
 /**
+ * Copilot API account type.
+ */
+export type CopilotAccountType = 'individual' | 'business' | 'enterprise';
+
+/**
+ * Copilot API configuration.
+ * Enables GitHub Copilot subscription usage via copilot-api proxy.
+ * Strictly opt-in - disabled by default.
+ *
+ * !! DISCLAIMER - USE AT YOUR OWN RISK !!
+ * This uses an UNOFFICIAL reverse-engineered API.
+ * Excessive usage may trigger GitHub account restrictions.
+ * CCS provides NO WARRANTY and accepts NO RESPONSIBILITY for any consequences.
+ */
+export interface CopilotConfig {
+  /** Enable Copilot integration (default: false) - must be explicitly enabled */
+  enabled: boolean;
+  /** Auto-start copilot-api daemon when using profile (default: false) */
+  auto_start: boolean;
+  /** Port for copilot-api proxy (default: 4141) */
+  port: number;
+  /** GitHub Copilot account type (default: individual) */
+  account_type: CopilotAccountType;
+  /** Rate limit in seconds between requests (null = no limit) */
+  rate_limit: number | null;
+  /** Wait instead of error when rate limit is hit (default: true) */
+  wait_on_limit: boolean;
+  /** Default model ID (e.g., claude-sonnet-4.5) */
+  model: string;
+  /** Model mapping for Claude tiers - maps opus/sonnet/haiku to specific models */
+  opus_model?: string;
+  sonnet_model?: string;
+  haiku_model?: string;
+}
+
+/**
  * WebSearch configuration.
  * Uses CLI tools (Gemini CLI, Grok CLI, OpenCode) for third-party profiles.
  * Third-party providers don't have server-side WebSearch access.
@@ -183,7 +220,7 @@ export interface WebSearchConfig {
  * Stored in ~/.ccs/config.yaml
  */
 export interface UnifiedConfig {
-  /** Config version (2 for unified format) */
+  /** Config version (4 for copilot support) */
   version: number;
   /** Default profile name to use when none specified */
   default?: string;
@@ -197,6 +234,8 @@ export interface UnifiedConfig {
   preferences: PreferencesConfig;
   /** WebSearch configuration */
   websearch?: WebSearchConfig;
+  /** Copilot API configuration (GitHub Copilot proxy) */
+  copilot?: CopilotConfig;
 }
 
 /**
@@ -210,6 +249,21 @@ export interface SecretsConfig {
   /** Profile secrets mapping: profile_name -> { key: value } */
   profiles: Record<string, Record<string, string>>;
 }
+
+/**
+ * Default Copilot configuration.
+ * Strictly opt-in - disabled by default.
+ * Uses gpt-4.1 as default model (free tier compatible).
+ */
+export const DEFAULT_COPILOT_CONFIG: CopilotConfig = {
+  enabled: false,
+  auto_start: false,
+  port: 4141,
+  account_type: 'individual',
+  rate_limit: null,
+  wait_on_limit: true,
+  model: 'gpt-4.1', // Free tier compatible
+};
 
 /**
  * Create an empty unified config with defaults.
@@ -253,6 +307,7 @@ export function createEmptyUnifiedConfig(): UnifiedConfig {
         },
       },
     },
+    copilot: { ...DEFAULT_COPILOT_CONFIG },
   };
 }
 
