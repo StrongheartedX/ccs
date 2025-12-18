@@ -14,12 +14,12 @@ import * as path from 'path';
 import * as os from 'os';
 import { findSimilarStrings } from '../utils/helpers';
 import { Config, Settings, ProfileMetadata } from '../types';
-import { UnifiedConfig } from '../config/unified-config-types';
+import { UnifiedConfig, CopilotConfig } from '../config/unified-config-types';
 import { hasUnifiedConfig, loadUnifiedConfig } from '../config/unified-config-loader';
 import { getProfileSecrets } from '../config/secrets-manager';
 import { isUnifiedConfigEnabled } from '../config/feature-flags';
 
-export type ProfileType = 'settings' | 'account' | 'cliproxy' | 'default';
+export type ProfileType = 'settings' | 'account' | 'cliproxy' | 'copilot' | 'default';
 
 /** CLIProxy profile names (OAuth-based, zero config) */
 export const CLIPROXY_PROFILES = ['gemini', 'codex', 'agy', 'qwen'] as const;
@@ -35,6 +35,8 @@ export interface ProfileDetectionResult {
   provider?: CLIProxyProfileName;
   /** For unified config profiles: merged env vars (config + secrets) */
   env?: Record<string, string>;
+  /** For copilot profile: the copilot config */
+  copilotConfig?: CopilotConfig;
 }
 
 export interface AllProfiles {
@@ -182,6 +184,7 @@ class ProfileDetector {
    *
    * Priority order:
    * 0. Hardcoded CLIProxy profiles (gemini, codex, agy, qwen)
+   * 0.5. Copilot profile (if enabled in config)
    * 1. Unified config profiles (if config.yaml exists or CCS_UNIFIED_CONFIG=1)
    * 2. User-defined CLIProxy variants (config.cliproxy section) [legacy]
    * 3. Settings-based profiles (config.profiles section) [legacy]
@@ -199,6 +202,36 @@ class ProfileDetector {
         type: 'cliproxy',
         name: profileName,
         provider: profileName as CLIProxyProfileName,
+      };
+    }
+
+    // Priority 0.5: Check Copilot profile - GitHub Copilot subscription via copilot-api
+    if (profileName === 'copilot') {
+      const unifiedConfig = this.readUnifiedConfig();
+      const copilotConfig = unifiedConfig?.copilot;
+
+      if (!copilotConfig?.enabled) {
+        const error = new Error(
+          'Copilot profile is not enabled.\n\n' +
+            'To enable GitHub Copilot integration:\n' +
+            '  1. Run: ccs config\n' +
+            '  2. Go to "GitHub Copilot" section\n' +
+            '  3. Enable the integration\n' +
+            '  4. Authenticate with GitHub: npx copilot-api auth\n\n' +
+            'Or manually edit ~/.ccs/config.yaml:\n' +
+            '  copilot:\n' +
+            '    enabled: true'
+        ) as ProfileNotFoundError;
+        error.profileName = profileName;
+        error.suggestions = [];
+        error.availableProfiles = this.listAvailableProfiles();
+        throw error;
+      }
+
+      return {
+        type: 'copilot',
+        name: 'copilot',
+        copilotConfig,
       };
     }
 
@@ -327,6 +360,12 @@ class ProfileDetector {
     // Check unified config first
     const unifiedConfig = this.readUnifiedConfig();
     if (unifiedConfig) {
+      // Copilot profile (if enabled)
+      if (unifiedConfig.copilot?.enabled) {
+        lines.push('GitHub Copilot (via copilot-api):');
+        lines.push(`  - copilot (model: ${unifiedConfig.copilot.model})`);
+      }
+
       // CLIProxy variants from unified config
       const variants = Object.keys(unifiedConfig.cliproxy?.variants || {});
       if (variants.length > 0) {
