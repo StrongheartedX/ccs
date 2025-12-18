@@ -339,8 +339,8 @@ async function main(): Promise<void> {
   }
 
   // Special case: copilot command (GitHub Copilot integration)
-  if (firstArg === 'copilot' && args.length > 1) {
-    // `ccs copilot <subcommand>` - route to copilot command handler
+  if (firstArg === 'copilot') {
+    // `ccs copilot [subcommand]` - route to copilot command handler
     const { handleCopilotCommand } = await import('./commands/copilot-command');
     const exitCode = await handleCopilotCommand(args.slice(1));
     process.exit(exitCode);
