@@ -1606,12 +1606,16 @@ import {
   stopDaemon as stopCopilotDaemon,
   getAvailableModels as getCopilotModels,
   isCopilotApiInstalled,
+  ensureCopilotApi,
+  installCopilotApiVersion,
+  getCopilotApiInfo,
+  getInstalledVersion as getCopilotInstalledVersion,
 } from '../copilot';
 import { DEFAULT_COPILOT_CONFIG } from '../config/unified-config-types';
 import { loadOrCreateUnifiedConfig } from '../config/unified-config-loader';
 
 /**
- * GET /api/copilot/status - Get Copilot status (auth + daemon)
+ * GET /api/copilot/status - Get Copilot status (auth + daemon + install info)
  */
 apiRoutes.get('/copilot/status', async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -1619,10 +1623,12 @@ apiRoutes.get('/copilot/status', async (_req: Request, res: Response): Promise<v
     const copilotConfig = config.copilot ?? DEFAULT_COPILOT_CONFIG;
     const status = await getCopilotStatus(copilotConfig);
     const installed = isCopilotApiInstalled();
+    const version = getCopilotInstalledVersion();
 
     res.json({
       enabled: copilotConfig.enabled,
       installed,
+      version,
       authenticated: status.auth.authenticated,
       daemon_running: status.daemon.running,
       port: copilotConfig.port,
@@ -1759,6 +1765,46 @@ apiRoutes.post('/copilot/daemon/stop', async (_req: Request, res: Response): Pro
   try {
     const result = await stopCopilotDaemon();
     res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * POST /api/copilot/install - Install copilot-api
+ * Auto-installs latest version or specific version if provided
+ */
+apiRoutes.post('/copilot/install', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { version } = req.body || {};
+
+    if (version) {
+      // Install specific version
+      await installCopilotApiVersion(version);
+    } else {
+      // Install latest version
+      await ensureCopilotApi();
+    }
+
+    const info = getCopilotApiInfo();
+    res.json({
+      success: true,
+      installed: info.installed,
+      version: info.version,
+      path: info.path,
+    });
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/copilot/info - Get copilot-api installation info
+ */
+apiRoutes.get('/copilot/info', (_req: Request, res: Response): void => {
+  try {
+    const info = getCopilotApiInfo();
+    res.json(info);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
