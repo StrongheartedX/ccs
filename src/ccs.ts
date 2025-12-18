@@ -32,7 +32,7 @@ import {
   checkCachedUpdate,
   isCacheStale,
 } from './utils/update-checker';
-import { detectInstallationMethod } from './utils/package-manager-detector';
+// Note: npm is now the only supported installation method
 
 // ========== Profile Detection ==========
 
@@ -219,9 +219,8 @@ interface ProfileError extends Error {
 async function refreshUpdateCache(): Promise<void> {
   try {
     const currentVersion = getVersion();
-    const installMethod = detectInstallationMethod();
-    // Force=true to always fetch fresh data
-    await checkForUpdates(currentVersion, true, installMethod);
+    // npm is now the only supported installation method
+    await checkForUpdates(currentVersion, true, 'npm');
   } catch (_e) {
     // Silently fail - update check shouldn't crash main CLI
   }

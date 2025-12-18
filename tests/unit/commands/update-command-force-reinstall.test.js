@@ -6,7 +6,6 @@
  * - Skip update check when force is true
  * - Target tag calculation (latest vs dev) based on beta flag
  * - performNpmUpdate function with targetTag parameter
- * - handleDirectBetaNotSupported function for direct installs
  * - Success messages showing "Reinstall" vs "Update"
  *
  * NOTE: These tests are currently skipped because they require proper mocking
@@ -113,9 +112,7 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
   describe('Target tag calculation based on beta flag', function () {
     it('should set targetTag to "latest" when beta flag is false', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       try {
@@ -130,16 +127,13 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
         assert(latestCall, 'should install latest tag when beta is false');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
       }
     });
 
     it('should set targetTag to "dev" when beta flag is true', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       try {
@@ -154,7 +148,6 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
         assert(devCall, 'should install dev tag when beta is true');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
       }
     });
@@ -162,10 +155,6 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
 
   describe('Force flag behavior', function () {
     it('should show force reinstall message when force is true', function () {
-      // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
-
       try {
         // Call with force: true
         updateCommandModule.handleUpdateCommand({ force: true, beta: false });
@@ -176,16 +165,13 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
         );
         assert(forceMessage, 'should show force reinstall message');
       } finally {
-        // Restore original function
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
+        // No cleanup needed
       }
     });
 
     it('should bypass update check when force is true', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       try {
@@ -201,7 +187,6 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
         assert(npmCall.args.includes('install'), 'should call install command');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
       }
     });
@@ -210,9 +195,7 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
   describe('Package manager tag syntax', function () {
     it('should use correct tag syntax for npm', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       try {
@@ -226,16 +209,13 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
         assert(npmCall.args.includes('-g'), 'should use global flag for npm');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
       }
     });
 
     it('should use correct tag syntax for yarn', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'yarn';
 
       try {
@@ -249,16 +229,13 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
         assert(yarnCall.args.includes('global'), 'should use global flag for yarn');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
       }
     });
 
     it('should use correct tag syntax for pnpm', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'pnpm';
 
       try {
@@ -272,16 +249,13 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
         assert(pnpmCall.args.includes('-g'), 'should use global flag for pnpm');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
       }
     });
 
     it('should use correct tag syntax for bun', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'bun';
 
       try {
@@ -295,70 +269,7 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
         assert(bunCall.args.includes('-g'), 'should use global flag for bun');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
-      }
-    });
-  });
-
-  describe('Direct install beta not supported', function () {
-    it('should show error for direct install with --beta', function () {
-      // Mock installation method detection as direct
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'direct';
-
-      try {
-        // Call with force: true, beta: true
-        updateCommandModule.handleUpdateCommand({ force: true, beta: true });
-
-        // Should show beta not supported error
-        const betaError = consoleOutput.find(output =>
-          output[0] && output[0].includes('--beta flag requires npm installation')
-        );
-        assert(betaError, 'should show beta not supported error');
-
-        const directInstallMsg = consoleOutput.find(output =>
-          output[0] && output[0].includes('Current installation method: direct installer')
-        );
-        assert(directInstallMsg, 'should show direct installer message');
-
-        // Should exit with error code
-        assert(processExitCalls.length > 0, 'should call process.exit');
-        assert(processExitCalls[0] === 1, 'should exit with error code 1');
-      } finally {
-        // Restore original function
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
-      }
-    });
-
-    it('should allow force reinstall with direct install when beta is false', function () {
-      // Mock installation method detection as direct
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'direct';
-
-      try {
-        // Call with force: true, beta: false
-        updateCommandModule.handleUpdateCommand({ force: true, beta: false });
-
-        // Should NOT show beta error
-        const betaError = consoleOutput.find(output =>
-          output[0] && output[0].includes('--beta flag requires npm installation')
-        );
-        assert(!betaError, 'should not show beta error when beta is false');
-
-        // Should call spawn for direct update
-        assert(spawnCalls.length > 0, 'should call spawn for direct update');
-
-        // Should call curl or powershell
-        const directUpdateCall = spawnCalls[0];
-        if (process.platform === 'win32') {
-          assert(directUpdateCall.command === 'powershell.exe', 'should call powershell on Windows');
-        } else {
-          assert(directUpdateCall.command === '/bin/bash', 'should call bash on Unix');
-        }
-      } finally {
-        // Restore original function
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
       }
     });
   });
@@ -366,9 +277,7 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
   describe('Success messages', function () {
     it('should show "Reinstalling" message when force is true', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       try {
@@ -382,7 +291,6 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
         assert(reinstallingMsg, 'should show reinstalling message');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
       }
     });
@@ -391,9 +299,7 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
   describe('Combined force and beta behavior', function () {
     it('should handle force with beta for npm install', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       try {
@@ -412,7 +318,6 @@ describe.skip('Update Command - Force Reinstall Implementation (Phase 2)', funct
         assert(forceMessage, 'should show force reinstall from dev channel message');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
       }
     });

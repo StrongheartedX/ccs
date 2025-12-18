@@ -2,76 +2,12 @@
  * Package Manager Detector Utilities
  *
  * Cross-platform package manager detection utilities for CCS.
+ * Now only supports npm-based installation (npm/yarn/pnpm/bun).
  */
 
 import * as path from 'path';
 import * as fs from 'fs';
 import { spawnSync } from 'child_process';
-
-/**
- * Detect installation method
- */
-export function detectInstallationMethod(): 'npm' | 'direct' {
-  const scriptPath = process.argv[1];
-
-  // Method 1: Check if script is inside node_modules
-  if (scriptPath.includes('node_modules')) {
-    return 'npm';
-  }
-
-  // Method 2: Check if script is in npm global bin directory
-  const npmGlobalBinPatterns = [
-    /\.npm\/global\/bin\//,
-    /\/\.nvm\/versions\/node\/[^/]+\/bin\//,
-    /\/usr\/local\/bin\//,
-    /\/usr\/bin\//,
-  ];
-
-  for (const pattern of npmGlobalBinPatterns) {
-    if (pattern.test(scriptPath)) {
-      try {
-        const binDir = path.dirname(scriptPath);
-        const nodeModulesDir = path.join(binDir, '..', 'lib', 'node_modules', '@kaitranntt', 'ccs');
-        const globalModulesDir = path.join(binDir, '..', 'node_modules', '@kaitranntt', 'ccs');
-
-        if (fs.existsSync(nodeModulesDir) || fs.existsSync(globalModulesDir)) {
-          return 'npm';
-        }
-      } catch (_err) {
-        // Continue checking other patterns
-      }
-    }
-  }
-
-  // Method 3: Check if package.json exists in parent directory
-  const packageJsonPath = path.join(__dirname, '..', 'package.json');
-
-  if (fs.existsSync(packageJsonPath)) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
-      if (pkg.name === '@kaitranntt/ccs') {
-        return 'npm';
-      }
-    } catch (_err) {
-      // Ignore parse errors
-    }
-  }
-
-  // Method 4: Check if script is a symlink pointing to node_modules
-  try {
-    const stats = fs.lstatSync(scriptPath);
-    if (stats.isSymbolicLink()) {
-      const targetPath = fs.readlinkSync(scriptPath);
-      if (targetPath.includes('node_modules') || targetPath.includes('@kaitranntt/ccs')) {
-        return 'npm';
-      }
-    }
-  } catch (_err) {
-    // Continue to default
-  }
-
-  return 'direct';
-}
 
 /**
  * Detect which package manager was used for installation

@@ -2,12 +2,12 @@
  * Update Command Handler
  *
  * Handles `ccs update` command - checks for updates and installs latest version.
- * Supports both npm and direct installation methods.
+ * Uses npm/yarn/pnpm/bun package managers exclusively.
  */
 
 import { spawn } from 'child_process';
 import { initUI, header, ok, fail, warn, info, color } from '../utils/ui';
-import { detectInstallationMethod, detectPackageManager } from '../utils/package-manager-detector';
+import { detectPackageManager } from '../utils/package-manager-detector';
 import { compareVersionsWithPrerelease } from '../utils/update-checker';
 import { getVersion } from '../utils/version';
 
@@ -35,33 +35,20 @@ export async function handleUpdateCommand(options: UpdateOptions = {}): Promise<
   console.log(header('Checking for updates...'));
   console.log('');
 
-  const installMethod = detectInstallationMethod();
-  const isNpmInstall = installMethod === 'npm';
-
   // Force reinstall - skip update check
   if (force) {
     console.log(info(`Force reinstall from @${targetTag} channel...`));
     console.log('');
-
-    if (isNpmInstall) {
-      await performNpmUpdate(targetTag, true);
-    } else {
-      // Direct install doesn't support --beta
-      if (beta) {
-        handleDirectBetaNotSupported();
-        return;
-      }
-      await performDirectUpdate();
-    }
+    await performNpmUpdate(targetTag, true);
     return;
   }
 
   const { checkForUpdates } = await import('../utils/update-checker');
 
-  const updateResult = await checkForUpdates(CCS_VERSION, true, installMethod, targetTag);
+  const updateResult = await checkForUpdates(CCS_VERSION, true, 'npm', targetTag);
 
   if (updateResult.status === 'check_failed') {
-    handleCheckFailed(updateResult.message ?? 'Update check failed', isNpmInstall, targetTag);
+    handleCheckFailed(updateResult.message ?? 'Update check failed', targetTag);
     return;
   }
 
@@ -102,21 +89,13 @@ export async function handleUpdateCommand(options: UpdateOptions = {}): Promise<
     console.log('');
   }
 
-  if (isNpmInstall) {
-    await performNpmUpdate(targetTag);
-  } else {
-    await performDirectUpdate();
-  }
+  await performNpmUpdate(targetTag);
 }
 
 /**
  * Handle failed update check
  */
-function handleCheckFailed(
-  message: string,
-  isNpmInstall: boolean,
-  targetTag: string = 'latest'
-): void {
+function handleCheckFailed(message: string, targetTag: string = 'latest'): void {
   console.log(fail(message));
   console.log('');
   console.log(warn('Possible causes:'));
@@ -126,36 +105,27 @@ function handleCheckFailed(
   console.log('');
   console.log('Try again later or update manually:');
 
-  if (isNpmInstall) {
-    const packageManager = detectPackageManager();
-    let manualCommand: string;
+  const packageManager = detectPackageManager();
+  let manualCommand: string;
 
-    switch (packageManager) {
-      case 'npm':
-        manualCommand = `npm install -g @kaitranntt/ccs@${targetTag}`;
-        break;
-      case 'yarn':
-        manualCommand = `yarn global add @kaitranntt/ccs@${targetTag}`;
-        break;
-      case 'pnpm':
-        manualCommand = `pnpm add -g @kaitranntt/ccs@${targetTag}`;
-        break;
-      case 'bun':
-        manualCommand = `bun add -g @kaitranntt/ccs@${targetTag}`;
-        break;
-      default:
-        manualCommand = `npm install -g @kaitranntt/ccs@${targetTag}`;
-    }
-
-    console.log(color(`  ${manualCommand}`, 'command'));
-  } else {
-    const isWindows = process.platform === 'win32';
-    if (isWindows) {
-      console.log(color('  irm ccs.kaitran.ca/install | iex', 'command'));
-    } else {
-      console.log(color('  curl -fsSL ccs.kaitran.ca/install | bash', 'command'));
-    }
+  switch (packageManager) {
+    case 'npm':
+      manualCommand = `npm install -g @kaitranntt/ccs@${targetTag}`;
+      break;
+    case 'yarn':
+      manualCommand = `yarn global add @kaitranntt/ccs@${targetTag}`;
+      break;
+    case 'pnpm':
+      manualCommand = `pnpm add -g @kaitranntt/ccs@${targetTag}`;
+      break;
+    case 'bun':
+      manualCommand = `bun add -g @kaitranntt/ccs@${targetTag}`;
+      break;
+    default:
+      manualCommand = `npm install -g @kaitranntt/ccs@${targetTag}`;
   }
+
+  console.log(color(`  ${manualCommand}`, 'command'));
   console.log('');
   process.exit(1);
 }
@@ -299,87 +269,4 @@ async function performNpmUpdate(
   } else {
     performUpdate();
   }
-}
-
-/**
- * Handle direct install beta not supported error
- */
-function handleDirectBetaNotSupported(): void {
-  console.log(fail('--beta flag requires npm installation'));
-  console.log('');
-  console.log('Current installation method: direct installer');
-  console.log('To use beta releases, install via npm:');
-  console.log('');
-  console.log(color('  npm install -g @kaitranntt/ccs', 'command'));
-  console.log(color('  ccs update --beta', 'command'));
-  console.log('');
-  console.log('Or continue using stable releases via direct installer.');
-  console.log('');
-  process.exit(1);
-}
-
-/**
- * Perform update via direct installer (curl/irm)
- */
-async function performDirectUpdate(): Promise<void> {
-  console.log(info('Updating via installer...'));
-  console.log('');
-
-  const isWindows = process.platform === 'win32';
-  let command: string;
-  let args: string[];
-
-  if (isWindows) {
-    command = 'powershell.exe';
-    args = [
-      '-NoProfile',
-      '-ExecutionPolicy',
-      'Bypass',
-      '-Command',
-      'irm ccs.kaitran.ca/install | iex',
-    ];
-  } else {
-    command = '/bin/bash';
-    args = ['-c', 'curl -fsSL ccs.kaitran.ca/install | bash'];
-  }
-
-  const child = spawn(command, args, {
-    stdio: 'inherit',
-  });
-
-  child.on('exit', (code) => {
-    if (code === 0) {
-      console.log('');
-      console.log(ok('Update successful!'));
-      console.log('');
-      console.log(`Run ${color('ccs --version', 'command')} to verify`);
-      console.log('');
-    } else {
-      console.log('');
-      console.log(fail('Update failed'));
-      console.log('');
-      console.log('Try manually:');
-      if (isWindows) {
-        console.log(color('  irm ccs.kaitran.ca/install | iex', 'command'));
-      } else {
-        console.log(color('  curl -fsSL ccs.kaitran.ca/install | bash', 'command'));
-      }
-      console.log('');
-    }
-    process.exit(code || 0);
-  });
-
-  child.on('error', () => {
-    console.log('');
-    console.log(fail('Failed to run installer'));
-    console.log('');
-    console.log('Try manually:');
-    if (isWindows) {
-      console.log(color('  irm ccs.kaitran.ca/install | iex', 'command'));
-    } else {
-      console.log(color('  curl -fsSL ccs.kaitran.ca/install | bash', 'command'));
-    }
-    console.log('');
-    process.exit(1);
-  });
 }

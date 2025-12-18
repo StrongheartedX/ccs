@@ -118,9 +118,7 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
   describe('Beta stability warning display', function () {
     it('should show beta warning when installing from dev channel', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       // Mock update checker to return update available
@@ -166,7 +164,6 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
         assert(returnStable, 'should show return to stable instruction');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
         updateCheckerModule.checkForUpdates = originalCheckForUpdates;
         require('child_process').spawn = originalSpawn;
@@ -175,9 +172,7 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
 
     it('should NOT show beta warning for stable channel', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       // Mock update checker to return update available
@@ -204,7 +199,6 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
         assert(!unstableWarning, 'should not show production warning for stable channel');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
         updateCheckerModule.checkForUpdates = originalCheckForUpdates;
       }
@@ -212,9 +206,7 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
 
     it('should show beta warning even with force flag', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       try {
@@ -228,7 +220,6 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
         assert(betaWarning, 'should show beta warning even with force');
       } finally {
         // Restore original functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
       }
     });
@@ -237,9 +228,7 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
   describe('handleCheckFailed with targetTag parameter', function () {
     it('should show manual update command with dev tag for npm install', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       try {
@@ -265,9 +254,7 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
 
     it('should show manual update command with latest tag for stable', function () {
       // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
       const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
       packageManagerDetectorModule.detectPackageManager = () => 'npm';
 
       try {
@@ -304,9 +291,7 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
         consoleOutput = [];
 
         // Mock package manager detection
-        const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
         const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-        packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
         packageManagerDetectorModule.detectPackageManager = () => name;
 
         try {
@@ -330,96 +315,13 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
         assert(manualCommand, `should show manual ${name} command with dev tag`);
 
         // Restore functions
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         packageManagerDetectorModule.detectPackageManager = originalDetectPackageManager;
       });
-    });
-
-    it('should show direct install commands when npm detection fails', function () {
-      // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
-      const originalDetectPackageManager = packageManagerDetectorModule.detectPackageManager;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'direct';
-      packageManagerDetectorModule.detectPackageManager = () => 'npm';
-
-      try {
-        // Mock checkForUpdates to return failed
-        const originalCheckForUpdates = updateCheckerModule.checkForUpdates;
-        updateCheckerModule.checkForUpdates = async () => ({
-          status: 'check_failed',
-          message: 'Failed to check for updates'
-        });
-
-        // Call with beta: false (beta not supported for direct)
-        updateCommandModule.handleUpdateCommand({ beta: false });
-      } catch (e) {
-        // Expected to exit
-      }
-
-      // Should show direct install commands
-      if (process.platform === 'win32') {
-        const powershellCmd = consoleOutput.find(output =>
-          output[0] && output[0].includes('irm ccs.kaitran.ca/install | iex')
-        );
-        assert(powershellCmd, 'should show PowerShell command for Windows');
-      } else {
-        const curlCmd = consoleOutput.find(output =>
-          output[0] && output[0].includes('curl -fsSL ccs.kaitran.ca/install | bash')
-        );
-        assert(curlCmd, 'should show curl command for Unix');
-      }
-    });
-
-    it('should show beta not supported message for direct install with beta', function () {
-      // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'direct';
-
-      try {
-        // Mock checkForUpdates to return beta not supported
-        const originalCheckForUpdates = updateCheckerModule.checkForUpdates;
-        updateCheckerModule.checkForUpdates = async () => ({
-          status: 'check_failed',
-          reason: 'beta_not_supported',
-          message: '--beta requires npm installation method'
-        });
-
-        // Call with beta: true
-        updateCommandModule.handleUpdateCommand({ beta: true });
-      } catch (e) {
-        // Expected to exit
-      }
-
-      // Should show beta not supported message
-      const betaError = consoleOutput.find(output =>
-        output[0] && output[0].includes('[X] --beta requires npm installation')
-      );
-      assert(betaError, 'should show beta not supported error');
-
-      const currentMethod = consoleOutput.find(output =>
-        output[0] && output[0].includes('Current installation method: direct installer')
-      );
-      assert(currentMethod, 'should show current installation method');
-
-      // Should show npm install instructions
-      const npmInstall = consoleOutput.find(output =>
-        output[0] && output[0].includes('npm install -g @kaitranntt/ccs')
-      );
-      assert(npmInstall, 'should show npm install instructions');
-
-      const ccsUpdateBeta = consoleOutput.find(output =>
-        output[0] && output[0].includes('ccs update --beta')
-      );
-      assert(ccsUpdateBeta, 'should show ccs update --beta instruction');
     });
   });
 
   describe('Error handling', function () {
     it('should handle checkForUpdates throwing error', function () {
-      // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
-
       try {
         // Mock checkForUpdates to throw error
         const originalCheckForUpdates = updateCheckerModule.checkForUpdates;
@@ -435,10 +337,6 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
     });
 
     it('should exit with error code 1 when check fails', function () {
-      // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
-
       try {
         // Mock checkForUpdates to return failed
         const originalCheckForUpdates = updateCheckerModule.checkForUpdates;
@@ -458,10 +356,6 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
 
   describe('Integration with update checker', function () {
     it('should pass correct targetTag to checkForUpdates', function () {
-      // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
-
       // Track calls to checkForUpdates
       let checkForUpdatesCalls = [];
       const originalCheckForUpdates = updateCheckerModule.checkForUpdates;
@@ -480,16 +374,11 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
         assert.strictEqual(devCall.installMethod, 'npm');
       } finally {
         // Restore function
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         updateCheckerModule.checkForUpdates = originalCheckForUpdates;
       }
     });
 
     it('should pass force parameter correctly', function () {
-      // Mock package manager detection
-      const originalDetectInstallationMethod = packageManagerDetectorModule.detectInstallationMethod;
-      packageManagerDetectorModule.detectInstallationMethod = () => 'npm';
-
       // Track calls to checkForUpdates
       let checkForUpdatesCalls = [];
       const originalCheckForUpdates = updateCheckerModule.checkForUpdates;
@@ -507,7 +396,6 @@ describe.skip('Update Command Beta Channel Implementation (Phase 3)', function (
         assert.strictEqual(checkForUpdatesCalls[0].force, true, 'should pass force parameter');
       } finally {
         // Restore function
-        packageManagerDetectorModule.detectInstallationMethod = originalDetectInstallationMethod;
         updateCheckerModule.checkForUpdates = originalCheckForUpdates;
       }
     });
