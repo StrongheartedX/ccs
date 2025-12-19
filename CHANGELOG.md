@@ -1,3 +1,28 @@
+## [6.6.0-dev.3](https://github.com/kaitranntt/ccs/compare/v6.6.0-dev.2...v6.6.0-dev.3) (2025-12-19)
+
+### Features
+
+* **cliproxy:** add getRemoteEnvVars for remote proxy mode ([f4a50d0](https://github.com/kaitranntt/ccs/commit/f4a50d006c1f6bd284fe743f9a322540763e1848))
+* **cliproxy:** add proxy config resolver with CLI flag support ([68a93f0](https://github.com/kaitranntt/ccs/commit/68a93f0500f396ebcc65cc133c1a444ae5a0f220))
+* **cliproxy:** add remote proxy client for health checks ([30d564c](https://github.com/kaitranntt/ccs/commit/30d564cda66a54c2ac12788559624cb0736cdeb3))
+* **cliproxy:** integrate remote proxy mode in executor ([bd1ff2f](https://github.com/kaitranntt/ccs/commit/bd1ff2f059d01d4371b2230d4902bc5ab210055e))
+* **config:** add proxy configuration types and schema ([eff2e2d](https://github.com/kaitranntt/ccs/commit/eff2e2d29f3f227c05103c252823fb9e040b6e49))
+* **config:** add proxy section to unified config loader ([1971744](https://github.com/kaitranntt/ccs/commit/197174441f6eeca5e3c98e88af43d91ee081f734))
+* **ui:** add Proxy settings tab to dashboard ([9a9ef98](https://github.com/kaitranntt/ccs/commit/9a9ef98542bb766087b711fc39e928e347ad9b86))
+* **web-server:** add proxy configuration API routes ([8decdfb](https://github.com/kaitranntt/ccs/commit/8decdfb515075b772970de7c85b34c31baf93754))
+
+### Documentation
+
+* **cliproxy:** add remote proxy documentation ([196422c](https://github.com/kaitranntt/ccs/commit/196422cee1f7410d385581f2a28df3faa87d68e3))
+
+### Styles
+
+* **ui:** use sidebar accent colors for proxy update button ([eeb6913](https://github.com/kaitranntt/ccs/commit/eeb6913d96fe1a9a0d8721627a07c7f772b67b88))
+
+### Code Refactoring
+
+* rename proxy to cliproxy_server and update API routes ([8d8d4c2](https://github.com/kaitranntt/ccs/commit/8d8d4c248ad890413d5c4e7e72f9f2a16305f74f))
+
 ## [6.6.0-dev.2](https://github.com/kaitranntt/ccs/compare/v6.6.0-dev.1...v6.6.0-dev.2) (2025-12-19)
 
 ### Bug Fixes
