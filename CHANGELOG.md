@@ -1,3 +1,21 @@
+## [6.7.0](https://github.com/kaitranntt/ccs/compare/v6.6.1...v6.7.0) (2025-12-19)
+
+### Features
+
+* **cliproxy:** auto-apply default preset when adding first account ([4036c42](https://github.com/kaitranntt/ccs/commit/4036c42687c0e5124825998350431f17ce617442))
+* **env:** add debug logging for global env injection ([68eab56](https://github.com/kaitranntt/ccs/commit/68eab562ce404ac1933c76520e5597327348bff2))
+* **recovery:** add lazy initialization for bun/pnpm users ([2d2cd3e](https://github.com/kaitranntt/ccs/commit/2d2cd3eca21a49af04ca0b1c1d549e62b6ff5cc9))
+
+### Bug Fixes
+
+* **ci:** use built-in GITHUB_TOKEN for release comments ([cff38ac](https://github.com/kaitranntt/ccs/commit/cff38ac53d392317325e2cbf5281956ff59174be))
+* **cliproxy:** include BASE_URL and AUTH_TOKEN when applying presets ([598454c](https://github.com/kaitranntt/ccs/commit/598454c931267082ba80c4ef426d0ef2c0370f55))
+* **cliproxy:** prevent port race condition with unified detection and startup lock ([96f17e3](https://github.com/kaitranntt/ccs/commit/96f17e3afba93288b041f6c2883753692b4e9ca1))
+* **cliproxy:** prevent variant names matching reserved provider names ([7ea64bd](https://github.com/kaitranntt/ccs/commit/7ea64bdb4392d8cd41bc871892466d30c50b58fd))
+* **remote-proxy:** fix TypeError and make port optional with protocol defaults ([03aea4e](https://github.com/kaitranntt/ccs/commit/03aea4eac233caf00736ceec80b4cc841bce948a)), closes [#142](https://github.com/kaitranntt/ccs/issues/142)
+* **update-checker:** resolve dev channel update and duplicate comments ([b6b1817](https://github.com/kaitranntt/ccs/commit/b6b18173cc41788328ef1c8831de9527898f06a1))
+* **web-server:** add comprehensive reserved name validation ([2373100](https://github.com/kaitranntt/ccs/commit/2373100c177654910922c6ef0e5ffc7cfe087b26))
+
 ## [6.7.0-dev.5](https://github.com/kaitranntt/ccs/compare/v6.7.0-dev.4...v6.7.0-dev.5) (2025-12-19)
 
 ### Features
