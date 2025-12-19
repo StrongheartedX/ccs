@@ -154,6 +154,42 @@ export interface CreatePreset {
   haiku?: string;
 }
 
+/** Remote proxy status from health check */
+export interface RemoteProxyStatus {
+  reachable: boolean;
+  latencyMs?: number;
+  error?: string;
+  errorCode?: 'CONNECTION_REFUSED' | 'TIMEOUT' | 'AUTH_FAILED' | 'UNKNOWN';
+}
+
+/** Remote proxy configuration */
+export interface ProxyRemoteConfig {
+  enabled: boolean;
+  host: string;
+  port: number;
+  protocol: 'http' | 'https';
+  auth_token: string;
+}
+
+/** Fallback configuration */
+export interface ProxyFallbackConfig {
+  enabled: boolean;
+  auto_start: boolean;
+}
+
+/** Local proxy configuration */
+export interface ProxyLocalConfig {
+  port: number;
+  auto_start: boolean;
+}
+
+/** Proxy configuration */
+export interface ProxyConfig {
+  remote: ProxyRemoteConfig;
+  fallback: ProxyFallbackConfig;
+  local: ProxyLocalConfig;
+}
+
 /** CLIProxy process status from session tracker */
 export interface ProxyProcessStatus {
   running: boolean;
@@ -351,6 +387,29 @@ export const api = {
     delete: (profile: string, name: string) =>
       request<{ success: boolean }>(`/settings/${profile}/presets/${encodeURIComponent(name)}`, {
         method: 'DELETE',
+      }),
+  },
+  /** Proxy configuration API */
+  proxy: {
+    /** Get proxy configuration */
+    get: () => request<ProxyConfig>('/proxy'),
+    /** Update proxy configuration */
+    update: (config: Partial<ProxyConfig>) =>
+      request<ProxyConfig>('/proxy', {
+        method: 'PUT',
+        body: JSON.stringify(config),
+      }),
+    /** Test remote proxy connection */
+    test: (params: {
+      host: string;
+      port: number;
+      protocol: 'http' | 'https';
+      authToken?: string;
+      allowSelfSigned?: boolean;
+    }) =>
+      request<RemoteProxyStatus>('/proxy/test', {
+        method: 'POST',
+        body: JSON.stringify(params),
       }),
   },
 };

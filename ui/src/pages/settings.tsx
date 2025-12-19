@@ -1,6 +1,6 @@
 /**
- * Settings Page - WebSearch & Global Env Configuration
- * Supports Gemini CLI and Grok CLI providers + Global Environment Variables
+ * Settings Page - WebSearch, Global Env & Proxy Configuration
+ * Supports Gemini CLI and Grok CLI providers + Global Environment Variables + Proxy Settings
  */
 
 import { useState, useEffect } from 'react';
@@ -12,6 +12,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Globe,
   RefreshCw,
@@ -28,8 +35,15 @@ import {
   Settings2,
   Plus,
   Trash2,
+  Server,
+  Laptop,
+  Cloud,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
 import { CodeEditor } from '@/components/code-editor';
+import { api } from '@/lib/api-client';
+import type { ProxyConfig, RemoteProxyStatus } from '@/lib/api-client';
 
 interface ProviderConfig {
   enabled?: boolean;
@@ -71,8 +85,10 @@ interface GlobalEnvConfig {
 
 export function SettingsPage() {
   const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'globalenv' ? 'globalenv' : 'websearch';
-  const [activeTab, setActiveTab] = useState<'websearch' | 'globalenv'>(initialTab);
+  const tabParam = searchParams.get('tab');
+  const initialTab =
+    tabParam === 'globalenv' ? 'globalenv' : tabParam === 'proxy' ? 'proxy' : 'websearch';
+  const [activeTab, setActiveTab] = useState<'websearch' | 'globalenv' | 'proxy'>(initialTab);
   const [config, setConfig] = useState<WebSearchConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -100,6 +116,14 @@ export function SettingsPage() {
   // New env var inputs
   const [newEnvKey, setNewEnvKey] = useState('');
   const [newEnvValue, setNewEnvValue] = useState('');
+  // Proxy state
+  const [proxyConfig, setProxyConfig] = useState<ProxyConfig | null>(null);
+  const [proxyLoading, setProxyLoading] = useState(true);
+  const [proxySaving, setProxySaving] = useState(false);
+  const [proxyError, setProxyError] = useState<string | null>(null);
+  const [proxySuccess, setProxySuccess] = useState(false);
+  const [testResult, setTestResult] = useState<RemoteProxyStatus | null>(null);
+  const [testing, setTesting] = useState(false);
 
   // Load config and status on mount
   useEffect(() => {
@@ -107,6 +131,7 @@ export function SettingsPage() {
     fetchStatus();
     fetchRawConfig();
     fetchGlobalEnvConfig();
+    fetchProxyConfig();
   }, []);
 
   // Sync local model inputs when config changes
@@ -176,6 +201,19 @@ export function SettingsPage() {
       setGlobalEnvError((err as Error).message);
     } finally {
       setGlobalEnvLoading(false);
+    }
+  };
+
+  const fetchProxyConfig = async () => {
+    try {
+      setProxyLoading(true);
+      setProxyError(null);
+      const data = await api.proxy.get();
+      setProxyConfig(data);
+    } catch (err) {
+      setProxyError((err as Error).message);
+    } finally {
+      setProxyLoading(false);
     }
   };
 
@@ -387,6 +425,68 @@ export function SettingsPage() {
     saveGlobalEnvConfig({ env: newEnv });
   };
 
+  // Proxy functions
+  const saveProxyConfig = async (updates: Partial<ProxyConfig>) => {
+    if (!proxyConfig) return;
+
+    // Optimistic update
+    const optimisticConfig = {
+      remote: { ...proxyConfig.remote, ...updates.remote },
+      fallback: { ...proxyConfig.fallback, ...updates.fallback },
+      local: { ...proxyConfig.local, ...updates.local },
+    };
+    setProxyConfig(optimisticConfig);
+    setTestResult(null); // Clear previous test result on config change
+
+    try {
+      setProxySaving(true);
+      setProxyError(null);
+
+      const data = await api.proxy.update(updates);
+      setProxyConfig(data);
+      setProxySuccess(true);
+      setTimeout(() => setProxySuccess(false), 1500);
+      // Silently refresh raw config
+      fetch('/api/config/raw')
+        .then((r) => (r.ok ? r.text() : null))
+        .then((text) => text && setRawConfig(text))
+        .catch(() => {});
+    } catch (err) {
+      setProxyConfig(proxyConfig);
+      setProxyError((err as Error).message);
+    } finally {
+      setProxySaving(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (!proxyConfig) return;
+
+    const { host, port, protocol, auth_token } = proxyConfig.remote;
+    if (!host || !port) {
+      setProxyError('Host and port are required');
+      return;
+    }
+
+    try {
+      setTesting(true);
+      setProxyError(null);
+      setTestResult(null);
+
+      const result = await api.proxy.test({
+        host,
+        port,
+        protocol,
+        authToken: auth_token || undefined,
+      });
+      setTestResult(result);
+    } catch (err) {
+      setProxyError((err as Error).message);
+    } finally {
+      setTesting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="h-[calc(100vh-100px)] flex items-center justify-center">
@@ -408,7 +508,7 @@ export function SettingsPage() {
             <div className="p-5 border-b bg-background">
               <Tabs
                 value={activeTab}
-                onValueChange={(v) => setActiveTab(v as 'websearch' | 'globalenv')}
+                onValueChange={(v) => setActiveTab(v as 'websearch' | 'globalenv' | 'proxy')}
               >
                 <TabsList className="w-full">
                   <TabsTrigger value="websearch" className="flex-1 gap-2">
@@ -418,6 +518,10 @@ export function SettingsPage() {
                   <TabsTrigger value="globalenv" className="flex-1 gap-2">
                     <Settings2 className="w-4 h-4" />
                     Global Env
+                  </TabsTrigger>
+                  <TabsTrigger value="proxy" className="flex-1 gap-2">
+                    <Server className="w-4 h-4" />
+                    Proxy
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -455,7 +559,7 @@ export function SettingsPage() {
                 fetchRawConfig={fetchRawConfig}
                 loading={loading}
               />
-            ) : (
+            ) : activeTab === 'globalenv' ? (
               <GlobalEnvContent
                 config={globalEnvConfig}
                 loading={globalEnvLoading}
@@ -471,6 +575,20 @@ export function SettingsPage() {
                 removeEnvVar={removeEnvVar}
                 updateEnvValue={updateEnvValue}
                 fetchGlobalEnvConfig={fetchGlobalEnvConfig}
+                fetchRawConfig={fetchRawConfig}
+              />
+            ) : (
+              <ProxyContent
+                config={proxyConfig}
+                loading={proxyLoading}
+                saving={proxySaving}
+                error={proxyError}
+                success={proxySuccess}
+                testResult={testResult}
+                testing={testing}
+                saveProxyConfig={saveProxyConfig}
+                handleTestConnection={handleTestConnection}
+                fetchProxyConfig={fetchProxyConfig}
                 fetchRawConfig={fetchRawConfig}
               />
             )}
@@ -1151,6 +1269,413 @@ function GlobalEnvContent({
           size="sm"
           onClick={() => {
             fetchGlobalEnvConfig();
+            fetchRawConfig();
+          }}
+          disabled={loading || saving}
+          className="w-full"
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+    </>
+  );
+}
+
+// Proxy Tab Content Component
+interface ProxyContentProps {
+  config: ProxyConfig | null;
+  loading: boolean;
+  saving: boolean;
+  error: string | null;
+  success: boolean;
+  testResult: RemoteProxyStatus | null;
+  testing: boolean;
+  saveProxyConfig: (updates: Partial<ProxyConfig>) => void;
+  handleTestConnection: () => void;
+  fetchProxyConfig: () => void;
+  fetchRawConfig: () => void;
+}
+
+function ProxyContent({
+  config,
+  loading,
+  saving,
+  error,
+  success,
+  testResult,
+  testing,
+  saveProxyConfig,
+  handleTestConnection,
+  fetchProxyConfig,
+  fetchRawConfig,
+}: ProxyContentProps) {
+  // Memoized default config to avoid recreation
+  const defaultRemote = {
+    enabled: false,
+    host: '',
+    port: 8317,
+    protocol: 'http' as const,
+    auth_token: '',
+  };
+  const defaultFallback = { enabled: true, auto_start: true };
+  const defaultLocal = { port: 8317, auto_start: true };
+
+  // Sync local state with config (using refs to avoid lint warnings)
+  const hostInput = config?.remote.host ?? '';
+  const portInput = (config?.remote.port ?? 8317).toString();
+  const authTokenInput = config?.remote.auth_token ?? '';
+  const localPortInput = (config?.local.port ?? 8317).toString();
+
+  // Track edited values separately
+  const [editedHost, setEditedHost] = useState<string | null>(null);
+  const [editedPort, setEditedPort] = useState<string | null>(null);
+  const [editedAuthToken, setEditedAuthToken] = useState<string | null>(null);
+  const [editedLocalPort, setEditedLocalPort] = useState<string | null>(null);
+
+  // Get display values (edited or from config)
+  const displayHost = editedHost ?? hostInput;
+  const displayPort = editedPort ?? portInput;
+  const displayAuthToken = editedAuthToken ?? authTokenInput;
+  const displayLocalPort = editedLocalPort ?? localPortInput;
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <RefreshCw className="w-5 h-5 animate-spin" />
+          <span>Loading...</span>
+        </div>
+      </div>
+    );
+  }
+
+  const isRemoteMode = config?.remote.enabled ?? false;
+  const remoteConfig = config?.remote ?? defaultRemote;
+  const fallbackConfig = config?.fallback ?? defaultFallback;
+  const localConfig = config?.local ?? defaultLocal;
+
+  // Save functions for blur events
+  const saveHost = () => {
+    const value = editedHost ?? displayHost;
+    if (value !== config?.remote.host) {
+      saveProxyConfig({ remote: { ...remoteConfig, host: value } });
+    }
+    setEditedHost(null);
+  };
+
+  const savePort = () => {
+    const port = parseInt(editedPort ?? displayPort, 10);
+    if (!isNaN(port) && port !== config?.remote.port) {
+      saveProxyConfig({ remote: { ...remoteConfig, port } });
+    }
+    setEditedPort(null);
+  };
+
+  const saveAuthToken = () => {
+    const value = editedAuthToken ?? displayAuthToken;
+    if (value !== config?.remote.auth_token) {
+      saveProxyConfig({ remote: { ...remoteConfig, auth_token: value } });
+    }
+    setEditedAuthToken(null);
+  };
+
+  const saveLocalPort = () => {
+    const port = parseInt(editedLocalPort ?? displayLocalPort, 10);
+    if (!isNaN(port) && port !== config?.local.port) {
+      saveProxyConfig({ local: { ...localConfig, port } });
+    }
+    setEditedLocalPort(null);
+  };
+
+  return (
+    <>
+      {/* Toast-style alerts */}
+      <div
+        className={`absolute left-5 right-5 top-20 z-10 transition-all duration-200 ease-out ${
+          error || success
+            ? 'opacity-100 translate-y-0'
+            : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        {error && (
+          <Alert variant="destructive" className="py-2 shadow-lg">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        {success && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-md border border-green-200 bg-green-50 text-green-700 shadow-lg dark:border-green-900/50 dark:bg-green-900/90 dark:text-green-300">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span className="text-sm font-medium">Saved</span>
+          </div>
+        )}
+      </div>
+
+      {/* Scrollable Content */}
+      <ScrollArea className="flex-1">
+        <div className="p-5 space-y-6">
+          {/* Description */}
+          <p className="text-sm text-muted-foreground">
+            Configure local or remote CLIProxyAPI connection for proxy-based profiles
+          </p>
+
+          {/* Mode Toggle - Card based selection */}
+          <div className="space-y-3">
+            <h3 className="text-base font-medium">Connection Mode</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Local Mode Card */}
+              <button
+                onClick={() => saveProxyConfig({ remote: { ...remoteConfig, enabled: false } })}
+                disabled={saving}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  !isRemoteMode
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground/50'
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <Laptop
+                    className={`w-5 h-5 ${!isRemoteMode ? 'text-primary' : 'text-muted-foreground'}`}
+                  />
+                  <span className="font-medium">Local</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Run CLIProxyAPI binary on this machine
+                </p>
+              </button>
+
+              {/* Remote Mode Card */}
+              <button
+                onClick={() => saveProxyConfig({ remote: { ...remoteConfig, enabled: true } })}
+                disabled={saving}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  isRemoteMode
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground/50'
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <Cloud
+                    className={`w-5 h-5 ${isRemoteMode ? 'text-primary' : 'text-muted-foreground'}`}
+                  />
+                  <span className="font-medium">Remote</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Connect to a remote CLIProxyAPI server
+                </p>
+              </button>
+            </div>
+          </div>
+
+          {/* Remote Settings - Show when remote mode is enabled */}
+          {isRemoteMode && (
+            <div className="space-y-4 p-4 rounded-lg border bg-muted/30">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Cloud className="w-4 h-4" />
+                Remote Server Configuration
+              </h4>
+
+              {/* Host */}
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">Host</label>
+                <Input
+                  value={displayHost}
+                  onChange={(e) => setEditedHost(e.target.value)}
+                  onBlur={saveHost}
+                  placeholder="192.168.1.100 or proxy.example.com"
+                  className="font-mono"
+                  disabled={saving}
+                />
+              </div>
+
+              {/* Port and Protocol */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm text-muted-foreground">Port</label>
+                  <Input
+                    type="number"
+                    value={displayPort}
+                    onChange={(e) => setEditedPort(e.target.value)}
+                    onBlur={savePort}
+                    placeholder="8317"
+                    className="font-mono"
+                    disabled={saving}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm text-muted-foreground">Protocol</label>
+                  <Select
+                    value={config?.remote.protocol || 'http'}
+                    onValueChange={(value: 'http' | 'https') =>
+                      saveProxyConfig({ remote: { ...remoteConfig, protocol: value } })
+                    }
+                    disabled={saving}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="http">HTTP</SelectItem>
+                      <SelectItem value="https">HTTPS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Auth Token */}
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">Auth Token (optional)</label>
+                <Input
+                  type="password"
+                  value={displayAuthToken}
+                  onChange={(e) => setEditedAuthToken(e.target.value)}
+                  onBlur={saveAuthToken}
+                  placeholder="Bearer token for authentication"
+                  className="font-mono"
+                  disabled={saving}
+                />
+              </div>
+
+              {/* Test Connection */}
+              <div className="space-y-3 pt-2">
+                <Button
+                  onClick={handleTestConnection}
+                  disabled={testing || !displayHost || !displayPort}
+                  variant="outline"
+                  className="w-full"
+                >
+                  {testing ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Testing...
+                    </>
+                  ) : (
+                    <>
+                      <Wifi className="w-4 h-4 mr-2" />
+                      Test Connection
+                    </>
+                  )}
+                </Button>
+
+                {/* Test Result */}
+                {testResult && (
+                  <div
+                    className={`p-3 rounded-md ${
+                      testResult.reachable
+                        ? 'bg-green-50 border border-green-200 dark:bg-green-900/20 dark:border-green-900/50'
+                        : 'bg-red-50 border border-red-200 dark:bg-red-900/20 dark:border-red-900/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {testResult.reachable ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400" />
+                          <span className="text-sm font-medium text-green-700 dark:text-green-300">
+                            Connected ({testResult.latencyMs}ms)
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <WifiOff className="w-4 h-4 text-red-600 dark:text-red-400" />
+                          <span className="text-sm font-medium text-red-700 dark:text-red-300">
+                            {testResult.error || 'Connection failed'}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Fallback Settings */}
+          <div className="space-y-3">
+            <h3 className="text-base font-medium">Fallback Settings</h3>
+            <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
+              {/* Enable Fallback */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">Enable fallback to local</p>
+                  <p className="text-xs text-muted-foreground">
+                    Use local proxy if remote is unreachable
+                  </p>
+                </div>
+                <Switch
+                  checked={config?.fallback.enabled ?? true}
+                  onCheckedChange={(checked) =>
+                    saveProxyConfig({ fallback: { ...fallbackConfig, enabled: checked } })
+                  }
+                  disabled={saving || !isRemoteMode}
+                />
+              </div>
+
+              {/* Auto-start on fallback */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">Auto-start local proxy</p>
+                  <p className="text-xs text-muted-foreground">
+                    Automatically start local proxy on fallback
+                  </p>
+                </div>
+                <Switch
+                  checked={config?.fallback.auto_start ?? false}
+                  onCheckedChange={(checked) =>
+                    saveProxyConfig({ fallback: { ...fallbackConfig, auto_start: checked } })
+                  }
+                  disabled={saving || !isRemoteMode || !config?.fallback.enabled}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Local Proxy Settings */}
+          <div className="space-y-3">
+            <h3 className="text-base font-medium">Local Proxy</h3>
+            <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
+              {/* Port */}
+              <div className="space-y-1">
+                <label className="text-sm text-muted-foreground">Port</label>
+                <Input
+                  type="number"
+                  value={displayLocalPort}
+                  onChange={(e) => setEditedLocalPort(e.target.value)}
+                  onBlur={saveLocalPort}
+                  placeholder="8317"
+                  className="font-mono max-w-32"
+                  disabled={saving}
+                />
+              </div>
+
+              {/* Auto-start */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">Auto-start</p>
+                  <p className="text-xs text-muted-foreground">
+                    Start local proxy automatically when needed
+                  </p>
+                </div>
+                <Switch
+                  checked={config?.local.auto_start ?? true}
+                  onCheckedChange={(checked) =>
+                    saveProxyConfig({ local: { ...localConfig, auto_start: checked } })
+                  }
+                  disabled={saving}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </ScrollArea>
+
+      {/* Footer */}
+      <div className="p-4 border-t bg-background">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            fetchProxyConfig();
             fetchRawConfig();
           }}
           disabled={loading || saving}
