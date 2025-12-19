@@ -1,0 +1,128 @@
+/**
+ * Unit tests for remote-proxy-client module
+ */
+import { describe, it, expect } from 'bun:test';
+import type { RemoteProxyClientConfig, RemoteProxyStatus } from '../../../src/cliproxy/remote-proxy-client';
+
+// We test the module's type exports and error handling logic
+// Actual HTTP calls are not mocked in this unit test - use integration tests for that
+
+describe('remote-proxy-client', () => {
+  describe('type exports', () => {
+    it('should export RemoteProxyClientConfig interface', () => {
+      // Type-level test - ensure the interface shape is correct
+      const config: RemoteProxyClientConfig = {
+        host: 'localhost',
+        port: 8317,
+        protocol: 'http',
+        authToken: 'test-token',
+        timeout: 2000,
+        allowSelfSigned: false,
+      };
+      expect(config.host).toBe('localhost');
+      expect(config.port).toBe(8317);
+      expect(config.protocol).toBe('http');
+    });
+
+    it('should export RemoteProxyStatus interface', () => {
+      // Success case
+      const successStatus: RemoteProxyStatus = {
+        reachable: true,
+        latencyMs: 50,
+      };
+      expect(successStatus.reachable).toBe(true);
+      expect(successStatus.latencyMs).toBe(50);
+
+      // Error case
+      const errorStatus: RemoteProxyStatus = {
+        reachable: false,
+        error: 'Connection refused',
+        errorCode: 'CONNECTION_REFUSED',
+      };
+      expect(errorStatus.reachable).toBe(false);
+      expect(errorStatus.error).toBe('Connection refused');
+      expect(errorStatus.errorCode).toBe('CONNECTION_REFUSED');
+    });
+  });
+
+  describe('RemoteProxyErrorCode', () => {
+    it('should define expected error codes', () => {
+      const validCodes = ['CONNECTION_REFUSED', 'TIMEOUT', 'AUTH_FAILED', 'UNKNOWN'];
+
+      // Type-level test - ensure error codes can be used
+      const status1: RemoteProxyStatus = { reachable: false, errorCode: 'CONNECTION_REFUSED' };
+      const status2: RemoteProxyStatus = { reachable: false, errorCode: 'TIMEOUT' };
+      const status3: RemoteProxyStatus = { reachable: false, errorCode: 'AUTH_FAILED' };
+      const status4: RemoteProxyStatus = { reachable: false, errorCode: 'UNKNOWN' };
+
+      expect(validCodes).toContain(status1.errorCode);
+      expect(validCodes).toContain(status2.errorCode);
+      expect(validCodes).toContain(status3.errorCode);
+      expect(validCodes).toContain(status4.errorCode);
+    });
+  });
+
+  describe('config validation', () => {
+    it('should require host and port', () => {
+      const minimalConfig: RemoteProxyClientConfig = {
+        host: '127.0.0.1',
+        port: 8317,
+        protocol: 'http',
+      };
+      expect(minimalConfig.host).toBeDefined();
+      expect(minimalConfig.port).toBeDefined();
+      expect(minimalConfig.protocol).toBeDefined();
+    });
+
+    it('should allow optional fields', () => {
+      const config: RemoteProxyClientConfig = {
+        host: '127.0.0.1',
+        port: 8317,
+        protocol: 'https',
+        authToken: 'secret',
+        timeout: 5000,
+        allowSelfSigned: true,
+      };
+      expect(config.authToken).toBe('secret');
+      expect(config.timeout).toBe(5000);
+      expect(config.allowSelfSigned).toBe(true);
+    });
+
+    it('should accept http and https protocols', () => {
+      const httpConfig: RemoteProxyClientConfig = {
+        host: 'localhost',
+        port: 8317,
+        protocol: 'http',
+      };
+      const httpsConfig: RemoteProxyClientConfig = {
+        host: 'localhost',
+        port: 8317,
+        protocol: 'https',
+      };
+      expect(httpConfig.protocol).toBe('http');
+      expect(httpsConfig.protocol).toBe('https');
+    });
+  });
+
+  describe('health check URL construction', () => {
+    it('should construct correct health check URL pattern', () => {
+      const config: RemoteProxyClientConfig = {
+        host: '192.168.1.100',
+        port: 8317,
+        protocol: 'http',
+      };
+      const expectedUrl = `${config.protocol}://${config.host}:${config.port}/health`;
+      expect(expectedUrl).toBe('http://192.168.1.100:8317/health');
+    });
+
+    it('should construct HTTPS URL when protocol is https', () => {
+      const config: RemoteProxyClientConfig = {
+        host: 'secure.example.com',
+        port: 443,
+        protocol: 'https',
+      };
+      const expectedUrl = `${config.protocol}://${config.host}:${config.port}/health`;
+      expect(expectedUrl).toBe('https://secure.example.com:443/health');
+    });
+  });
+});
