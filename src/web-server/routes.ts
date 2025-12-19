@@ -66,6 +66,7 @@ import { getWebSearchConfig } from '../config/unified-config-loader';
 import type { WebSearchConfig } from '../config/unified-config-types';
 import { isUnifiedConfig } from '../config/unified-config-types';
 import { isSensitiveKey, maskSensitiveValue } from '../utils/sensitive-keys';
+import { isReservedName, RESERVED_PROFILE_NAMES } from '../config/reserved-names';
 import {
   getWebSearchReadiness,
   getGeminiCliStatus,
@@ -275,6 +276,15 @@ apiRoutes.post('/profiles', (req: Request, res: Response): void => {
     return;
   }
 
+  // Validate reserved names
+  if (isReservedName(name)) {
+    res.status(400).json({
+      error: `Profile name '${name}' is reserved`,
+      reserved: RESERVED_PROFILE_NAMES,
+    });
+    return;
+  }
+
   const config = readConfigSafe();
 
   if (config.profiles[name]) {
@@ -378,11 +388,11 @@ apiRoutes.post('/cliproxy', (req: Request, res: Response): void => {
     return;
   }
 
-  // Reject reserved provider names as variant names
-  const reservedNames = ['gemini', 'codex', 'agy', 'qwen', 'iflow'];
-  if (reservedNames.includes(name.toLowerCase())) {
+  // Reject reserved names as variant names (prevents collision with built-in providers)
+  if (isReservedName(name)) {
     res.status(400).json({
-      error: `Cannot use reserved provider name '${name}' as variant name`,
+      error: `Cannot use reserved name '${name}' as variant name`,
+      reserved: RESERVED_PROFILE_NAMES,
     });
     return;
   }
@@ -482,8 +492,7 @@ apiRoutes.delete('/cliproxy/:name', (req: Request, res: Response): void => {
   }
 
   // Never delete settings files for reserved provider names (safety guard)
-  const reservedNames = ['gemini', 'codex', 'agy', 'qwen', 'iflow'];
-  if (!reservedNames.includes(name.toLowerCase())) {
+  if (!isReservedName(name)) {
     // Only delete settings file for non-reserved variant names
     const settingsPath = path.join(getCcsDir(), `${name}.settings.json`);
     if (fs.existsSync(settingsPath)) {
@@ -1612,6 +1621,14 @@ apiRoutes.post('/cliproxy/openai-compat', (req: Request, res: Response): void =>
     // Validation
     if (!name || typeof name !== 'string') {
       res.status(400).json({ error: 'name is required' });
+      return;
+    }
+    // Validate reserved names
+    if (isReservedName(name)) {
+      res.status(400).json({
+        error: `Provider name '${name}' is reserved`,
+        reserved: RESERVED_PROFILE_NAMES,
+      });
       return;
     }
     if (!baseUrl || typeof baseUrl !== 'string') {
