@@ -21,8 +21,10 @@ import {
   CLIPROXY_DEFAULT_PORT,
   getCliproxyWritablePath,
 } from './config-generator';
-import { isCliproxyRunning } from './stats-fetcher';
 import { registerSession } from './session-tracker';
+import { detectRunningProxy, waitForProxyHealthy } from './proxy-detector';
+import { withStartupLock } from './startup-lock';
+import { isCliproxyRunning } from './stats-fetcher';
 
 /** Background proxy process reference */
 let proxyProcess: ChildProcess | null = null;
@@ -116,10 +118,6 @@ export async function ensureCliproxyService(
     }
   };
 
-  // Check if already running (from another process or previous start)
-  log(`Checking if CLIProxy is running on port ${port}...`);
-  const running = await isCliproxyRunning(port);
-
   // Check if config needs update (even if running)
   let configRegenerated = false;
   if (configNeedsRegeneration()) {
@@ -128,106 +126,136 @@ export async function ensureCliproxyService(
     configRegenerated = true;
   }
 
-  if (running) {
-    log('CLIProxy already running');
-    if (configRegenerated) {
-      log('Config was updated - running instance will use new config on next restart');
-    }
-    return { started: true, alreadyRunning: true, port, configRegenerated };
-  }
+  // Use startup lock to coordinate with other CCS processes (ccs agy, ccs config, etc.)
+  return await withStartupLock(async () => {
+    // Use unified detection (HTTP check + session-lock + port-process)
+    log(`Checking if CLIProxy is running on port ${port}...`);
+    const proxyStatus = await detectRunningProxy(port);
+    log(`Proxy detection: ${JSON.stringify(proxyStatus)}`);
 
-  // Need to start new instance
-  log('CLIProxy not running, starting background instance...');
-
-  // 1. Ensure binary exists
-  let binaryPath: string;
-  try {
-    binaryPath = await ensureCLIProxyBinary(verbose);
-    log(`Binary ready: ${binaryPath}`);
-  } catch (error) {
-    const err = error as Error;
-    return {
-      started: false,
-      alreadyRunning: false,
-      port,
-      error: `Failed to prepare binary: ${err.message}`,
-    };
-  }
-
-  // 2. Ensure/regenerate config if needed
-  let configPath: string;
-  if (configNeedsRegeneration()) {
-    log('Config needs regeneration, updating...');
-    configPath = regenerateConfig(port);
-  } else {
-    // generateConfig only creates if doesn't exist
-    configPath = generateConfig('gemini', port); // Provider doesn't matter for unified config
-  }
-  log(`Config ready: ${configPath}`);
-
-  // 3. Spawn background process
-  const proxyArgs = ['--config', configPath];
-
-  log(`Spawning: ${binaryPath} ${proxyArgs.join(' ')}`);
-
-  proxyProcess = spawn(binaryPath, proxyArgs, {
-    stdio: ['ignore', verbose ? 'pipe' : 'ignore', verbose ? 'pipe' : 'ignore'],
-    detached: true, // Allow process to run independently
-    env: {
-      ...process.env,
-      WRITABLE_PATH: getCliproxyWritablePath(), // Logs stored in ~/.ccs/cliproxy/logs/
-    },
-  });
-
-  // Forward output in verbose mode
-  if (verbose) {
-    proxyProcess.stdout?.on('data', (data: Buffer) => {
-      process.stderr.write(`[cliproxy] ${data.toString()}`);
-    });
-    proxyProcess.stderr?.on('data', (data: Buffer) => {
-      process.stderr.write(`[cliproxy-err] ${data.toString()}`);
-    });
-  }
-
-  // Don't let this process prevent parent from exiting
-  proxyProcess.unref();
-
-  // Handle spawn errors
-  proxyProcess.on('error', (error) => {
-    log(`Spawn error: ${error.message}`);
-  });
-
-  // Register cleanup handlers
-  registerCleanup();
-
-  // 4. Wait for proxy to be ready
-  log(`Waiting for CLIProxy on port ${port}...`);
-  const ready = await waitForPort(port, 5000);
-
-  if (!ready) {
-    // Kill failed process
-    if (proxyProcess && !proxyProcess.killed) {
-      proxyProcess.kill('SIGTERM');
-      proxyProcess = null;
+    if (proxyStatus.running && proxyStatus.verified) {
+      // Already running and healthy
+      log('CLIProxy already running');
+      if (configRegenerated) {
+        log('Config was updated - running instance will use new config on next restart');
+      }
+      return { started: true, alreadyRunning: true, port, configRegenerated };
     }
 
-    return {
-      started: false,
-      alreadyRunning: false,
-      port,
-      error: `CLIProxy failed to start within 5s on port ${port}`,
-    };
-  }
+    if (proxyStatus.running && !proxyStatus.verified) {
+      // Proxy detected but not ready yet (another process is starting it)
+      log(`Proxy starting up (detected via ${proxyStatus.method}), waiting...`);
+      const becameHealthy = await waitForProxyHealthy(port, 5000);
+      if (becameHealthy) {
+        log('Proxy became healthy');
+        return { started: true, alreadyRunning: true, port, configRegenerated };
+      }
+      // Proxy didn't become healthy - will try to start fresh below
+      log('Proxy detected but not responding, will start fresh');
+    }
 
-  log(`CLIProxy service started on port ${port}`);
+    if (proxyStatus.blocked) {
+      // Port blocked by non-CLIProxy process - try HTTP as last resort
+      const isActuallyOurs = await waitForProxyHealthy(port, 1000);
+      if (isActuallyOurs) {
+        log('Reclaimed CLIProxy with unrecognized process name');
+        return { started: true, alreadyRunning: true, port, configRegenerated };
+      }
+      // Truly blocked
+      return {
+        started: false,
+        alreadyRunning: false,
+        port,
+        error: `Port ${port} is blocked by ${proxyStatus.blocker?.processName}`,
+      };
+    }
 
-  // 5. Register session so stopProxy() can find and kill this process
-  if (proxyProcess.pid) {
-    registerSession(port, proxyProcess.pid);
-    log(`Session registered for PID ${proxyProcess.pid}`);
-  }
+    // Need to start new instance
+    log('CLIProxy not running, starting background instance...');
 
-  return { started: true, alreadyRunning: false, port };
+    // 1. Ensure binary exists
+    let binaryPath: string;
+    try {
+      binaryPath = await ensureCLIProxyBinary(verbose);
+      log(`Binary ready: ${binaryPath}`);
+    } catch (error) {
+      const err = error as Error;
+      return {
+        started: false,
+        alreadyRunning: false,
+        port,
+        error: `Failed to prepare binary: ${err.message}`,
+      };
+    }
+
+    // 2. Ensure/regenerate config if needed
+    let configPath: string;
+    if (configNeedsRegeneration()) {
+      log('Config needs regeneration, updating...');
+      configPath = regenerateConfig(port);
+    } else {
+      configPath = generateConfig('gemini', port);
+    }
+    log(`Config ready: ${configPath}`);
+
+    // 3. Spawn background process
+    const proxyArgs = ['--config', configPath];
+    log(`Spawning: ${binaryPath} ${proxyArgs.join(' ')}`);
+
+    proxyProcess = spawn(binaryPath, proxyArgs, {
+      stdio: ['ignore', verbose ? 'pipe' : 'ignore', verbose ? 'pipe' : 'ignore'],
+      detached: true,
+      env: {
+        ...process.env,
+        WRITABLE_PATH: getCliproxyWritablePath(),
+      },
+    });
+
+    if (verbose) {
+      proxyProcess.stdout?.on('data', (data: Buffer) => {
+        process.stderr.write(`[cliproxy] ${data.toString()}`);
+      });
+      proxyProcess.stderr?.on('data', (data: Buffer) => {
+        process.stderr.write(`[cliproxy-err] ${data.toString()}`);
+      });
+    }
+
+    proxyProcess.unref();
+
+    proxyProcess.on('error', (error) => {
+      log(`Spawn error: ${error.message}`);
+    });
+
+    registerCleanup();
+
+    // 4. Wait for proxy to be ready
+    log(`Waiting for CLIProxy on port ${port}...`);
+    const ready = await waitForPort(port, 5000);
+
+    if (!ready) {
+      if (proxyProcess && !proxyProcess.killed) {
+        proxyProcess.kill('SIGTERM');
+        proxyProcess = null;
+      }
+
+      return {
+        started: false,
+        alreadyRunning: false,
+        port,
+        error: `CLIProxy failed to start within 5s on port ${port}`,
+      };
+    }
+
+    log(`CLIProxy service started on port ${port}`);
+
+    // 5. Register session
+    if (proxyProcess.pid) {
+      registerSession(port, proxyProcess.pid);
+      log(`Session registered for PID ${proxyProcess.pid}`);
+    }
+
+    return { started: true, alreadyRunning: false, port };
+  });
 }
 
 /**

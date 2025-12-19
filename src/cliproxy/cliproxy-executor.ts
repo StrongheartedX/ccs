@@ -43,19 +43,14 @@ import {
   getDefaultAccount,
 } from './account-manager';
 import { getPortCheckCommand, getCatCommand, killProcessOnPort } from '../utils/platform-commands';
-import { getPortProcess, isCLIProxyProcess } from '../utils/port-utils';
 import {
   ensureMcpWebSearch,
   installWebSearchHook,
   displayWebSearchStatus,
 } from '../utils/websearch-manager';
-import {
-  getExistingProxy,
-  registerSession,
-  unregisterSession,
-  hasActiveSessions,
-  cleanupOrphanedSessions,
-} from './session-tracker';
+import { registerSession, unregisterSession, cleanupOrphanedSessions } from './session-tracker';
+import { detectRunningProxy, waitForProxyHealthy, reclaimOrphanedProxy } from './proxy-detector';
+import { withStartupLock } from './startup-lock';
 
 /** Default executor configuration */
 const DEFAULT_CONFIG: ExecutorConfig = {
@@ -397,76 +392,88 @@ export async function execClaudeWithCLIProxy(
     const configPath = generateConfig(provider, cfg.port);
     log(`Config written: ${configPath}`);
 
-    // 6a. Pre-flight check: handle existing proxy or port conflicts
-    // Clean up orphaned sessions first (from crashed proxies)
+    // 6a. Pre-flight check using unified detection with startup lock
+    // This prevents race conditions when multiple CCS processes start simultaneously
     cleanupOrphanedSessions(cfg.port);
 
-    // Check if there's an existing healthy proxy we can reuse
-    const existingProxy = getExistingProxy(cfg.port);
+    // Use startup lock to coordinate with other CCS processes
+    await withStartupLock(async () => {
+      // Detect running proxy using multiple methods (HTTP, session-lock, port-process)
+      const proxyStatus = await detectRunningProxy(cfg.port);
+      log(`Proxy detection: ${JSON.stringify(proxyStatus)}`);
 
-    if (existingProxy) {
-      // Reuse existing proxy - another CCS session started it
-      log(`Reusing existing CLIProxy on port ${cfg.port} (PID ${existingProxy.pid})`);
-      sessionId = registerSession(cfg.port, existingProxy.pid);
-      console.log(
-        info(`Joined existing CLIProxy (${existingProxy.sessions.length + 1} sessions active)`)
-      );
-    } else {
-      // No existing proxy - check if port is free
-      const portProcess = await getPortProcess(cfg.port);
-      if (portProcess) {
-        if (isCLIProxyProcess(portProcess)) {
-          // CLIProxy on port but no session lock - likely orphaned/zombie
-          // Only kill if no active sessions registered
-          if (!hasActiveSessions()) {
-            log(`Found zombie CLIProxy on port ${cfg.port} (PID ${portProcess.pid}), killing...`);
-            const killed = killProcessOnPort(cfg.port, verbose);
-            if (killed) {
-              console.log(info(`Cleaned up zombie CLIProxy process`));
-              // Wait a bit for port to be released
-              await new Promise((r) => setTimeout(r, 500));
-            }
-          } else {
-            // Active sessions exist but getExistingProxy returned null - something's wrong
-            // Try to connect anyway
-            log(`CLIProxy on port ${cfg.port} has active sessions, attempting to join...`);
-          }
+      if (proxyStatus.running && proxyStatus.verified) {
+        // Healthy proxy found - join it
+        if (proxyStatus.pid) {
+          sessionId = reclaimOrphanedProxy(cfg.port, proxyStatus.pid) ?? undefined;
+        }
+        if (sessionId) {
+          console.log(info(`Joined existing CLIProxy on port ${cfg.port} (${proxyStatus.method})`));
         } else {
-          // Non-CLIProxy process blocking the port - warn user
-          console.error('');
-          console.error(
-            warn(
-              `Port ${cfg.port} is blocked by ${portProcess.processName} (PID ${portProcess.pid})`
-            )
-          );
-          console.error('');
-          console.error('To fix this, close the blocking application or run:');
-          console.error(`  ${getPortCheckCommand(cfg.port)}`);
-          console.error('');
-          throw new Error(`Port ${cfg.port} is in use by another application`);
+          // Failed to register session, but proxy is running - continue anyway
+          log(`Failed to register session but proxy is healthy, continuing...`);
+        }
+        return; // Exit lock early, skip spawning
+      }
+
+      if (proxyStatus.running && !proxyStatus.verified) {
+        // Proxy detected but not ready yet (another process is starting it)
+        log(`Proxy starting up (detected via ${proxyStatus.method}), waiting...`);
+        const becameHealthy = await waitForProxyHealthy(cfg.port, cfg.timeout);
+        if (becameHealthy) {
+          if (proxyStatus.pid) {
+            sessionId = reclaimOrphanedProxy(cfg.port, proxyStatus.pid) ?? undefined;
+          }
+          console.log(info(`Joined CLIProxy after startup wait`));
+          return; // Exit lock early
+        }
+        // Proxy didn't become healthy - kill and respawn
+        if (proxyStatus.pid) {
+          log(`Proxy PID ${proxyStatus.pid} not responding, killing...`);
+          killProcessOnPort(cfg.port, verbose);
+          await new Promise((r) => setTimeout(r, 500));
         }
       }
 
-      // 6b. Spawn CLIProxyAPI binary (only if not reusing existing proxy)
-      // Use detached mode so proxy persists after terminal closes
-      const configPath = generateConfig(provider, cfg.port);
-      const proxyArgs = ['--config', configPath];
+      if (proxyStatus.blocked && proxyStatus.blocker) {
+        // Port blocked by non-CLIProxy process
+        // Last resort: try HTTP health check (handles Windows PID-XXXXX case)
+        const isActuallyOurs = await waitForProxyHealthy(cfg.port, 1000);
+        if (isActuallyOurs) {
+          sessionId = reclaimOrphanedProxy(cfg.port, proxyStatus.blocker.pid) ?? undefined;
+          console.log(info(`Reclaimed CLIProxy with unrecognized process name`));
+          return;
+        }
 
+        // Truly blocked by another application
+        console.error('');
+        console.error(
+          warn(
+            `Port ${cfg.port} is blocked by ${proxyStatus.blocker.processName} (PID ${proxyStatus.blocker.pid})`
+          )
+        );
+        console.error('');
+        console.error('To fix this, close the blocking application or run:');
+        console.error(`  ${getPortCheckCommand(cfg.port)}`);
+        console.error('');
+        throw new Error(`Port ${cfg.port} is in use by another application`);
+      }
+
+      // 6b. Spawn CLIProxyAPI binary
+      const proxyArgs = ['--config', configPath];
       log(`Spawning: ${binaryPath} ${proxyArgs.join(' ')}`);
 
       proxy = spawn(binaryPath as string, proxyArgs, {
         stdio: ['ignore', 'ignore', 'ignore'],
-        detached: true, // Persist after parent terminal closes
+        detached: true,
         env: {
           ...process.env,
-          WRITABLE_PATH: getCliproxyWritablePath(), // Logs stored in ~/.ccs/cliproxy/logs/
+          WRITABLE_PATH: getCliproxyWritablePath(),
         },
       });
 
-      // Unref so parent process can exit independently
       proxy.unref();
 
-      // Handle proxy errors (only fires if spawn itself fails)
       proxy.on('error', (error) => {
         console.error(fail(`CLIProxy spawn error: ${error.message}`));
       });
@@ -504,7 +511,7 @@ export async function execClaudeWithCLIProxy(
       // Register this session with the new proxy
       sessionId = registerSession(cfg.port, proxy.pid as number);
       log(`Registered session ${sessionId} with new proxy (PID ${proxy.pid})`);
-    }
+    });
   }
 
   // 7. Execute Claude CLI with proxied environment

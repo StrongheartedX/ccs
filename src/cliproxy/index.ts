@@ -126,3 +126,11 @@ export {
 // Service manager (background CLIProxy for dashboard)
 export type { ServiceStartResult } from './service-manager';
 export { ensureCliproxyService, stopCliproxyService, getServiceStatus } from './service-manager';
+
+// Proxy detector (unified detection with multiple fallbacks)
+export type { ProxyStatus, DetectionMethod } from './proxy-detector';
+export { detectRunningProxy, waitForProxyHealthy, reclaimOrphanedProxy } from './proxy-detector';
+
+// Startup lock (prevents race conditions between CCS processes)
+export type { LockResult } from './startup-lock';
+export { acquireStartupLock, withStartupLock } from './startup-lock';
