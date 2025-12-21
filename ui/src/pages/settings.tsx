@@ -107,6 +107,9 @@ export function SettingsPage() {
   const [showGeminiHint, setShowGeminiHint] = useState(false);
   const [showOpencodeHint, setShowOpencodeHint] = useState(false);
   const [showGrokHint, setShowGrokHint] = useState(false);
+  // Model save indicators (brief visual feedback)
+  const [geminiModelSaved, setGeminiModelSaved] = useState(false);
+  const [opencodeModelSaved, setOpencodeModelSaved] = useState(false);
   // Global Env state
   const [globalEnvConfig, setGlobalEnvConfig] = useState<GlobalEnvConfig | null>(null);
   const [globalEnvLoading, setGlobalEnvLoading] = useState(true);
@@ -332,11 +335,11 @@ export function SettingsPage() {
   };
 
   // Save Gemini model on blur (only if changed)
-  const saveGeminiModel = () => {
+  const saveGeminiModel = async () => {
     const currentModel = config?.providers?.gemini?.model ?? 'gemini-2.5-flash';
     if (geminiModelInput !== currentModel) {
       const providers = config?.providers || {};
-      saveConfig({
+      await saveConfig({
         providers: {
           ...providers,
           gemini: {
@@ -345,15 +348,18 @@ export function SettingsPage() {
           },
         },
       });
+      // Show saved indicator briefly
+      setGeminiModelSaved(true);
+      setTimeout(() => setGeminiModelSaved(false), 2000);
     }
   };
 
   // Save OpenCode model on blur (only if changed)
-  const saveOpencodeModel = () => {
+  const saveOpencodeModel = async () => {
     const currentModel = config?.providers?.opencode?.model ?? 'opencode/grok-code';
     if (opencodeModelInput !== currentModel) {
       const providers = config?.providers || {};
-      saveConfig({
+      await saveConfig({
         providers: {
           ...providers,
           opencode: {
@@ -362,6 +368,9 @@ export function SettingsPage() {
           },
         },
       });
+      // Show saved indicator briefly
+      setOpencodeModelSaved(true);
+      setTimeout(() => setOpencodeModelSaved(false), 2000);
     }
   };
 
@@ -551,6 +560,8 @@ export function SettingsPage() {
                 isOpenCodeEnabled={isOpenCodeEnabled}
                 geminiModelInput={geminiModelInput}
                 opencodeModelInput={opencodeModelInput}
+                geminiModelSaved={geminiModelSaved}
+                opencodeModelSaved={opencodeModelSaved}
                 showGeminiHint={showGeminiHint}
                 showOpencodeHint={showOpencodeHint}
                 showGrokHint={showGrokHint}
@@ -703,6 +714,8 @@ interface WebSearchContentProps {
   isOpenCodeEnabled: boolean;
   geminiModelInput: string;
   opencodeModelInput: string;
+  geminiModelSaved: boolean;
+  opencodeModelSaved: boolean;
   showGeminiHint: boolean;
   showOpencodeHint: boolean;
   showGrokHint: boolean;
@@ -733,6 +746,8 @@ function WebSearchContent({
   isOpenCodeEnabled,
   geminiModelInput,
   opencodeModelInput,
+  geminiModelSaved,
+  opencodeModelSaved,
   showGeminiHint,
   showOpencodeHint,
   showGrokHint,
@@ -857,6 +872,12 @@ function WebSearchContent({
                       className="h-8 text-sm font-mono"
                       disabled={saving}
                     />
+                    {geminiModelSaved && (
+                      <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-xs animate-in fade-in duration-200">
+                        <Check className="w-3.5 h-3.5" />
+                        Saved
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
@@ -948,6 +969,12 @@ function WebSearchContent({
                       className="h-8 text-sm font-mono"
                       disabled={saving}
                     />
+                    {opencodeModelSaved && (
+                      <span className="flex items-center gap-1 text-green-600 dark:text-green-400 text-xs animate-in fade-in duration-200">
+                        <Check className="w-3.5 h-3.5" />
+                        Saved
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
