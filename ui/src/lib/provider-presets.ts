@@ -34,7 +34,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     badge: '349+ models',
     featured: true,
     icon: '/icons/openrouter.svg',
-    defaultModel: 'anthropic/claude-sonnet-4',
+    defaultModel: 'anthropic/claude-opus-4.5',
     requiresApiKey: true,
     apiKeyPlaceholder: 'sk-or-...',
     apiKeyHint: 'Get your API key at openrouter.ai/keys',

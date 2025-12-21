@@ -38,7 +38,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     description: '349+ models from OpenAI, Anthropic, Google, Meta',
     baseUrl: OPENROUTER_BASE_URL,
     defaultProfileName: 'openrouter',
-    defaultModel: 'anthropic/claude-sonnet-4',
+    defaultModel: 'anthropic/claude-opus-4.5',
     apiKeyPlaceholder: 'sk-or-...',
     apiKeyHint: 'Get your API key at openrouter.ai/keys',
     category: 'recommended',
