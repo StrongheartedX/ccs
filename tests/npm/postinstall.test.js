@@ -30,20 +30,21 @@ describe('npm postinstall', () => {
     const config = testEnv.readFile('config.json', true);
     assert(config.profiles, 'config.json should have profiles');
     assert(typeof config.profiles === 'object', 'profiles should be an object');
+    // Profiles are now empty by default - users create via presets
+    assert.deepStrictEqual(config.profiles, {}, 'profiles should be empty by default');
   });
 
-  it('creates glm.settings.json', () => {
+  it('does NOT auto-create glm.settings.json (v6.0 - use presets instead)', () => {
     execSync(`node "${postinstallScript}"`, {
       stdio: 'ignore',
       env: { ...process.env, CCS_HOME: testEnv.testHome }
     });
 
-    assert(testEnv.fileExists('glm.settings.json'), 'glm.settings.json should be created');
-
-    const glmSettings = testEnv.readFile('glm.settings.json', true);
-    assert(glmSettings.env, 'glm.settings.json should have env section');
-    assert(glmSettings.env.ANTHROPIC_MODEL, 'should have ANTHROPIC_MODEL set');
-    assert.strictEqual(glmSettings.env.ANTHROPIC_MODEL, 'glm-4.6');
+    // GLM/GLMT/Kimi profiles are NO LONGER auto-created during install
+    // Users create these via UI presets or CLI: ccs api create --preset glm
+    assert(!testEnv.fileExists('glm.settings.json'), 'glm.settings.json should NOT be auto-created');
+    assert(!testEnv.fileExists('glmt.settings.json'), 'glmt.settings.json should NOT be auto-created');
+    assert(!testEnv.fileExists('kimi.settings.json'), 'kimi.settings.json should NOT be auto-created');
   });
 
   it('is idempotent', () => {
@@ -97,7 +98,8 @@ describe('npm postinstall', () => {
     // Verify existing file still exists and new files are created
     assert(testEnv.fileExists('existing.txt'), 'Existing files should be preserved');
     assert(testEnv.fileExists('config.json'), 'config.json should be created');
-    assert(testEnv.fileExists('glm.settings.json'), 'glm.settings.json should be created');
+    // GLM/GLMT/Kimi are no longer auto-created
+    assert(!testEnv.fileExists('glm.settings.json'), 'glm.settings.json should NOT be auto-created');
   });
 
   it('does not create VERSION file', () => {
