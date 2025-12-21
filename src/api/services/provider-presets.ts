@@ -5,6 +5,8 @@
  * Mirrors the UI presets in ui/src/lib/provider-presets.ts
  */
 
+export type PresetCategory = 'recommended' | 'alternative';
+
 export interface ProviderPreset {
   id: string;
   name: string;
@@ -14,6 +16,7 @@ export interface ProviderPreset {
   defaultModel: string;
   apiKeyPlaceholder: string;
   apiKeyHint: string;
+  category: PresetCategory;
   /** Additional env vars for thinking mode, etc. */
   extraEnv?: Record<string, string>;
   /** Enable always thinking mode */
@@ -28,6 +31,7 @@ export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
  * NOTE: Keep in sync with ui/src/lib/provider-presets.ts
  */
 export const PROVIDER_PRESETS: ProviderPreset[] = [
+  // Recommended
   {
     id: 'openrouter',
     name: 'OpenRouter',
@@ -37,7 +41,9 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModel: 'anthropic/claude-sonnet-4',
     apiKeyPlaceholder: 'sk-or-...',
     apiKeyHint: 'Get your API key at openrouter.ai/keys',
+    category: 'recommended',
   },
+  // Alternative providers
   {
     id: 'glm',
     name: 'GLM',
@@ -47,6 +53,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModel: 'glm-4.6',
     apiKeyPlaceholder: 'ghp_...',
     apiKeyHint: 'Get your API key from Z.AI',
+    category: 'alternative',
   },
   {
     id: 'glmt',
@@ -57,6 +64,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModel: 'glm-4.6',
     apiKeyPlaceholder: 'ghp_...',
     apiKeyHint: 'Same API key as GLM',
+    category: 'alternative',
     extraEnv: {
       ANTHROPIC_TEMPERATURE: '0.2',
       ANTHROPIC_MAX_TOKENS: '65536',
@@ -76,6 +84,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     defaultModel: 'kimi-k2-thinking-turbo',
     apiKeyPlaceholder: 'sk-...',
     apiKeyHint: 'Get your API key from Moonshot AI',
+    category: 'alternative',
     alwaysThinkingEnabled: true,
   },
 ];

@@ -69,14 +69,9 @@ class RecoveryManager {
     }
 
     // Create default config (matches postinstall.js)
-    // NOTE: No 'default' entry - when no profile specified, CCS passes through
-    // to Claude's native auth without --settings flag
+    // NOTE: Empty profiles - users create profiles via `ccs api create` or UI
     const defaultConfig = {
-      profiles: {
-        glm: '~/.ccs/glm.settings.json',
-        glmt: '~/.ccs/glmt.settings.json',
-        kimi: '~/.ccs/kimi.settings.json',
-      },
+      profiles: {},
     };
 
     const tmpPath = `${configPath}.tmp`;
@@ -274,6 +269,9 @@ class RecoveryManager {
   /**
    * Run all recovery operations (lazy initialization)
    * Mirrors postinstall.js behavior
+   *
+   * NOTE: GLM/GLMT/Kimi profiles are NOT auto-created.
+   * Users should create them via `ccs api create --preset glm` or the UI.
    */
   recoverAll(): boolean {
     this.recovered = [];
@@ -283,11 +281,8 @@ class RecoveryManager {
     this.ensureSharedDirectories();
     this.ensureClaudeSettings();
 
-    // Config files
+    // Config files (core only - no GLM/GLMT/Kimi auto-creation)
     this.ensureConfigJson();
-    this.ensureGlmSettings();
-    this.ensureGlmtSettings();
-    this.ensureKimiSettings();
 
     // Shell completions
     this.ensureShellCompletions();

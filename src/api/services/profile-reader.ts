@@ -33,14 +33,32 @@ export function apiProfileExists(name: string): boolean {
  */
 export function isApiProfileConfigured(apiName: string): boolean {
   try {
-    if (isUnifiedMode()) {
-      const secrets = getProfileSecrets(apiName);
-      const token = secrets?.ANTHROPIC_AUTH_TOKEN || '';
-      return token.length > 0 && !token.includes('YOUR_') && !token.includes('your-');
-    }
-    // Legacy: check settings.json file
     const ccsDir = getCcsDir();
     const settingsPath = path.join(ccsDir, `${apiName}.settings.json`);
+
+    if (isUnifiedMode()) {
+      // Check secrets.yaml first
+      const secrets = getProfileSecrets(apiName);
+      const secretToken = secrets?.ANTHROPIC_AUTH_TOKEN || '';
+      if (
+        secretToken.length > 0 &&
+        !secretToken.includes('YOUR_') &&
+        !secretToken.includes('your-')
+      ) {
+        return true;
+      }
+
+      // Fallback: check settings.json file (profiles created via UI store keys here)
+      if (fs.existsSync(settingsPath)) {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        const token = settings?.env?.ANTHROPIC_AUTH_TOKEN || '';
+        return token.length > 0 && !token.includes('YOUR_') && !token.includes('your-');
+      }
+
+      return false;
+    }
+
+    // Legacy: check settings.json file
     if (!fs.existsSync(settingsPath)) return false;
 
     const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
@@ -53,6 +71,9 @@ export function isApiProfileConfigured(apiName: string): boolean {
 
 /**
  * List all API profiles
+ *
+ * Note: The 'default' profile (pointing to ~/.claude/settings.json) is excluded
+ * as it represents the user's native Claude subscription, not an API profile.
  */
 export function listApiProfiles(): ApiListResult {
   const profiles: ApiProfileInfo[] = [];
@@ -60,10 +81,14 @@ export function listApiProfiles(): ApiListResult {
 
   if (isUnifiedMode()) {
     const unifiedConfig = loadOrCreateUnifiedConfig();
-    for (const name of Object.keys(unifiedConfig.profiles)) {
+    for (const [name, profile] of Object.entries(unifiedConfig.profiles)) {
+      // Skip 'default' profile - it's the user's native Claude settings
+      if (name === 'default' && profile.settings?.includes('.claude/settings.json')) {
+        continue;
+      }
       profiles.push({
         name,
-        settingsPath: 'config.yaml',
+        settingsPath: profile.settings || 'config.yaml',
         isConfigured: isApiProfileConfigured(name),
         configSource: 'unified',
       });
@@ -79,6 +104,10 @@ export function listApiProfiles(): ApiListResult {
   } else {
     const config = loadConfig();
     for (const [name, settingsPath] of Object.entries(config.profiles)) {
+      // Skip 'default' profile - it's the user's native Claude settings
+      if (name === 'default' && (settingsPath as string).includes('.claude/settings.json')) {
+        continue;
+      }
       profiles.push({
         name,
         settingsPath: settingsPath as string,

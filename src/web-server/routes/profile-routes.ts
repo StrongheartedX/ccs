@@ -1,5 +1,7 @@
 /**
  * Profile Routes - CRUD operations for user profiles and accounts
+ *
+ * Uses unified config (config.yaml) when available, falls back to legacy (config.json).
  */
 
 import { Router, Request, Response } from 'express';
@@ -7,13 +9,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { getCcsDir } from '../../utils/config-manager';
 import { isReservedName, RESERVED_PROFILE_NAMES } from '../../config/reserved-names';
-import {
-  readConfigSafe,
-  writeConfig,
-  isConfigured,
-  createSettingsFile,
-  updateSettingsFile,
-} from './route-helpers';
+import { createApiProfile, removeApiProfile } from '../../api/services/profile-writer';
+import { apiProfileExists, listApiProfiles } from '../../api/services/profile-reader';
+import { updateSettingsFile } from './route-helpers';
 
 const router = Router();
 
@@ -23,13 +21,13 @@ const router = Router();
  * GET /api/profiles - List all profiles
  */
 router.get('/', (_req: Request, res: Response) => {
-  const config = readConfigSafe();
-  const profiles = Object.entries(config.profiles).map(([name, settingsPath]) => ({
-    name,
-    settingsPath,
-    configured: isConfigured(name, config),
+  const result = listApiProfiles();
+  // Map isConfigured -> configured for UI compatibility
+  const profiles = result.profiles.map((p) => ({
+    name: p.name,
+    settingsPath: p.settingsPath,
+    configured: p.isConfigured,
   }));
-
   res.json({ profiles });
 });
 
@@ -53,31 +51,26 @@ router.post('/', (req: Request, res: Response): void => {
     return;
   }
 
-  const config = readConfigSafe();
-
-  if (config.profiles[name]) {
+  // Check if profile already exists (uses unified config when available)
+  if (apiProfileExists(name)) {
     res.status(409).json({ error: 'Profile already exists' });
     return;
   }
 
-  // Ensure .ccs directory exists
-  if (!fs.existsSync(getCcsDir())) {
-    fs.mkdirSync(getCcsDir(), { recursive: true });
-  }
-
-  // Create settings file with model mapping
-  const settingsPath = createSettingsFile(name, baseUrl, apiKey, {
-    model,
-    opusModel,
-    sonnetModel,
-    haikuModel,
+  // Create profile using unified-config-aware service
+  const result = createApiProfile(name, baseUrl, apiKey, {
+    default: model || '',
+    opus: opusModel || model || '',
+    sonnet: sonnetModel || model || '',
+    haiku: haikuModel || model || '',
   });
 
-  // Update config
-  config.profiles[name] = settingsPath;
-  writeConfig(config);
+  if (!result.success) {
+    res.status(500).json({ error: result.error || 'Failed to create profile' });
+    return;
+  }
 
-  res.status(201).json({ name, settingsPath });
+  res.status(201).json({ name, settingsPath: result.settingsFile });
 });
 
 /**
@@ -87,9 +80,8 @@ router.put('/:name', (req: Request, res: Response): void => {
   const { name } = req.params;
   const { baseUrl, apiKey, model, opusModel, sonnetModel, haikuModel } = req.body;
 
-  const config = readConfigSafe();
-
-  if (!config.profiles[name]) {
+  // Check if profile exists (uses unified config when available)
+  if (!apiProfileExists(name)) {
     res.status(404).json({ error: 'Profile not found' });
     return;
   }
@@ -108,22 +100,19 @@ router.put('/:name', (req: Request, res: Response): void => {
 router.delete('/:name', (req: Request, res: Response): void => {
   const { name } = req.params;
 
-  const config = readConfigSafe();
-
-  if (!config.profiles[name]) {
+  // Check if profile exists (uses unified config when available)
+  if (!apiProfileExists(name)) {
     res.status(404).json({ error: 'Profile not found' });
     return;
   }
 
-  // Delete settings file
-  const settingsPath = path.join(getCcsDir(), `${name}.settings.json`);
-  if (fs.existsSync(settingsPath)) {
-    fs.unlinkSync(settingsPath);
-  }
+  // Remove profile using unified-config-aware service
+  const result = removeApiProfile(name);
 
-  // Remove from config
-  delete config.profiles[name];
-  writeConfig(config);
+  if (!result.success) {
+    res.status(500).json({ error: result.error || 'Failed to delete profile' });
+    return;
+  }
 
   res.json({ name, deleted: true });
 });
