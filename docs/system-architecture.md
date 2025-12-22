@@ -1,6 +1,6 @@
 # CCS System Architecture
 
-Last Updated: 2025-12-21
+Last Updated: 2025-12-22
 
 High-level architecture documentation for the CCS (Claude Code Switch) system.
 
@@ -8,12 +8,12 @@ High-level architecture documentation for the CCS (Claude Code Switch) system.
 
 ## System Overview
 
-CCS is a CLI wrapper that enables seamless switching between multiple Claude accounts and alternative AI providers (GLM, Gemini, Codex). It consists of two main components:
+CCS is a CLI wrapper that enables seamless switching between multiple Claude accounts and alternative AI providers (GLM, Gemini, Codex, Kiro, GitHub Copilot). It consists of two main components:
 
 1. **CLI Application** (`src/`) - Node.js TypeScript CLI
 2. **Dashboard UI** (`ui/`) - React web application served by Express
 
-CCS v7.1 adds support for both **local** and **remote** CLIProxyAPI instances.
+CCS v7.2 adds Kiro (AWS) and GitHub Copilot (ghcp) OAuth providers via CLIProxyAPIPlus.
 
 ```
 +===========================================================================+
@@ -84,8 +84,9 @@ CCS v7.1 adds support for both **local** and **remote** CLIProxyAPI instances.
   Profile Resolution
         |
         v
-  1. CLIProxy Hardcoded ----+---> gemini, codex, agy
+  1. CLIProxy Hardcoded ----+---> gemini, codex, agy, kiro, ghcp
      (OAuth-based)          |     Zero-config OAuth providers
+                            |     (kiro: Auth Code, ghcp: Device Code)
                             |
   2. CLIProxy Variants -----+---> config.cliproxy section
      (User-defined)         |     Custom provider configurations
@@ -296,11 +297,21 @@ CCS v7.1 adds support for both **local** and **remote** CLIProxyAPI instances.
         | ANTHROPIC_BASE_URL = localhost:XXXX
         v
   +------------------+
-  |   CLIProxyAPI    |  Local proxy binary
+  |   CLIProxyAPI    |  Local proxy binary (CLIProxyAPIPlus for kiro/ghcp)
   |   (binary)       |
   +------------------+
         |
-        +---> OAuth Authentication (Gemini, Codex, AGY)
+        +---> OAuth Authentication
+        |           |
+        |           +---> Authorization Code Flow (port-based)
+        |           |         - Gemini, Codex, Antigravity, Kiro (port 9876)
+        |           |         - Opens browser for user auth
+        |           |         - Callback to localhost:PORT
+        |           |
+        |           +---> Device Code Flow (no port needed)
+        |                     - GitHub Copilot (ghcp)
+        |                     - User enters code at github.com/login/device
+        |                     - Polls for token completion
         |           |
         |           v
         |     +------------------+
@@ -317,6 +328,8 @@ CCS v7.1 adds support for both **local** and **remote** CLIProxyAPI instances.
                     +---> Google (Gemini)
                     +---> GitHub (Codex)
                     +---> Antigravity
+                    +---> AWS Kiro (Claude-powered)
+                    +---> GitHub Copilot (ghcp)
                     +---> OpenAI-compatible endpoints
 ```
 
@@ -497,10 +510,10 @@ CCS v7.1 adds support for both **local** and **remote** CLIProxyAPI instances.
 |                      Authentication Flow                                   |
 +===========================================================================+
 
-  OAuth Providers (Gemini, Codex, AGY)
-  -----------------------------------
+  OAuth Providers - Authorization Code Flow (Gemini, Codex, AGY, Kiro)
+  --------------------------------------------------------------------
 
-  1. User runs: ccs gemini
+  1. User runs: ccs gemini (or ccs kiro)
         |
         v
   2. Check token cache (~/.ccs/cliproxy/auth/)
@@ -510,8 +523,8 @@ CCS v7.1 adds support for both **local** and **remote** CLIProxyAPI instances.
         +---> [No/Expired token]
                     |
                     v
-  3. Open browser for OAuth
-        |
+  3. Open browser for OAuth (localhost:PORT callback)
+        |         - Kiro uses port 9876
         v
   4. Callback with auth code
         |
@@ -520,6 +533,31 @@ CCS v7.1 adds support for both **local** and **remote** CLIProxyAPI instances.
         |
         v
   6. Cache token locally
+
+
+  OAuth Providers - Device Code Flow (GitHub Copilot/ghcp)
+  --------------------------------------------------------
+
+  1. User runs: ccs ghcp
+        |
+        v
+  2. Check token cache (~/.ccs/cliproxy/auth/)
+        |
+        +---> [Valid token] ---> Use cached token
+        |
+        +---> [No/Expired token]
+                    |
+                    v
+  3. Request device code from GitHub
+        |
+        v
+  4. Display user code + verification URL
+        |     "Enter code XXXX-XXXX at github.com/login/device"
+        v
+  5. Poll for token (user completes auth in browser)
+        |
+        v
+  6. Receive and cache token locally
 
 
   API Key Profiles (GLM, Kimi)

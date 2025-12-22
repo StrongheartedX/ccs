@@ -1,6 +1,6 @@
 # CCS Product Development Requirements (PDR)
 
-Last Updated: 2025-12-21
+Last Updated: 2025-12-22
 
 ## Product Overview
 
@@ -10,7 +10,7 @@ Last Updated: 2025-12-21
 
 **Description**: CLI wrapper enabling seamless switching between multiple Claude accounts and alternative AI providers (GLM, Gemini, Codex, OpenRouter) with a React-based dashboard for configuration management. Supports both local and remote CLIProxyAPI instances.
 
-**Current Version**: v7.1.x (Remote CLIProxy routing, OpenRouter integration)
+**Current Version**: v7.2.x (Kiro + GitHub Copilot OAuth providers)
 
 ---
 
@@ -31,7 +31,7 @@ Developers using Claude Code face these challenges:
 CCS provides:
 
 1. **Multi-Account Claude**: Isolated instances via `CLAUDE_CONFIG_DIR`
-2. **OAuth Providers**: Zero-config Gemini, Codex, Antigravity, Copilot integration
+2. **OAuth Providers**: Zero-config Gemini, Codex, Antigravity, Copilot, Kiro (ghcp) integration
 3. **API Profiles**: GLM, Kimi, OpenRouter, any Anthropic-compatible API
 4. **Visual Dashboard**: React SPA for configuration management
 5. **Automatic WebSearch**: MCP fallback for third-party providers
@@ -64,8 +64,8 @@ CCS provides:
 - Share commands, skills, agents across accounts
 
 ### FR-003: OAuth Provider Integration
-- Support Gemini, Codex, Antigravity, Copilot OAuth flows
-- Browser-based authentication
+- Support Gemini, Codex, Antigravity, Copilot, Kiro (ghcp) OAuth flows
+- Browser-based authentication (Authorization Code flow for most, Device Code for ghcp)
 - Token caching and refresh
 
 ### FR-004: API Profile Management
@@ -210,11 +210,16 @@ CCS provides:
 - [x] Fallback to local when remote unreachable
 - [x] Protocol-based default ports (HTTPS:443, HTTP:8317)
 
+### v7.2 Release (Complete)
+- [x] Kiro (AWS) OAuth provider support via CLIProxyAPIPlus
+- [x] GitHub Copilot (ghcp) OAuth provider via Device Code flow
+- [x] Authorization Code flow for Kiro (port 9876)
+- [x] Device Code flow for ghcp (no local port needed)
+
 ### v8.0 Release (Planned - Q1 2026)
 - [ ] Multiple CLIProxyAPI instances (load balancing, failover)
 - [ ] Native git worktree support
 - [ ] Critical bug fixes (#158, #155, #124)
-- [ ] Kiro auth support (#157)
 
 ### v9.0 Release (Future - Q2 2026)
 - [ ] Team collaboration features
@@ -230,6 +235,8 @@ CCS provides:
 - Anthropic Claude API
 - Google Gemini API
 - GitHub Codex/Copilot API
+- GitHub Copilot (ghcp - Device Code OAuth)
+- AWS Kiro (Authorization Code OAuth)
 - Z.AI GLM API
 - OpenRouter API
 

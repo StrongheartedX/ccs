@@ -1,6 +1,6 @@
 # CCS Project Roadmap
 
-Last Updated: 2025-12-21
+Last Updated: 2025-12-22
 
 Forward-looking roadmap documenting current priorities, GitHub issues, and future feature plans.
 
@@ -22,6 +22,7 @@ All major modularization work is complete. The codebase evolved from monolithic 
 | 8 | Auth Monitor | `monitoring/auth-monitor/` (465->8 files) |
 | 9 | Test Infrastructure | 99 UI tests + 539 CLI tests, 90% coverage |
 | 10 | Remote CLIProxy | `proxy-config-resolver.ts`, `remote-proxy-client.ts` |
+| 11 | Kiro + ghcp Providers | OAuth support via CLIProxyAPIPlus (v7.2) |
 
 **Metrics Achieved**:
 - Files >500 lines: 12 -> 5 (-58%)
@@ -62,7 +63,7 @@ All major modularization work is complete. The codebase evolved from monolithic 
 | Issue | Title | Type | Status |
 |-------|-------|------|--------|
 | #142 | Configure with available CLIProxyAPI | enhancement | **COMPLETE** (v7.1) |
-| #157 | Support for Kiro auth from CLIProxyAPIPlus | enhancement | - |
+| #157 | Support for Kiro auth from CLIProxyAPIPlus | enhancement | **COMPLETE** (v7.2) |
 | #123 | Add More Models | enhancement | Ongoing |
 | #114 | OpenCode Zen Free model + Auto Rotation API Key | enhancement | - |
 
@@ -150,7 +151,8 @@ worktrees:
 ### Priority 5: Authentication Enhancements
 
 - **#158**: Fix AGY OAuth flow
-- **#157**: Add Kiro auth support from CLIProxyAPIPlus
+- **#157**: ~~Add Kiro auth support from CLIProxyAPIPlus~~ **COMPLETE** (v7.2)
+- GitHub Copilot (ghcp) Device Code flow **COMPLETE** (v7.2)
 
 ---
 
@@ -160,6 +162,7 @@ worktrees:
 |-----------|--------|--------|
 | Modularization (Phases 1-9) | COMPLETE | - |
 | Remote CLIProxy Support (#142) | COMPLETE | v7.1 |
+| Kiro + GitHub Copilot OAuth (#157) | COMPLETE | v7.2 |
 | Critical Bug Fixes (#158, #155, #124) | PLANNED | Q1 2026 |
 | Multiple CLIProxyAPI Instances | PLANNED | Q1 2026 |
 | Git Worktree Support | PLANNED | Q1 2026 |

@@ -89,7 +89,7 @@ The dashboard provides visual management for all account types:
 | **Claude** | Subscription | `ccs` | Default, strategic planning |
 | **Gemini** | OAuth | `ccs gemini` | Zero-config, fast iteration |
 | **Codex** | OAuth | `ccs codex` | Code generation |
-| **Copilot** | OAuth | `ccs copilot` | GitHub Copilot models |
+| **Copilot** | OAuth | `ccs copilot` or `ccs ghcp` | GitHub Copilot models |
 | **Kiro** | OAuth | `ccs kiro` | AWS CodeWhisperer (Claude-powered) |
 | **Antigravity** | OAuth | `ccs agy` | Alternative routing |
 | **OpenRouter** | API Key | `ccs openrouter` | 300+ models, unified API |
@@ -118,8 +118,11 @@ The dashboard provides visual management for all account types:
 
 ```bash
 ccs           # Default Claude session
-ccs agy       # Antigravity (OAuth)
 ccs gemini    # Gemini (OAuth)
+ccs codex     # OpenAI Codex (OAuth)
+ccs kiro      # Kiro/AWS CodeWhisperer (OAuth)
+ccs ghcp      # GitHub Copilot (OAuth device flow)
+ccs agy       # Antigravity (OAuth)
 ccs glm       # GLM (API key)
 ```
 

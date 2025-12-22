@@ -1,8 +1,8 @@
 # CCS Codebase Summary
 
-Last Updated: 2025-12-21
+Last Updated: 2025-12-22
 
-Comprehensive overview of the modularized CCS codebase structure following the Phase 9 modularization effort (Settings, Analytics, Auth Monitor splits + Test Infrastructure) and v7.1 Remote CLIProxy feature.
+Comprehensive overview of the modularized CCS codebase structure following the Phase 9 modularization effort (Settings, Analytics, Auth Monitor splits + Test Infrastructure), v7.1 Remote CLIProxy feature, and v7.2 Kiro + GitHub Copilot (ghcp) OAuth providers.
 
 ## Repository Structure
 
@@ -163,7 +163,7 @@ src/
 | Core | `commands/`, `errors/` | CLI commands, error handling |
 | Auth | `auth/`, `cliproxy/auth/` | Authentication across providers |
 | Config | `config/`, `types/` | Configuration & type definitions |
-| Providers | `cliproxy/`, `copilot/`, `glmt/` | Provider integrations |
+| Providers | `cliproxy/`, `copilot/`, `glmt/` | Provider integrations (7 CLIProxy providers: gemini, codex, agy, qwen, iflow, kiro, ghcp) |
 | Remote Proxy | `cliproxy/remote-*.ts`, `proxy-config-resolver.ts` | Remote CLIProxy support (v7.1) |
 | Services | `web-server/`, `api/` | HTTP server, API services |
 | Utilities | `utils/`, `management/` | Helpers, diagnostics |
