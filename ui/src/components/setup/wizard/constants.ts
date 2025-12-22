@@ -11,7 +11,7 @@ export const PROVIDERS: ProviderOption[] = [
   { id: 'qwen', name: 'Alibaba Qwen', description: 'Qwen Code models' },
   { id: 'iflow', name: 'iFlow', description: 'iFlow AI models' },
   { id: 'kiro', name: 'Kiro (AWS)', description: 'AWS CodeWhisperer models' },
-  { id: 'copilot', name: 'GitHub Copilot', description: 'GitHub Copilot models' },
+  { id: 'ghcp', name: 'GitHub Copilot (OAuth)', description: 'GitHub Copilot via OAuth' },
 ];
 
 export const ALL_STEPS = ['provider', 'auth', 'variant', 'success'];

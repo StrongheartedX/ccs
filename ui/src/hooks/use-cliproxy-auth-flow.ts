@@ -18,6 +18,10 @@ const AUTH_ENDPOINTS: Record<string, string> = {
   gemini: '/gemini-cli-auth-url',
   codex: '/codex-auth-url',
   agy: '/antigravity-auth-url',
+  qwen: '/qwen-auth-url',
+  iflow: '/iflow-auth-url',
+  kiro: '/kiro-auth-url',
+  ghcp: '/ghcp-auth-url',
 };
 
 const AUTH_TIMEOUT_MS = 300000; // 5 minutes

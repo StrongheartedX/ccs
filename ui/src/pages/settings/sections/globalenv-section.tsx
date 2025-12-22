@@ -81,7 +81,7 @@ export default function GlobalEnvSection() {
         <div className="p-5 space-y-6">
           <p className="text-sm text-muted-foreground">
             Environment variables injected into all non-Claude subscription profiles (gemini, codex,
-            agy, copilot, etc.)
+            agy, ghcp, etc.)
           </p>
 
           {/* Enable/Disable Toggle */}
