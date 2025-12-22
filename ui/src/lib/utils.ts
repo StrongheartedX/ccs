@@ -27,6 +27,8 @@ const PROVIDER_COLORS: Record<string, string> = {
   vertex: '#577590', // Blue Slate
   iflow: '#f94144', // Strawberry
   qwen: '#f9c74f', // Tuscan
+  kiro: '#4d908e', // Dark Cyan (AWS-inspired)
+  copilot: '#43aa8b', // Seaweed (GitHub-inspired)
 };
 
 // Status colors (from Analytics Cost breakdown) - darker for light theme contrast

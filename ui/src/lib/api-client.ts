@@ -47,20 +47,20 @@ export interface UpdateProfile {
 
 export interface Variant {
   name: string;
-  provider: 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow';
+  provider: 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow' | 'kiro' | 'copilot';
   settings: string;
   account?: string;
 }
 
 export interface CreateVariant {
   name: string;
-  provider: 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow';
+  provider: 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow' | 'kiro' | 'copilot';
   model?: string;
   account?: string;
 }
 
 export interface UpdateVariant {
-  provider?: 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow';
+  provider?: 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow' | 'kiro' | 'copilot';
   model?: string;
   account?: string;
 }
@@ -69,7 +69,7 @@ export interface UpdateVariant {
 export interface OAuthAccount {
   id: string;
   email?: string;
-  provider: 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow';
+  provider: 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow' | 'kiro' | 'copilot';
   isDefault: boolean;
   tokenFile: string;
   createdAt: string;

@@ -54,7 +54,7 @@ const navGroups = [
       {
         path: '/cliproxy',
         icon: Zap,
-        label: 'CLIProxy',
+        label: 'CLIProxy Plus',
         isCollapsible: true,
         children: [
           { path: '/cliproxy', label: 'Overview' },

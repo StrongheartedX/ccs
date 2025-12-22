@@ -151,4 +151,119 @@ export const MODEL_CATALOGS: Record<string, ProviderCatalog> = {
       },
     ],
   },
+  kiro: {
+    provider: 'kiro',
+    displayName: 'Kiro (AWS)',
+    defaultModel: 'kiro-claude-sonnet-4-5',
+    models: [
+      {
+        id: 'kiro-claude-opus-4-5',
+        name: 'Kiro Claude Opus 4.5',
+        description: 'Claude Opus 4.5 via Kiro (2.2x credit)',
+        presetMapping: {
+          default: 'kiro-claude-opus-4-5',
+          opus: 'kiro-claude-opus-4-5',
+          sonnet: 'kiro-claude-sonnet-4-5',
+          haiku: 'kiro-claude-haiku-4-5',
+        },
+      },
+      {
+        id: 'kiro-claude-sonnet-4-5',
+        name: 'Kiro Claude Sonnet 4.5',
+        description: 'Claude Sonnet 4.5 via Kiro (1.3x credit)',
+        presetMapping: {
+          default: 'kiro-claude-sonnet-4-5',
+          opus: 'kiro-claude-opus-4-5',
+          sonnet: 'kiro-claude-sonnet-4-5',
+          haiku: 'kiro-claude-haiku-4-5',
+        },
+      },
+      {
+        id: 'kiro-claude-sonnet-4',
+        name: 'Kiro Claude Sonnet 4',
+        description: 'Claude Sonnet 4 via Kiro (1.3x credit)',
+        presetMapping: {
+          default: 'kiro-claude-sonnet-4',
+          opus: 'kiro-claude-opus-4-5',
+          sonnet: 'kiro-claude-sonnet-4',
+          haiku: 'kiro-claude-haiku-4-5',
+        },
+      },
+      {
+        id: 'kiro-claude-haiku-4-5',
+        name: 'Kiro Claude Haiku 4.5',
+        description: 'Claude Haiku 4.5 via Kiro (0.4x credit)',
+      },
+    ],
+  },
+  copilot: {
+    provider: 'copilot',
+    displayName: 'GitHub Copilot',
+    defaultModel: 'claude-sonnet-4.5',
+    models: [
+      {
+        id: 'claude-opus-4.5',
+        name: 'Claude Opus 4.5',
+        description: 'Anthropic Claude Opus 4.5 via GitHub Copilot',
+        presetMapping: {
+          default: 'claude-opus-4.5',
+          opus: 'claude-opus-4.5',
+          sonnet: 'claude-sonnet-4.5',
+          haiku: 'claude-haiku-4.5',
+        },
+      },
+      {
+        id: 'claude-sonnet-4.5',
+        name: 'Claude Sonnet 4.5',
+        description: 'Anthropic Claude Sonnet 4.5 via GitHub Copilot',
+        presetMapping: {
+          default: 'claude-sonnet-4.5',
+          opus: 'claude-opus-4.5',
+          sonnet: 'claude-sonnet-4.5',
+          haiku: 'claude-haiku-4.5',
+        },
+      },
+      {
+        id: 'claude-sonnet-4',
+        name: 'Claude Sonnet 4',
+        description: 'Anthropic Claude Sonnet 4 via GitHub Copilot',
+      },
+      {
+        id: 'claude-haiku-4.5',
+        name: 'Claude Haiku 4.5',
+        description: 'Anthropic Claude Haiku 4.5 via GitHub Copilot',
+      },
+      {
+        id: 'gpt-5.2',
+        name: 'GPT-5.2',
+        description: 'OpenAI GPT-5.2 via GitHub Copilot',
+        presetMapping: {
+          default: 'gpt-5.2',
+          opus: 'gpt-5.2',
+          sonnet: 'gpt-5.1',
+          haiku: 'gpt-5-mini',
+        },
+      },
+      {
+        id: 'gpt-5.1',
+        name: 'GPT-5.1',
+        description: 'OpenAI GPT-5.1 via GitHub Copilot',
+      },
+      {
+        id: 'gpt-5',
+        name: 'GPT-5',
+        description: 'OpenAI GPT-5 via GitHub Copilot',
+      },
+      {
+        id: 'gpt-5-mini',
+        name: 'GPT-5 Mini',
+        description: 'OpenAI GPT-5 Mini via GitHub Copilot',
+      },
+      {
+        id: 'gemini-3-pro',
+        name: 'Gemini 3 Pro',
+        description: 'Google Gemini 3 Pro via GitHub Copilot',
+      },
+    ],
+  },
 };

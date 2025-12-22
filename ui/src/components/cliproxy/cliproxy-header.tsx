@@ -116,6 +116,7 @@ export function CliproxyHeader({
     { id: 'gemini', displayName: 'Gemini' },
     { id: 'codex', displayName: 'Codex' },
     { id: 'agy', displayName: 'Agy' },
+    { id: 'kiro', displayName: 'Kiro' },
   ];
 
   const getProviderStatus = (providerId: string) => {
@@ -131,10 +132,8 @@ export function CliproxyHeader({
       {/* Top row: Title and Login Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">CLIProxy</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Manage OAuth providers and configuration
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">CLIProxy Plus</h1>
+          <p className="text-sm text-muted-foreground mt-1">CCS-level account management</p>
         </div>
 
         {/* Login Buttons - Wrap on mobile */}

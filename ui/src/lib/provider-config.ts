@@ -9,6 +9,8 @@ export const PROVIDER_ASSETS: Record<string, string> = {
   agy: '/assets/providers/agy.png',
   codex: '/assets/providers/openai.svg',
   qwen: '/assets/providers/qwen-color.svg',
+  kiro: '/assets/providers/kiro.png',
+  copilot: '/assets/providers/copilot.svg',
 };
 
 // Provider brand colors
@@ -19,6 +21,8 @@ export const PROVIDER_COLORS: Record<string, string> = {
   vertex: '#4285F4',
   iflow: '#f94144',
   qwen: '#6236FF',
+  kiro: '#4d908e', // Dark Cyan (AWS-inspired)
+  copilot: '#43aa8b', // Seaweed (GitHub-inspired)
 };
 
 // Provider display names
@@ -29,6 +33,8 @@ const PROVIDER_NAMES: Record<string, string> = {
   vertex: 'Vertex AI',
   iflow: 'iFlow',
   qwen: 'Qwen',
+  kiro: 'Kiro (AWS)',
+  copilot: 'GitHub Copilot',
 };
 
 // Map provider to display name

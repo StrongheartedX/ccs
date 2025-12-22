@@ -18,6 +18,8 @@ const PROVIDER_IMAGES: Record<string, string> = {
   agy: '/assets/providers/agy.png',
   qwen: '/assets/providers/qwen-color.svg',
   iflow: '/assets/providers/iflow.png',
+  kiro: '/assets/providers/kiro.png',
+  copilot: '/assets/providers/copilot.svg',
 };
 
 /** Provider color configuration (for fallback only - no background for image logos) */
@@ -28,6 +30,8 @@ const PROVIDER_CONFIG: Record<string, { text: string; letter: string }> = {
   agy: { text: 'text-violet-600', letter: 'A' },
   qwen: { text: 'text-cyan-600', letter: 'Q' },
   iflow: { text: 'text-indigo-600', letter: 'i' },
+  kiro: { text: 'text-teal-600', letter: 'K' },
+  copilot: { text: 'text-green-600', letter: 'C' },
 };
 
 /** Size configuration */

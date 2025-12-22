@@ -235,7 +235,7 @@ export function CliproxyPage() {
           <div className="flex items-center justify-between mb-1">
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-primary" />
-              <h1 className="font-semibold">CLIProxy</h1>
+              <h1 className="font-semibold">CLIProxy Plus</h1>
             </div>
             <Button
               variant="ghost"

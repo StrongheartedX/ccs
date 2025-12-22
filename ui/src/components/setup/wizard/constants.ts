@@ -10,6 +10,8 @@ export const PROVIDERS: ProviderOption[] = [
   { id: 'agy', name: 'Antigravity', description: 'Antigravity AI models' },
   { id: 'qwen', name: 'Alibaba Qwen', description: 'Qwen Code models' },
   { id: 'iflow', name: 'iFlow', description: 'iFlow AI models' },
+  { id: 'kiro', name: 'Kiro (AWS)', description: 'AWS CodeWhisperer models' },
+  { id: 'copilot', name: 'GitHub Copilot', description: 'GitHub Copilot models' },
 ];
 
 export const ALL_STEPS = ['provider', 'auth', 'variant', 'success'];
