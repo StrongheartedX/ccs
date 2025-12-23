@@ -649,6 +649,12 @@ export function getEffectiveEnvVars(
           // Apply remote rewrite if configured
           if (remoteRewriteConfig) {
             envVars = rewriteLocalhostUrls(envVars, provider, remoteRewriteConfig);
+          } else {
+            // LOCAL PROXY MODE: Always override URL and auth token
+            // User settings may have stale/incorrect values from previous configurations.
+            // For local proxy, we must use the correct internal API key and endpoint.
+            envVars.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}/api/provider/${provider}`;
+            envVars.ANTHROPIC_AUTH_TOKEN = CCS_INTERNAL_API_KEY;
           }
           return envVars;
         }
@@ -678,6 +684,12 @@ export function getEffectiveEnvVars(
         // Apply remote rewrite if configured
         if (remoteRewriteConfig) {
           envVars = rewriteLocalhostUrls(envVars, provider, remoteRewriteConfig);
+        } else {
+          // LOCAL PROXY MODE: Always override URL and auth token
+          // User settings may have stale/incorrect values from previous configurations.
+          // For local proxy, we must use the correct internal API key and endpoint.
+          envVars.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}/api/provider/${provider}`;
+          envVars.ANTHROPIC_AUTH_TOKEN = CCS_INTERNAL_API_KEY;
         }
         return envVars;
       }
