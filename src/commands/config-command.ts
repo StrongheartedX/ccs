@@ -12,7 +12,7 @@ import { startServer } from '../web-server';
 import { setupGracefulShutdown } from '../web-server/shutdown';
 import { ensureCliproxyService } from '../cliproxy/service-manager';
 import { CLIPROXY_DEFAULT_PORT } from '../cliproxy/config-generator';
-import { initUI, header, ok, info, warn } from '../utils/ui';
+import { initUI, header, ok, info, warn, fail } from '../utils/ui';
 
 interface ConfigOptions {
   port?: number;
@@ -33,7 +33,7 @@ function parseArgs(args: string[]): ConfigOptions {
       if (!isNaN(port) && port > 0 && port < 65536) {
         result.port = port;
       } else {
-        console.error('[X] Invalid port number');
+        console.error(fail('Invalid port number'));
         process.exit(1);
       }
     } else if (arg === '--dev') {
@@ -137,7 +137,7 @@ export async function handleConfigCommand(args: string[]): Promise<void> {
     console.log('');
     console.log(info('Press Ctrl+C to stop'));
   } catch (error) {
-    console.error('[X] Failed to start server:', (error as Error).message);
+    console.error(fail(`Failed to start server: ${(error as Error).message}`));
     process.exit(1);
   }
 }

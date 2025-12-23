@@ -14,6 +14,7 @@ import {
 } from '../copilot';
 import { loadOrCreateUnifiedConfig, saveUnifiedConfig } from '../config/unified-config-loader';
 import { DEFAULT_COPILOT_CONFIG } from '../config/unified-config-types';
+import { ok, fail, info, color } from '../utils/ui';
 
 /**
  * Handle copilot subcommand.
@@ -42,7 +43,7 @@ export async function handleCopilotCommand(args: string[]): Promise<number> {
     case '-h':
       return handleHelp();
     default:
-      console.error(`[X] Unknown subcommand: ${subcommand}`);
+      console.error(fail(`Unknown subcommand: ${subcommand}`));
       console.error('');
       return handleHelp();
   }
@@ -81,7 +82,7 @@ function handleHelp(): number {
  */
 async function handleAuth(): Promise<number> {
   if (!isCopilotApiInstalled()) {
-    console.error('[X] copilot-api is not installed.');
+    console.error(fail('copilot-api is not installed.'));
     console.error('');
     console.error('Install with: npm install -g copilot-api');
     return 1;
@@ -91,7 +92,7 @@ async function handleAuth(): Promise<number> {
 
   if (result.success) {
     console.log('');
-    console.log('[OK] Authentication successful!');
+    console.log(ok('Authentication successful!'));
     console.log('');
     console.log('Next steps:');
     console.log('  1. Enable copilot: ccs copilot enable');
@@ -100,7 +101,7 @@ async function handleAuth(): Promise<number> {
     return 0;
   } else {
     console.error('');
-    console.error(`[X] ${result.error}`);
+    console.error(fail(result.error || 'Authentication failed'));
     return 1;
   }
 }
@@ -119,17 +120,17 @@ async function handleStatus(): Promise<number> {
   console.log('');
 
   // Enabled status
-  const enabledIcon = copilotConfig.enabled ? '[OK]' : '[X]';
+  const enabledIcon = copilotConfig.enabled ? color('[OK]', 'success') : color('[X]', 'error');
   const enabledText = copilotConfig.enabled ? 'Enabled' : 'Disabled';
   console.log(`Integration:    ${enabledIcon} ${enabledText}`);
 
   // Auth status
-  const authIcon = status.auth.authenticated ? '[OK]' : '[X]';
+  const authIcon = status.auth.authenticated ? color('[OK]', 'success') : color('[X]', 'error');
   const authText = status.auth.authenticated ? 'Authenticated' : 'Not authenticated';
   console.log(`Authentication: ${authIcon} ${authText}`);
 
   // Daemon status
-  const daemonIcon = status.daemon.running ? '[OK]' : '[X]';
+  const daemonIcon = status.daemon.running ? color('[OK]', 'success') : color('[X]', 'error');
   const daemonText = status.daemon.running ? 'Running' : 'Not running';
   console.log(`Daemon:         ${daemonIcon} ${daemonText}`);
 
@@ -196,15 +197,15 @@ async function handleStart(): Promise<number> {
   const config = loadOrCreateUnifiedConfig();
   const copilotConfig = config.copilot ?? DEFAULT_COPILOT_CONFIG;
 
-  console.log(`[i] Starting copilot-api daemon on port ${copilotConfig.port}...`);
+  console.log(info(`Starting copilot-api daemon on port ${copilotConfig.port}...`));
 
   const result = await startDaemon(copilotConfig);
 
   if (result.success) {
-    console.log(`[OK] Daemon started (PID: ${result.pid})`);
+    console.log(ok(`Daemon started (PID: ${result.pid})`));
     return 0;
   } else {
-    console.error(`[X] ${result.error}`);
+    console.error(fail(result.error || 'Failed to start daemon'));
     return 1;
   }
 }
@@ -213,15 +214,15 @@ async function handleStart(): Promise<number> {
  * Handle stop subcommand.
  */
 async function handleStop(): Promise<number> {
-  console.log('[i] Stopping copilot-api daemon...');
+  console.log(info('Stopping copilot-api daemon...'));
 
   const result = await stopDaemon();
 
   if (result.success) {
-    console.log('[OK] Daemon stopped');
+    console.log(ok('Daemon stopped'));
     return 0;
   } else {
-    console.error(`[X] ${result.error}`);
+    console.error(fail(result.error || 'Failed to stop daemon'));
     return 1;
   }
 }
@@ -239,7 +240,7 @@ async function handleEnable(): Promise<number> {
   config.copilot.enabled = true;
   saveUnifiedConfig(config);
 
-  console.log('[OK] Copilot integration enabled');
+  console.log(ok('Copilot integration enabled'));
   console.log('');
   console.log('Next steps:');
   console.log('  1. Authenticate: ccs copilot auth');
@@ -260,7 +261,7 @@ async function handleDisable(): Promise<number> {
     saveUnifiedConfig(config);
   }
 
-  console.log('[OK] Copilot integration disabled');
+  console.log(ok('Copilot integration disabled'));
 
   return 0;
 }

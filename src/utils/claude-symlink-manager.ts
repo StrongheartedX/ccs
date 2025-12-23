@@ -15,7 +15,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { ok, color } from './ui';
+import { ok, fail, warn, info, color } from './ui';
 
 // Ora fallback type for when ora is not available
 interface OraSpinner {
@@ -36,14 +36,14 @@ try {
   const oraModule = require('ora');
   ora = oraModule.default || oraModule;
 } catch {
-  // ora not available, create fallback spinner that uses console.log
+  // ora not available, create fallback spinner that uses console.log with UI colors
   ora = function (text: string): OraInstance {
     return {
       start: () => ({
-        succeed: (msg?: string) => console.log(msg || `[OK] ${text}`),
-        fail: (msg?: string) => console.log(msg || `[X] ${text}`),
-        warn: (msg?: string) => console.log(msg || `[!] ${text}`),
-        info: (msg?: string) => console.log(msg || `[i] ${text}`),
+        succeed: (msg?: string) => console.log(msg || ok(text)),
+        fail: (msg?: string) => console.log(msg || fail(text)),
+        warn: (msg?: string) => console.log(msg || warn(text)),
+        info: (msg?: string) => console.log(msg || info(text)),
         text: '',
       }),
     };
@@ -94,9 +94,9 @@ export class ClaudeSymlinkManager {
     if (!fs.existsSync(this.ccsClaudeDir)) {
       const msg = 'CCS .claude/ directory not found, skipping symlink installation';
       if (spinner) {
-        spinner.warn(`[!] ${msg}`);
+        spinner.warn(warn(msg));
       } else {
-        console.log(`[!] ${msg}`);
+        console.log(warn(msg));
       }
       return;
     }
@@ -123,7 +123,7 @@ export class ClaudeSymlinkManager {
     if (spinner) {
       spinner.succeed(ok(msg));
     } else {
-      console.log(`[OK] ${msg}`);
+      console.log(ok(msg));
     }
   }
 
@@ -137,7 +137,7 @@ export class ClaudeSymlinkManager {
 
     // Ensure source exists
     if (!fs.existsSync(sourcePath)) {
-      if (!silent) console.log(`[!] Source not found: ${item.source}, skipping`);
+      if (!silent) console.log(warn(`Source not found: ${item.source}, skipping`));
       return false;
     }
 
@@ -161,7 +161,7 @@ export class ClaudeSymlinkManager {
     try {
       const symlinkType = item.type === 'directory' ? 'dir' : 'file';
       fs.symlinkSync(sourcePath, targetPath, symlinkType);
-      if (!silent) console.log(`[OK] Symlinked ${item.target}`);
+      if (!silent) console.log(ok(`Symlinked ${item.target}`));
       return true;
     } catch (err) {
       // Windows fallback: copy instead of symlink when symlinks unavailable
@@ -169,7 +169,7 @@ export class ClaudeSymlinkManager {
         return this.copyFallback(sourcePath, targetPath, item, silent);
       } else {
         const error = err as Error;
-        if (!silent) console.log(`[!] Failed to symlink ${item.target}: ${error.message}`);
+        if (!silent) console.log(warn(`Failed to symlink ${item.target}: ${error.message}`));
       }
       return false;
     }
@@ -194,15 +194,15 @@ export class ClaudeSymlinkManager {
         fs.copyFileSync(sourcePath, targetPath);
       }
       if (!silent) {
-        console.log(`[OK] Copied ${item.target} (symlink unavailable)`);
-        console.log(`[i] Run 'ccs sync' after CCS updates to refresh`);
+        console.log(ok(`Copied ${item.target} (symlink unavailable)`));
+        console.log(info("Run 'ccs sync' after CCS updates to refresh"));
       }
       return true;
     } catch (copyErr) {
       const error = copyErr as Error;
       if (!silent) {
-        console.log(`[!] Failed to copy ${item.target}: ${error.message}`);
-        console.log(`[i] Enable Developer Mode for symlinks, or check permissions`);
+        console.log(warn(`Failed to copy ${item.target}: ${error.message}`));
+        console.log(info('Enable Developer Mode for symlinks, or check permissions'));
       }
       return false;
     }
@@ -267,10 +267,11 @@ export class ClaudeSymlinkManager {
       }
 
       fs.renameSync(itemPath, finalBackupPath);
-      if (!silent) console.log(`[i] Backed up existing item to ${path.basename(finalBackupPath)}`);
+      if (!silent)
+        console.log(info(`Backed up existing item to ${path.basename(finalBackupPath)}`));
     } catch (err) {
       const error = err as Error;
-      if (!silent) console.log(`[!] Failed to backup ${itemPath}: ${error.message}`);
+      if (!silent) console.log(warn(`Failed to backup ${itemPath}: ${error.message}`));
       throw err; // Don't proceed if backup fails
     }
   }
@@ -300,19 +301,19 @@ export class ClaudeSymlinkManager {
             // Remove symlink or file
             fs.unlinkSync(targetPath);
           }
-          console.log(`[OK] Removed ${item.target}`);
+          console.log(ok(`Removed ${item.target}`));
           removed++;
         } catch (err) {
           const error = err as Error;
-          console.log(`[!] Failed to remove ${item.target}: ${error.message}`);
+          console.log(warn(`Failed to remove ${item.target}: ${error.message}`));
         }
       }
     }
 
     if (removed > 0) {
-      console.log(`[OK] Removed ${removed} delegation commands and skills from ~/.claude/`);
+      console.log(ok(`Removed ${removed} delegation commands and skills from ~/.claude/`));
     } else {
-      console.log('[i] No delegation commands or skills to remove');
+      console.log(info('No delegation commands or skills to remove'));
     }
   }
 

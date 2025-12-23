@@ -12,6 +12,7 @@ import {
   getWebSearchHookEnv,
 } from './utils/websearch-manager';
 import { getGlobalEnvConfig } from './config/unified-config-loader';
+import { fail, info } from './utils/ui';
 
 // Import centralized error handling
 import { handleError, runCleanup } from './errors';
@@ -75,7 +76,7 @@ async function execClaudeWithProxy(
   const apiKey = envData['ANTHROPIC_AUTH_TOKEN'];
 
   if (!apiKey || apiKey === 'YOUR_GLM_API_KEY_HERE') {
-    console.error('[X] GLMT profile requires Z.AI API key');
+    console.error(fail('GLMT profile requires Z.AI API key'));
     console.error('    Edit ~/.ccs/glmt.settings.json and set ANTHROPIC_AUTH_TOKEN');
     process.exit(1);
   }
@@ -134,7 +135,7 @@ async function execClaudeWithProxy(
   } catch (error) {
     const err = error as Error;
     spinner.fail('Failed to start GLMT proxy');
-    console.error('[X] Error:', err.message);
+    console.error(fail(`Error: ${err.message}`));
     console.error('');
     console.error('Possible causes:');
     console.error('  1. Port conflict (unlikely with random port)');
@@ -192,7 +193,7 @@ async function execClaudeWithProxy(
   });
 
   claude.on('error', (error) => {
-    console.error('[X] Claude CLI error:', error);
+    console.error(fail(`Claude CLI error: ${error}`));
     proxy.kill('SIGTERM');
     process.exit(1);
   });
@@ -475,7 +476,7 @@ async function main(): Promise<void> {
       const { executeCopilotProfile } = await import('./copilot');
       const copilotConfig = profileInfo.copilotConfig;
       if (!copilotConfig) {
-        console.error('[X] Copilot configuration not found');
+        console.error(fail('Copilot configuration not found'));
         process.exit(1);
       }
       const exitCode = await executeCopilotProfile(copilotConfig, remainingArgs);
@@ -505,7 +506,7 @@ async function main(): Promise<void> {
         // Log global env injection for visibility (debug mode only)
         if (globalEnvConfig.enabled && Object.keys(globalEnv).length > 0 && process.env.CCS_DEBUG) {
           const envNames = Object.keys(globalEnv).join(', ');
-          console.error(`[i] Global env: ${envNames}`);
+          console.error(info(`Global env: ${envNames}`));
         }
 
         // CRITICAL: Load settings and explicitly set ANTHROPIC_* env vars
@@ -563,7 +564,7 @@ async function main(): Promise<void> {
       const allProfiles = err.availableProfiles.split('\n');
       await ErrorManager.showProfileNotFound(err.profileName, allProfiles, err.suggestions);
     } else {
-      console.error(`[X] ${err.message}`);
+      console.error(fail(err.message));
     }
     process.exit(1);
   }

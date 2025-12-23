@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { ok, warn } from './ui';
+import { ok, fail, warn, info } from './ui';
 
 // Ora fallback type for when ora is not available
 interface OraSpinner {
@@ -27,14 +27,14 @@ try {
   const oraModule = require('ora');
   ora = oraModule.default || oraModule;
 } catch {
-  // ora not available, create fallback spinner that uses console.log
+  // ora not available, create fallback spinner that uses console.log with UI colors
   ora = function (text: string): OraInstance {
     return {
       start: () => ({
-        succeed: (msg?: string) => console.log(msg || `[OK] ${text}`),
-        fail: (msg?: string) => console.log(msg || `[X] ${text}`),
-        warn: (msg?: string) => console.log(msg || `[!] ${text}`),
-        info: (msg?: string) => console.log(msg || `[i] ${text}`),
+        succeed: (msg?: string) => console.log(msg || ok(text)),
+        fail: (msg?: string) => console.log(msg || fail(text)),
+        warn: (msg?: string) => console.log(msg || warn(text)),
+        info: (msg?: string) => console.log(msg || info(text)),
         text: '',
       }),
     };
@@ -85,11 +85,11 @@ export class ClaudeDirInstaller {
       if (!fs.existsSync(packageClaudeDir)) {
         const msg = 'Package .claude/ directory not found';
         if (spinner) {
-          spinner.warn(`[!] ${msg}`);
+          spinner.warn(warn(msg));
           console.log(`    Searched in: ${packageClaudeDir}`);
           console.log('    This may be a development installation');
         } else {
-          console.log(`[!] ${msg}`);
+          console.log(warn(msg));
           console.log(`    Searched in: ${packageClaudeDir}`);
           console.log('    This may be a development installation');
         }
@@ -119,7 +119,7 @@ export class ClaudeDirInstaller {
       if (spinner) {
         spinner.succeed(ok(msg));
       } else {
-        console.log(`[OK] ${msg}`);
+        console.log(ok(msg));
       }
       return true;
     } catch (err) {
@@ -129,7 +129,7 @@ export class ClaudeDirInstaller {
         spinner.fail(warn(msg));
         console.warn('    CCS items may not be available');
       } else {
-        console.warn(`[!] ${msg}`);
+        console.warn(warn(msg));
         console.warn('    CCS items may not be available');
       }
       return false;
@@ -223,14 +223,14 @@ export class ClaudeDirInstaller {
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
           const backupPath = `${userSymlinkFile}.backup-${timestamp}`;
           fs.renameSync(userSymlinkFile, backupPath);
-          if (!silent) console.log(`[i] Backed up user file to ${path.basename(backupPath)}`);
+          if (!silent) console.log(info(`Backed up user file to ${path.basename(backupPath)}`));
           cleanedFiles.push('user file (backed up)');
         }
       } catch (err) {
         const error = err as NodeJS.ErrnoException;
         // File doesn't exist or other error - that's okay
         if (error.code !== 'ENOENT' && !silent) {
-          console.log(`[!] Failed to remove user symlink: ${error.message}`);
+          console.log(warn(`Failed to remove user symlink: ${error.message}`));
         }
       }
 
@@ -245,14 +245,16 @@ export class ClaudeDirInstaller {
             const backupPath = `${deprecatedFile}.backup-${timestamp}`;
             fs.renameSync(deprecatedFile, backupPath);
             if (!silent)
-              console.log(`[i] Backed up modified deprecated file to ${path.basename(backupPath)}`);
+              console.log(
+                info(`Backed up modified deprecated file to ${path.basename(backupPath)}`)
+              );
           } else {
             fs.rmSync(deprecatedFile, { force: true });
           }
           cleanedFiles.push('package copy');
         } catch (err) {
           const error = err as Error;
-          if (!silent) console.log(`[!] Failed to remove package copy: ${error.message}`);
+          if (!silent) console.log(warn(`Failed to remove package copy: ${error.message}`));
         }
       }
 
@@ -265,14 +267,14 @@ export class ClaudeDirInstaller {
         fs.writeFileSync(migrationMarker, new Date().toISOString());
 
         if (!silent) {
-          console.log(`[OK] Cleaned up deprecated agent files: ${cleanedFiles.join(', ')}`);
+          console.log(ok(`Cleaned up deprecated agent files: ${cleanedFiles.join(', ')}`));
         }
       }
 
       return { success: true, cleanedFiles };
     } catch (err) {
       const error = err as Error;
-      if (!silent) console.log(`[!] Cleanup failed: ${error.message}`);
+      if (!silent) console.log(warn(`Cleanup failed: ${error.message}`));
       return { success: false, error: error.message, cleanedFiles };
     }
   }

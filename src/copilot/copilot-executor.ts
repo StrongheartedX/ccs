@@ -12,6 +12,7 @@ import { checkAuthStatus, isCopilotApiInstalled } from './copilot-auth';
 import { isDaemonRunning, startDaemon } from './copilot-daemon';
 import { ensureCopilotApi } from './copilot-package-manager';
 import { CopilotStatus } from './types';
+import { fail, info, ok } from '../utils/ui';
 
 /**
  * Get full copilot status (auth + daemon).
@@ -73,7 +74,7 @@ export async function executeCopilotProfile(
   try {
     await ensureCopilotApi();
   } catch (error) {
-    console.error('[X] Failed to install copilot-api.');
+    console.error(fail('Failed to install copilot-api.'));
     console.error('');
     console.error(`Error: ${(error as Error).message}`);
     console.error('');
@@ -84,7 +85,7 @@ export async function executeCopilotProfile(
 
   // Check if copilot-api is installed (should be after ensureCopilotApi)
   if (!isCopilotApiInstalled()) {
-    console.error('[X] copilot-api is not installed.');
+    console.error(fail('copilot-api is not installed.'));
     console.error('');
     console.error('Install with: ccs copilot --install');
     return 1;
@@ -93,7 +94,7 @@ export async function executeCopilotProfile(
   // Check authentication
   const authStatus = await checkAuthStatus();
   if (!authStatus.authenticated) {
-    console.error('[X] Not authenticated with GitHub.');
+    console.error(fail('Not authenticated with GitHub.'));
     console.error('');
     console.error('Run: npx copilot-api auth');
     console.error('Or:  ccs copilot auth');
@@ -105,16 +106,16 @@ export async function executeCopilotProfile(
 
   if (!daemonRunning) {
     if (config.auto_start) {
-      console.log('[i] Starting copilot-api daemon...');
+      console.log(info('Starting copilot-api daemon...'));
       const result = await startDaemon(config);
       if (!result.success) {
-        console.error(`[X] Failed to start daemon: ${result.error}`);
+        console.error(fail(`Failed to start daemon: ${result.error}`));
         return 1;
       }
-      console.log(`[OK] Daemon started on port ${config.port}`);
+      console.log(ok(`Daemon started on port ${config.port}`));
       daemonRunning = true;
     } else {
-      console.error('[X] copilot-api daemon is not running.');
+      console.error(fail('copilot-api daemon is not running.'));
       console.error('');
       console.error('Start the daemon manually:');
       console.error(`  npx copilot-api start --port ${config.port}`);
@@ -139,7 +140,7 @@ export async function executeCopilotProfile(
     ...copilotEnv,
   };
 
-  console.log(`[i] Using GitHub Copilot proxy (model: ${config.model})`);
+  console.log(info(`Using GitHub Copilot proxy (model: ${config.model})`));
   console.log('');
 
   // Spawn Claude CLI
@@ -155,7 +156,7 @@ export async function executeCopilotProfile(
     });
 
     proc.on('error', (err) => {
-      console.error(`[X] Failed to start Claude: ${err.message}`);
+      console.error(fail(`Failed to start Claude: ${err.message}`));
       resolve(1);
     });
   });

@@ -71,6 +71,7 @@ export function hasAnyWebSearchCli(): boolean {
 
 /**
  * Get install hints for CLI-only users when no WebSearch CLI is installed
+ * Returns raw message strings (without indicator prefix) for display
  */
 export function getCliInstallHints(): string[] {
   if (hasAnyWebSearchCli()) {
@@ -78,7 +79,7 @@ export function getCliInstallHints(): string[] {
   }
 
   return [
-    '[i] WebSearch: No CLI tools installed',
+    'WebSearch: No CLI tools installed',
     '    Gemini CLI (FREE): npm i -g @google/gemini-cli',
     '    OpenCode (FREE):   curl -fsSL https://opencode.ai/install | bash',
     '    Grok CLI (paid):   npm i -g @vibe-kit/grok-cli',
@@ -182,8 +183,13 @@ export function displayWebSearchStatus(): void {
       console.error(fail(`WebSearch: ${status.message}`));
       const hints = getCliInstallHints();
       if (hints.length > 0) {
-        for (const hint of hints) {
-          console.error(info(hint));
+        // First line gets [i] prefix, rest are continuation (indented, no prefix)
+        for (let i = 0; i < hints.length; i++) {
+          if (i === 0) {
+            console.error(info(hints[i]));
+          } else {
+            console.error(hints[i]);
+          }
         }
       }
       break;

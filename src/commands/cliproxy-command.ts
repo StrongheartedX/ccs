@@ -616,7 +616,7 @@ export async function handleCliproxyCommand(args: string[]): Promise<void> {
   if (installIdx !== -1) {
     const version = args[installIdx + 1];
     if (!version || version.startsWith('-')) {
-      console.error('[X] Missing version argument for --install');
+      console.error(fail('Missing version argument for --install'));
       console.error('    Usage: ccs cliproxy --install <version>');
       console.error('    Example: ccs cliproxy --install 6.5.53');
       process.exit(1);

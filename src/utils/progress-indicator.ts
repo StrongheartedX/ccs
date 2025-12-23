@@ -1,12 +1,15 @@
 /**
- * Simple Progress Indicator (no external dependencies)
+ * Simple Progress Indicator
  *
  * Features:
  * - ASCII-only spinner frames (cross-platform compatible)
  * - TTY detection (no spinners in pipes/logs)
  * - Elapsed time display
  * - CI environment detection
+ * - Color support via UI system
  */
+
+import { color } from './ui/colors';
 
 interface ProgressOptions {
   frames?: string[];
@@ -44,7 +47,7 @@ export class ProgressIndicator {
   start(): void {
     if (!this.isTTY) {
       // Non-TTY: just print message once
-      process.stderr.write(`[i] ${this.message}...\n`);
+      process.stderr.write(`${color('[i]', 'info')} ${this.message}...\n`);
       return;
     }
 
@@ -52,7 +55,7 @@ export class ProgressIndicator {
     this.interval = setInterval(() => {
       const frame = this.frames[this.frameIndex];
       const elapsed = ((Date.now() - this.startTime) / 1000).toFixed(1);
-      process.stderr.write(`\r[${frame}] ${this.message}... (${elapsed}s)`);
+      process.stderr.write(`\r${color(`[${frame}]`, 'info')} ${this.message}... (${elapsed}s)`);
       this.frameIndex = (this.frameIndex + 1) % this.frames.length;
     }, 80); // 12.5fps for smooth animation
   }
@@ -68,10 +71,10 @@ export class ProgressIndicator {
 
     if (this.isTTY) {
       // Clear spinner line and show success
-      process.stderr.write(`\r[OK] ${finalMessage} (${elapsed}s)\n`);
+      process.stderr.write(`\r${color('[OK]', 'success')} ${finalMessage} (${elapsed}s)\n`);
     } else {
       // Non-TTY: just show completion
-      process.stderr.write(`[OK] ${finalMessage}\n`);
+      process.stderr.write(`${color('[OK]', 'success')} ${finalMessage}\n`);
     }
   }
 
@@ -85,10 +88,10 @@ export class ProgressIndicator {
 
     if (this.isTTY) {
       // Clear spinner line and show failure
-      process.stderr.write(`\r[X] ${finalMessage}\n`);
+      process.stderr.write(`\r${color('[X]', 'error')} ${finalMessage}\n`);
     } else {
       // Non-TTY: just show failure
-      process.stderr.write(`[X] ${finalMessage}\n`);
+      process.stderr.write(`${color('[X]', 'error')} ${finalMessage}\n`);
     }
   }
 

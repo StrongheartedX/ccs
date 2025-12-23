@@ -2,6 +2,8 @@
  * Health Check Types and Interfaces
  */
 
+import { ok, fail, warn, info } from '../../utils/ui';
+
 /**
  * Spinner interface for ora or fallback
  */
@@ -98,14 +100,14 @@ export function createSpinner(): (text: string) => Spinner {
     const oraModule = require('ora');
     return oraModule.default || oraModule;
   } catch (_e) {
-    // ora not available, create fallback spinner that uses console.log
+    // ora not available, create fallback spinner that uses console.log with UI colors
     return function (text: string): Spinner {
       return {
         start: () => ({
-          succeed: (msg?: string) => console.log(msg || `[OK] ${text}`),
-          fail: (msg?: string) => console.log(msg || `[X] ${text}`),
-          warn: (msg?: string) => console.log(msg || `[!] ${text}`),
-          info: (msg?: string) => console.log(msg || `[i] ${text}`),
+          succeed: (msg?: string) => console.log(msg || ok(text)),
+          fail: (msg?: string) => console.log(msg || fail(text)),
+          warn: (msg?: string) => console.log(msg || warn(text)),
+          info: (msg?: string) => console.log(msg || info(text)),
           text: '',
         }),
       };
