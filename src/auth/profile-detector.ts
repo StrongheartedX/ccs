@@ -65,7 +65,7 @@ export interface ProfileNotFoundError extends Error {
  * Uses expandPath() for consistent cross-platform path handling.
  * Returns empty object on error.
  */
-function loadSettingsFromFile(settingsPath: string): Record<string, string> {
+export function loadSettingsFromFile(settingsPath: string): Record<string, string> {
   const expandedPath = expandPath(settingsPath);
   try {
     if (!fs.existsSync(expandedPath)) return {};
