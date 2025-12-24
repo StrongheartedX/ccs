@@ -15,6 +15,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getCcsDir } from '../utils/config-manager';
+import { expandPath } from '../utils/helpers';
 import type { ProfileConfig, AccountConfig, CLIProxyVariantConfig } from './unified-config-types';
 import { createEmptyUnifiedConfig } from './unified-config-types';
 import { saveUnifiedConfig, hasUnifiedConfig, loadUnifiedConfig } from './unified-config-loader';
@@ -309,13 +310,6 @@ function readJsonSafe(filePath: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
-}
-
-/**
- * Expand ~ to home directory in path.
- */
-function expandPath(p: string): string {
-  return p.replace(/^~/, process.env.HOME || '');
 }
 
 /**
