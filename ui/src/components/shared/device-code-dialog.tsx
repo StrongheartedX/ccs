@@ -52,19 +52,28 @@ export function DeviceCodeDialog({
   const [hasCopied, setHasCopied] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
 
-  // Calculate and update remaining time
+  // Calculate and update remaining time, stop at 0
   useEffect(() => {
     if (!open) return;
+
+    let timer: ReturnType<typeof setInterval> | null = null;
 
     const updateTime = () => {
       const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
       setTimeRemaining(remaining);
+      // Stop timer when expired
+      if (remaining === 0 && timer) {
+        clearInterval(timer);
+        timer = null;
+      }
     };
 
     updateTime();
-    const timer = setInterval(updateTime, 1000);
+    timer = setInterval(updateTime, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      if (timer) clearInterval(timer);
+    };
   }, [open, expiresAt]);
 
   const handleCopyCode = useCallback(async () => {
@@ -93,12 +102,11 @@ export function DeviceCodeDialog({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Suppress unused variable warning - sessionId used for identification
-  void sessionId;
+  const isExpired = timeRemaining === 0;
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" data-session-id={sessionId}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <KeyRound className="w-5 h-5" />
@@ -111,6 +119,7 @@ export function DeviceCodeDialog({
                 (Expires in {formatTime(timeRemaining)})
               </span>
             )}
+            {isExpired && <span className="text-destructive ml-1 font-medium">(Code expired)</span>}
           </DialogDescription>
         </DialogHeader>
 
@@ -127,6 +136,7 @@ export function DeviceCodeDialog({
               size="icon"
               className="absolute top-2 right-2"
               onClick={handleCopyCode}
+              aria-label={hasCopied ? 'Code copied' : 'Copy verification code'}
             >
               {hasCopied ? (
                 <Check className="h-4 w-4 text-green-500" />
