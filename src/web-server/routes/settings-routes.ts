@@ -222,7 +222,11 @@ router.post('/:profile/presets', (req: Request, res: Response): void => {
     };
 
     settings.presets.push(preset);
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
+
+    // Atomic write: temp file + rename
+    const tempPath = settingsPath + '.tmp';
+    fs.writeFileSync(tempPath, JSON.stringify(settings, null, 2) + '\n');
+    fs.renameSync(tempPath, settingsPath);
 
     res.status(201).json({ preset });
   } catch (error) {
@@ -250,7 +254,11 @@ router.delete('/:profile/presets/:name', (req: Request, res: Response): void => 
     }
 
     settings.presets = settings.presets.filter((p) => p.name !== name);
-    fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + '\n');
+
+    // Atomic write: temp file + rename
+    const tempPath = settingsPath + '.tmp';
+    fs.writeFileSync(tempPath, JSON.stringify(settings, null, 2) + '\n');
+    fs.renameSync(tempPath, settingsPath);
 
     res.json({ success: true });
   } catch (error) {
