@@ -362,7 +362,7 @@ auth-dir: "/test"
     let testDir;
     let originalCcsHome;
     let regenerateConfig;
-    let getConfigPath;
+    let getCliproxyConfigPath;
 
     beforeEach(() => {
       // Create a temporary test directory
@@ -375,7 +375,7 @@ auth-dir: "/test"
       delete require.cache[require.resolve('../../../dist/utils/config-manager')];
       const configGenerator = require('../../../dist/cliproxy/config-generator');
       regenerateConfig = configGenerator.regenerateConfig;
-      getConfigPath = configGenerator.getConfigPath;
+      getCliproxyConfigPath = configGenerator.getCliproxyConfigPath;
     });
 
     afterEach(() => {

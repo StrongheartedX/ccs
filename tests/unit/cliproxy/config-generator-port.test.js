@@ -19,7 +19,7 @@ process.env.CCS_HOME = testHome;
 
 const {
   getConfigPathForPort,
-  getConfigPath,
+  getCliproxyConfigPath,
   generateConfig,
   regenerateConfig,
   configExists,
@@ -98,9 +98,9 @@ describe('Config Generator Port', function () {
     });
   });
 
-  describe('getConfigPath', function () {
+  describe('getCliproxyConfigPath', function () {
     it('returns path for default port', function () {
-      const configPath = getConfigPath();
+      const configPath = getCliproxyConfigPath();
       const defaultPath = getConfigPathForPort(CLIPROXY_DEFAULT_PORT);
       assert.strictEqual(configPath, defaultPath);
     });
