@@ -44,6 +44,14 @@ export interface QuotaResult {
 const ANTIGRAVITY_API_BASE = 'https://cloudcode-pa.googleapis.com';
 const ANTIGRAVITY_API_VERSION = 'v1internal';
 
+/** Google OAuth token endpoint */
+const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
+
+/** Antigravity OAuth credentials (from CLIProxyAPIPlus - public in open-source code) */
+const ANTIGRAVITY_CLIENT_ID =
+  '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com';
+const ANTIGRAVITY_CLIENT_SECRET = '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';
+
 /** API client headers */
 const ANTIGRAVITY_HEADERS = {
   'Content-Type': 'application/json',
@@ -66,9 +74,19 @@ interface AntigravityAuthFile {
 /** Auth data returned from file */
 interface AuthData {
   accessToken: string;
+  refreshToken: string | null;
   projectId: string | null;
   isExpired: boolean;
   expiresAt: string | null;
+}
+
+/** Token refresh response */
+interface TokenRefreshResponse {
+  access_token?: string;
+  expires_in?: number;
+  token_type?: string;
+  error?: string;
+  error_description?: string;
 }
 
 /** loadCodeAssist response */
@@ -123,6 +141,56 @@ function isTokenExpired(expiredStr?: string): boolean {
 }
 
 /**
+ * Refresh access token using refresh_token via Google OAuth
+ * This allows CCS to get fresh tokens independently of CLIProxyAPI
+ */
+async function refreshAccessToken(
+  refreshToken: string
+): Promise<{ accessToken: string | null; error?: string }> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const response = await fetch(GOOGLE_TOKEN_URL, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+        client_id: ANTIGRAVITY_CLIENT_ID,
+        client_secret: ANTIGRAVITY_CLIENT_SECRET,
+      }).toString(),
+    });
+
+    clearTimeout(timeoutId);
+
+    const data = (await response.json()) as TokenRefreshResponse;
+
+    if (!response.ok || data.error) {
+      return {
+        accessToken: null,
+        error: data.error_description || data.error || `OAuth error: ${response.status}`,
+      };
+    }
+
+    if (!data.access_token) {
+      return { accessToken: null, error: 'No access_token in response' };
+    }
+
+    return { accessToken: data.access_token };
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err instanceof Error && err.name === 'AbortError') {
+      return { accessToken: null, error: 'Token refresh timeout' };
+    }
+    return { accessToken: null, error: err instanceof Error ? err.message : 'Unknown error' };
+  }
+}
+
+/**
  * Read auth data from auth file (access token, project_id, expiry status)
  */
 function readAuthData(provider: CLIProxyProvider, accountId: string): AuthData | null {
@@ -147,6 +215,7 @@ function readAuthData(provider: CLIProxyProvider, accountId: string): AuthData |
       if (!data.access_token) return null;
       return {
         accessToken: data.access_token,
+        refreshToken: data.refresh_token || null,
         projectId: data.project_id || null,
         isExpired: isTokenExpired(data.expired),
         expiresAt: data.expired || null,
@@ -168,6 +237,7 @@ function readAuthData(provider: CLIProxyProvider, accountId: string): AuthData |
         if (data.email === accountId && data.access_token) {
           return {
             accessToken: data.access_token,
+            refreshToken: data.refresh_token || null,
             projectId: data.project_id || null,
             isExpired: isTokenExpired(data.expired),
             expiresAt: data.expired || null,
@@ -377,26 +447,60 @@ export async function fetchAccountQuota(
     };
   }
 
-  // Note: We don't check isExpired here because:
-  // 1. CLIProxyAPIPlus refreshes tokens at runtime but doesn't persist to disk
-  // 2. File-based expiration is always stale and misleading
-  // 3. If token is truly invalid, the API call below will fail with 401
+  // Determine which access token to use
+  // File-based token is often stale (CLIProxyAPIPlus refreshes at runtime but doesn't persist)
+  // If we have refresh_token, proactively refresh to get a fresh access_token
+  let accessToken = authData.accessToken;
+
+  if (authData.refreshToken) {
+    // Always refresh to ensure we have a valid token
+    // This is necessary because CLIProxyAPIPlus doesn't persist refreshed tokens
+    const refreshResult = await refreshAccessToken(authData.refreshToken);
+    if (refreshResult.accessToken) {
+      accessToken = refreshResult.accessToken;
+    }
+    // If refresh fails, fall back to existing token (might still work)
+  }
 
   // Get project ID - prefer stored value, fallback to API call
   let projectId = authData.projectId;
   if (!projectId) {
-    const projectResult = await getProjectId(authData.accessToken);
+    const projectResult = await getProjectId(accessToken);
     if (!projectResult.projectId) {
-      return {
-        success: false,
-        models: [],
-        lastUpdated: Date.now(),
-        error: projectResult.error || 'Failed to retrieve project ID',
-      };
+      // If project ID fetch fails, it might be token issue - try refresh if we haven't
+      if (authData.refreshToken && accessToken === authData.accessToken) {
+        const refreshResult = await refreshAccessToken(authData.refreshToken);
+        if (refreshResult.accessToken) {
+          accessToken = refreshResult.accessToken;
+          const retryResult = await getProjectId(accessToken);
+          if (retryResult.projectId) {
+            projectId = retryResult.projectId;
+          }
+        }
+      }
+      if (!projectId) {
+        return {
+          success: false,
+          models: [],
+          lastUpdated: Date.now(),
+          error: projectResult.error || 'Failed to retrieve project ID',
+        };
+      }
+    } else {
+      projectId = projectResult.projectId;
     }
-    projectId = projectResult.projectId;
   }
 
   // Fetch models with quota
-  return fetchAvailableModels(authData.accessToken, projectId);
+  const result = await fetchAvailableModels(accessToken, projectId);
+
+  // If quota fetch fails with auth error and we haven't refreshed yet, try refresh
+  if (!result.success && result.error?.includes('expired') && authData.refreshToken) {
+    const refreshResult = await refreshAccessToken(authData.refreshToken);
+    if (refreshResult.accessToken) {
+      return fetchAvailableModels(refreshResult.accessToken, projectId);
+    }
+  }
+
+  return result;
 }
