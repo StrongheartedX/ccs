@@ -237,8 +237,9 @@ function computeDerivedFields(result: ParsedErrorLog): void {
     result.provider = providerMatch[1];
   }
 
-  // Extract endpoint from URL
-  const endpointMatch = result.url.match(/\/api\/provider\/[^/]+\/api\/(.+)/);
+  // Extract endpoint from URL: /api/provider/{provider}/{version}/{endpoint}
+  // e.g., /api/provider/agy/v1/messages?beta=true → v1/messages
+  const endpointMatch = result.url.match(/\/api\/provider\/[^/]+\/(.+?)(?:\?|$)/);
   if (endpointMatch) {
     result.endpoint = endpointMatch[1];
   }
