@@ -62,6 +62,41 @@ function ensureRequiredEnvVars(
 /** Default CLIProxy port */
 export const CLIPROXY_DEFAULT_PORT = 8317;
 
+/**
+ * Normalize protocol to lowercase and validate.
+ * Handles runtime case sensitivity (e.g., 'HTTPS' → 'https').
+ * Defaults to 'http' for invalid values.
+ */
+export function normalizeProtocol(protocol: string | undefined): 'http' | 'https' {
+  if (!protocol) return 'http';
+  const normalized = protocol.toLowerCase();
+  if (normalized === 'https') return 'https';
+  if (normalized === 'http') return 'http';
+  // Invalid protocol (e.g., 'ftp') - default to http
+  return 'http';
+}
+
+/**
+ * Validate and sanitize port number for remote connections.
+ * Returns undefined for invalid ports (letting caller use default).
+ * Valid range: 1-65535, must be integer.
+ */
+export function validateRemotePort(port: number | undefined): number | undefined {
+  if (port === undefined || port === null) return undefined;
+  if (typeof port !== 'number' || !Number.isInteger(port)) return undefined;
+  if (port <= 0 || port > 65535) return undefined;
+  return port;
+}
+
+/**
+ * Get default port for remote CLIProxyAPI based on protocol.
+ * - HTTP: 8317 (CLIProxyAPI default)
+ * - HTTPS: 443 (standard SSL port)
+ */
+export function getRemoteDefaultPort(protocol: 'http' | 'https'): number {
+  return protocol === 'https' ? 443 : CLIPROXY_DEFAULT_PORT;
+}
+
 /** Internal API key for CCS-managed requests */
 export const CCS_INTERNAL_API_KEY = 'ccs-internal-managed';
 
@@ -548,11 +583,15 @@ function rewriteLocalhostUrls(
   const localhostPattern = /^https?:\/\/(127\.0\.0\.1|localhost|0\.0\.0\.0)(:\d+)?/i;
   if (!localhostPattern.test(baseUrl)) return result;
 
-  // Build remote URL with smart port handling
-  const defaultPort = remoteConfig.protocol === 'https' ? 443 : 80;
-  const effectivePort = remoteConfig.port ?? defaultPort;
-  const portSuffix = effectivePort === defaultPort ? '' : `:${effectivePort}`;
-  const remoteBaseUrl = `${remoteConfig.protocol}://${remoteConfig.host}${portSuffix}/api/provider/${provider}`;
+  // Build remote URL with smart port handling (8317 for HTTP, 443 for HTTPS)
+  // Validate port and normalize protocol for defensive handling
+  const normalizedProtocol = normalizeProtocol(remoteConfig.protocol);
+  const validatedPort = validateRemotePort(remoteConfig.port);
+  const effectivePort = validatedPort ?? getRemoteDefaultPort(normalizedProtocol);
+  // Omit port suffix for standard web ports (80/443) for cleaner URLs
+  const standardWebPort = normalizedProtocol === 'https' ? 443 : 80;
+  const portSuffix = effectivePort === standardWebPort ? '' : `:${effectivePort}`;
+  const remoteBaseUrl = `${normalizedProtocol}://${remoteConfig.host}${portSuffix}/api/provider/${provider}`;
 
   result.ANTHROPIC_BASE_URL = remoteBaseUrl;
 
@@ -686,11 +725,15 @@ export function getRemoteEnvVars(
   remoteConfig: { host: string; port?: number; protocol: 'http' | 'https'; authToken?: string },
   customSettingsPath?: string
 ): Record<string, string> {
-  // Build URL with smart port handling - omit if using protocol default
-  const defaultPort = remoteConfig.protocol === 'https' ? 443 : 80;
-  const effectivePort = remoteConfig.port ?? defaultPort;
-  const portSuffix = effectivePort === defaultPort ? '' : `:${effectivePort}`;
-  const baseUrl = `${remoteConfig.protocol}://${remoteConfig.host}${portSuffix}/api/provider/${provider}`;
+  // Build URL with smart port handling (8317 for HTTP, 443 for HTTPS)
+  // Validate port and normalize protocol for defensive handling
+  const normalizedProtocol = normalizeProtocol(remoteConfig.protocol);
+  const validatedPort = validateRemotePort(remoteConfig.port);
+  const effectivePort = validatedPort ?? getRemoteDefaultPort(normalizedProtocol);
+  // Omit port suffix for standard web ports (80/443) for cleaner URLs
+  const standardWebPort = normalizedProtocol === 'https' ? 443 : 80;
+  const portSuffix = effectivePort === standardWebPort ? '' : `:${effectivePort}`;
+  const baseUrl = `${normalizedProtocol}://${remoteConfig.host}${portSuffix}/api/provider/${provider}`;
 
   // Get global env vars (DISABLE_TELEMETRY, etc.)
   const globalEnv = getGlobalEnvVars();
