@@ -1,3 +1,23 @@
+## [7.12.0](https://github.com/kaitranntt/ccs/compare/v7.11.1...v7.12.0) (2026-01-01)
+
+### Features
+
+* **cliproxy:** add --allow-self-signed flag for HTTPS connections ([#227](https://github.com/kaitranntt/ccs/issues/227)) ([709976e](https://github.com/kaitranntt/ccs/commit/709976e897dfd71dbfb13dc1cfb2189076262db0))
+* **delegation:** add Claude Code CLI flag passthrough ([6b74243](https://github.com/kaitranntt/ccs/commit/6b74243dc5b612168e7278e35768547358089f4a)), closes [#89](https://github.com/kaitranntt/ccs/issues/89)
+* **release:** CLI flag passthrough, proxy fixes, and UI improvements ([#239](https://github.com/kaitranntt/ccs/issues/239)) ([b3ef76a](https://github.com/kaitranntt/ccs/commit/b3ef76a07b4f1e6d9852e851abff059bb7049a91)), closes [#228](https://github.com/kaitranntt/ccs/issues/228) [#89](https://github.com/kaitranntt/ccs/issues/89) [#234](https://github.com/kaitranntt/ccs/issues/234) [#227](https://github.com/kaitranntt/ccs/issues/227)
+
+### Bug Fixes
+
+* **cliproxy:** pass variant port to executor for isolation ([e58afd7](https://github.com/kaitranntt/ccs/commit/e58afd77905d40ce4526a85e4f59cea4fc33ff50)), closes [#228](https://github.com/kaitranntt/ccs/issues/228)
+* **cliproxy:** propagate port in unified config and UI preset handlers ([2625389](https://github.com/kaitranntt/ccs/commit/26253891207d06c52530605f1f2246f366e70f7b))
+* **cliproxy:** use correct default port (8317) for remote HTTP connections ([76aab09](https://github.com/kaitranntt/ccs/commit/76aab09616f2efbf186b2c3700cc84f4bb6c50f4))
+* **prompt:** add stdin.pause() to prevent process hang after password input ([f30d0c1](https://github.com/kaitranntt/ccs/commit/f30d0c12396218bee61ee227d940a647123012ff))
+* **ui:** enable cancel button during OAuth authentication ([86200eb](https://github.com/kaitranntt/ccs/commit/86200eb698565f4d0c86291bde4e9c221fa293e9)), closes [#234](https://github.com/kaitranntt/ccs/issues/234)
+
+### Tests
+
+* **delegation:** add comprehensive CLI flag passthrough tests ([d5e485b](https://github.com/kaitranntt/ccs/commit/d5e485b4099f65fe8b95bd03af8f05d2bb9abd05))
+
 ## [7.11.1](https://github.com/kaitranntt/ccs/compare/v7.11.0...v7.11.1) (2025-12-29)
 
 ### Bug Fixes
