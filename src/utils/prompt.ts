@@ -174,6 +174,7 @@ export class InteractivePrompt {
           process.stdin.setRawMode(false);
         }
         process.stdin.removeListener('data', onData);
+        process.stdin.pause();
       };
 
       const onData = (data: Buffer): void => {

@@ -13,6 +13,10 @@ import {
   submitProjectSelection,
   getPendingSelection,
 } from '../../cliproxy/project-selection-handler';
+import {
+  cancelAllSessionsForProvider,
+  hasActiveSession,
+} from '../../cliproxy/auth-session-manager';
 import { fetchCliproxyStats } from '../../cliproxy/stats-fetcher';
 import {
   getAllAccountsSummary,
@@ -314,6 +318,35 @@ router.post('/:provider/start', async (req: Request, res: Response): Promise<voi
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
   }
+});
+
+/**
+ * POST /api/cliproxy/auth/:provider/cancel - Cancel in-progress OAuth flow
+ * Terminates the OAuth process for the specified provider
+ */
+router.post('/:provider/cancel', (req: Request, res: Response): void => {
+  const { provider } = req.params;
+
+  // Validate provider
+  if (!validProviders.includes(provider as CLIProxyProvider)) {
+    res.status(400).json({ error: `Invalid provider: ${provider}` });
+    return;
+  }
+
+  // Check if there's an active session
+  if (!hasActiveSession(provider)) {
+    res.status(404).json({ error: 'No active authentication session for this provider' });
+    return;
+  }
+
+  // Cancel all sessions for this provider
+  const cancelledCount = cancelAllSessionsForProvider(provider);
+
+  res.json({
+    success: true,
+    cancelled: cancelledCount,
+    provider,
+  });
 });
 
 /**

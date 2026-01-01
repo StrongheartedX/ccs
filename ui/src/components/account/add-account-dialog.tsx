@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, ExternalLink, User, Download } from 'lucide-react';
-import { useStartAuth, useKiroImport } from '@/hooks/use-cliproxy';
+import { useStartAuth, useKiroImport, useCancelAuth } from '@/hooks/use-cliproxy';
 import { applyDefaultPreset } from '@/lib/preset-utils';
 import { toast } from 'sonner';
 
@@ -40,9 +40,18 @@ export function AddAccountDialog({
   const [nickname, setNickname] = useState('');
   const startAuthMutation = useStartAuth();
   const kiroImportMutation = useKiroImport();
+  const cancelAuthMutation = useCancelAuth();
 
   const isKiro = provider === 'kiro';
   const isPending = startAuthMutation.isPending || kiroImportMutation.isPending;
+
+  const handleCancel = () => {
+    if (isPending) {
+      cancelAuthMutation.mutate(provider);
+    }
+    setNickname('');
+    onClose();
+  };
 
   const handleStartAuth = () => {
     startAuthMutation.mutate(
@@ -83,9 +92,8 @@ export function AddAccountDialog({
   };
 
   const handleOpenChange = (isOpen: boolean) => {
-    if (!isOpen && !isPending) {
-      setNickname('');
-      onClose();
+    if (!isOpen) {
+      handleCancel();
     }
   };
 
@@ -121,7 +129,7 @@ export function AddAccountDialog({
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={onClose} disabled={isPending}>
+            <Button variant="ghost" onClick={handleCancel}>
               Cancel
             </Button>
             {isKiro && (

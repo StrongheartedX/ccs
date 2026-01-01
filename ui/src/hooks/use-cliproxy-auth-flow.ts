@@ -6,6 +6,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { api } from '@/lib/api-client';
 
 interface AuthFlowState {
   provider: string | null;
@@ -82,9 +83,16 @@ export function useCliproxyAuthFlow() {
   );
 
   const cancelAuth = useCallback(() => {
+    const currentProvider = state.provider;
     abortControllerRef.current?.abort();
     setState({ provider: null, isAuthenticating: false, error: null });
-  }, []);
+    // Also cancel on backend
+    if (currentProvider) {
+      api.cliproxy.auth.cancel(currentProvider).catch(() => {
+        // Ignore errors - session may have already completed
+      });
+    }
+  }, [state.provider]);
 
   return useMemo(
     () => ({

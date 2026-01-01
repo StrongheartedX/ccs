@@ -357,6 +357,12 @@ export const api = {
           method: 'POST',
           body: JSON.stringify({ nickname }),
         }),
+      /** Cancel in-progress OAuth flow */
+      cancel: (provider: string) =>
+        request<{ success: boolean; cancelled: number; provider: string }>(
+          `/cliproxy/auth/${provider}/cancel`,
+          { method: 'POST' }
+        ),
       /** Import Kiro token from Kiro IDE (Kiro only) */
       kiroImport: () =>
         request<{ success: boolean; account: OAuthAccount | null; error?: string }>(

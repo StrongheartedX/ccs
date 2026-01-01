@@ -15,7 +15,12 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Sparkles } from 'lucide-react';
-import { useCliproxyAuth, useCreateVariant, useStartAuth } from '@/hooks/use-cliproxy';
+import {
+  useCliproxyAuth,
+  useCreateVariant,
+  useStartAuth,
+  useCancelAuth,
+} from '@/hooks/use-cliproxy';
 import type { AuthStatus, OAuthAccount } from '@/lib/api-client';
 import { applyDefaultPreset } from '@/lib/preset-utils';
 import { usePrivacy } from '@/contexts/privacy-context';
@@ -42,6 +47,7 @@ export function QuickSetupWizard({ open, onClose }: QuickSetupWizardProps) {
   const { data: authData, refetch } = useCliproxyAuth();
   const createMutation = useCreateVariant();
   const startAuthMutation = useStartAuth();
+  const cancelAuthMutation = useCancelAuth();
   const { privacyMode } = usePrivacy();
 
   // Get auth status for selected provider
@@ -146,6 +152,10 @@ export function QuickSetupWizard({ open, onClose }: QuickSetupWizardProps) {
   // Prevent accidental close when user has made progress
   const handleOpenChange = (isOpen: boolean) => {
     if (!isOpen) {
+      // Cancel any in-progress auth when closing
+      if (startAuthMutation.isPending && selectedProvider) {
+        cancelAuthMutation.mutate(selectedProvider);
+      }
       if (step === 'success' || step === 'provider') {
         onClose();
         return;

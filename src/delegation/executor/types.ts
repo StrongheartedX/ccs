@@ -55,7 +55,12 @@ export interface ExecutionOptions {
   resumeSession?: boolean;
   sessionId?: string;
   maxRetries?: number;
-  extraArgs?: string[]; // Passthrough args for Claude CLI
+  // Claude Code CLI passthrough flags (explicit)
+  maxTurns?: number; // --max-turns: Limit agentic turns (prevents infinite loops)
+  fallbackModel?: string; // --fallback-model: Auto-fallback when model overloaded
+  agents?: string; // --agents: Dynamic subagent JSON injection
+  betas?: string; // --betas: Enable experimental features
+  extraArgs?: string[]; // Catch-all for new/unknown flags (future-proof)
 }
 
 /**

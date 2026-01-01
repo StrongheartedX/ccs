@@ -25,6 +25,12 @@ import { getTimeoutTroubleshooting, showStep } from './environment-detector';
 import { isAuthenticated, registerAccountFromToken } from './token-manager';
 import { deviceCodeEvents, type DeviceCodePrompt } from '../device-code-handler';
 import { OAUTH_FLOW_TYPES } from '../../management';
+import {
+  registerAuthSession,
+  attachProcessToSession,
+  unregisterAuthSession,
+  authSessionEvents,
+} from '../auth-session-manager';
 
 /** Options for OAuth process execution */
 export interface OAuthProcessOptions {
@@ -326,6 +332,19 @@ export function executeOAuthProcess(options: OAuthProcessOptions): Promise<Accou
       userCode: null,
     };
 
+    // Register session for cancellation support
+    registerAuthSession(state.sessionId, provider);
+    attachProcessToSession(state.sessionId, authProcess);
+
+    // Listen for external cancel signal
+    const handleCancel = (cancelledSessionId: string) => {
+      if (cancelledSessionId === state.sessionId && authProcess && !authProcess.killed) {
+        log('Session cancelled externally');
+        authProcess.kill('SIGTERM');
+      }
+    };
+    authSessionEvents.on('session:cancelled', handleCancel);
+
     const startTime = Date.now();
 
     authProcess.stdout?.on('data', async (data: Buffer) => {
@@ -377,6 +396,8 @@ export function executeOAuthProcess(options: OAuthProcessOptions): Promise<Accou
       // H5: Remove signal handlers before killing process
       process.removeListener('SIGINT', cleanup);
       process.removeListener('SIGTERM', cleanup);
+      authSessionEvents.removeListener('session:cancelled', handleCancel);
+      unregisterAuthSession(state.sessionId);
       authProcess.kill();
       console.log('');
       console.log(fail(`OAuth timed out after ${headless ? 5 : 2} minutes`));
@@ -391,6 +412,8 @@ export function executeOAuthProcess(options: OAuthProcessOptions): Promise<Accou
       // H5: Remove signal handlers to prevent memory leaks
       process.removeListener('SIGINT', cleanup);
       process.removeListener('SIGTERM', cleanup);
+      authSessionEvents.removeListener('session:cancelled', handleCancel);
+      unregisterAuthSession(state.sessionId);
       const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
       if (code === 0) {
@@ -442,6 +465,8 @@ export function executeOAuthProcess(options: OAuthProcessOptions): Promise<Accou
       // H5: Remove signal handlers to prevent memory leaks
       process.removeListener('SIGINT', cleanup);
       process.removeListener('SIGTERM', cleanup);
+      authSessionEvents.removeListener('session:cancelled', handleCancel);
+      unregisterAuthSession(state.sessionId);
       console.log('');
       console.log(fail(`Failed to start auth process: ${error.message}`));
       resolve(null);

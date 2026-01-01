@@ -136,6 +136,16 @@ export function useStartAuth() {
   });
 }
 
+// Cancel OAuth flow hook
+export function useCancelAuth() {
+  return useMutation({
+    mutationFn: (provider: string) => api.cliproxy.auth.cancel(provider),
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
 // Kiro IDE import hook (alternative auth path when OAuth callback fails)
 export function useKiroImport() {
   const queryClient = useQueryClient();

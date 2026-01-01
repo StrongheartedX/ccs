@@ -7,9 +7,12 @@
 
 import { loadOrCreateUnifiedConfig } from '../config/unified-config-loader';
 import type { CliproxyServerConfig } from '../config/unified-config-types';
-
-/** Default CLIProxyAPI port */
-const DEFAULT_CLIPROXY_PORT = 8317;
+import {
+  CLIPROXY_DEFAULT_PORT,
+  getRemoteDefaultPort,
+  normalizeProtocol,
+  validateRemotePort,
+} from './config-generator';
 
 /** Resolved proxy target for making requests */
 export interface ProxyTarget {
@@ -42,10 +45,11 @@ export function getProxyTarget(): ProxyTarget {
   const config = loadCliproxyServerConfig();
 
   if (config?.remote?.enabled && config.remote?.host) {
-    const protocol = config.remote.protocol ?? 'http';
-    // Default port based on protocol if not specified
-    const defaultPort = protocol === 'https' ? 443 : 80;
-    const port = config.remote.port ?? defaultPort;
+    // Normalize protocol (handles case sensitivity and invalid values)
+    const protocol = normalizeProtocol(config.remote.protocol);
+    // Validate port (returns undefined for invalid, triggering default)
+    const validatedPort = validateRemotePort(config.remote.port);
+    const port = validatedPort ?? getRemoteDefaultPort(protocol);
 
     return {
       host: config.remote.host,
@@ -58,7 +62,7 @@ export function getProxyTarget(): ProxyTarget {
 
   return {
     host: '127.0.0.1',
-    port: config?.local?.port ?? DEFAULT_CLIPROXY_PORT,
+    port: config?.local?.port ?? CLIPROXY_DEFAULT_PORT,
     protocol: 'http',
     isRemote: false,
   };

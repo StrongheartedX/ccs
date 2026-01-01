@@ -6,6 +6,7 @@
  */
 
 import * as https from 'https';
+import { getRemoteDefaultPort, validateRemotePort } from './config-generator';
 
 /** Error codes for remote proxy status */
 export type RemoteProxyErrorCode =
@@ -53,17 +54,6 @@ export interface RemoteProxyClientConfig {
 const DEFAULT_TIMEOUT_MS = 2000;
 
 /**
- * Get default port for CLIProxyAPI based on protocol.
- * - HTTP: 8317 (CLIProxyAPI default for local/dev scenarios)
- * - HTTPS: 443 (standard SSL port for production remote servers)
- *
- * This matches the UI labels shown to users.
- */
-function getDefaultPort(protocol: 'http' | 'https'): number {
-  return protocol === 'https' ? 443 : 8317;
-}
-
-/**
  * Get standard web port for protocol (for URL display omission)
  * These are the ports that browsers/HTTP clients use by default.
  * HTTP: 80, HTTPS: 443
@@ -74,10 +64,11 @@ function getStandardWebPort(protocol: 'http' | 'https'): number {
 
 /**
  * Get effective port for CLIProxyAPI connection.
- * If port is provided, use it. Otherwise use protocol-based default.
+ * Validates port and uses protocol-based default for invalid/undefined values.
  */
 function getEffectivePort(port: number | undefined, protocol: 'http' | 'https'): number {
-  return port ?? getDefaultPort(protocol);
+  const validatedPort = validateRemotePort(port);
+  return validatedPort ?? getRemoteDefaultPort(protocol);
 }
 
 /**
