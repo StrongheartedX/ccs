@@ -1,13 +1,14 @@
 /**
  * Router Tier Config - Configure single tier (opus/sonnet/haiku)
  * Supports fallback chains with warning when depth > 5
+ * Shows visual indicator for unconfigured state
  */
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, ChevronDown, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronRight, AlertTriangle, CircleDashed } from 'lucide-react';
 import { RouterProviderPicker } from './router-provider-picker';
 import type { TierConfig, RouterProvider } from '@/lib/router-types';
 
@@ -48,12 +49,23 @@ export function RouterTierConfig({ tier, config, providers, onChange }: RouterTi
   const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
   const fallbackCount = config.fallback?.length ?? 0;
   const showDepthWarning = fallbackCount > 5;
+  const isUnconfigured = !config.provider || !config.model;
 
   return (
-    <div className="space-y-3 p-4 border rounded-lg">
+    <div
+      className={`space-y-3 p-4 border rounded-lg transition-colors ${
+        isUnconfigured ? 'border-dashed border-yellow-500/40 bg-yellow-500/5' : 'border-solid'
+      }`}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Label className="text-sm font-medium">{tierLabel}</Label>
+          {isUnconfigured && (
+            <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50">
+              <CircleDashed className="w-3 h-3 mr-1" />
+              Not configured
+            </Badge>
+          )}
           {showDepthWarning && (
             <Badge variant="destructive" className="text-xs">
               <AlertTriangle className="w-3 h-3 mr-1" />
