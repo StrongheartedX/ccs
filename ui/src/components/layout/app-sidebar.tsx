@@ -52,7 +52,6 @@ const navGroups = [
         label: 'API Profiles',
         badge: { text: 'OpenRouter', icon: '/icons/openrouter.svg' },
       },
-      { path: '/router', icon: Route, label: 'Router' },
       {
         path: '/cliproxy',
         icon: Zap,
@@ -74,6 +73,7 @@ const navGroups = [
           { path: '/shared', icon: FolderOpen, label: 'Shared Data' },
         ],
       },
+      { path: '/router', icon: Route, label: 'Router' },
     ],
   },
   {
