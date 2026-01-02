@@ -1,40 +1,37 @@
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
-import { parseYaml, stringifyYaml } from './loader';
+import { parseDocument } from './loader';
 import type { RouterProfile, RouterConfig } from './schema';
 import { getConfigPath } from './loader';
 
 /**
- * Save a router profile to config.yaml
+ * Save a router profile to config.yaml (preserves comments)
  */
 export async function saveRouterProfile(name: string, profile: RouterProfile): Promise<void> {
   const configPath = getConfigPath();
 
-  // Read existing config
-  let config: Record<string, unknown> = {};
-  if (existsSync(configPath)) {
-    const content = readFileSync(configPath, 'utf-8');
-    config = (parseYaml(content) as Record<string, unknown>) ?? {};
-  }
+  // Parse as document to preserve comments
+  const doc = existsSync(configPath)
+    ? parseDocument(readFileSync(configPath, 'utf-8'))
+    : parseDocument('');
 
   // Ensure router.profiles section exists
-  if (!config.router) {
-    config.router = { profiles: {} };
+  if (!doc.has('router')) {
+    doc.set('router', { profiles: {} });
   }
-  const router = config.router as { profiles?: Record<string, unknown> };
+  const router = doc.get('router') as Record<string, unknown>;
   if (!router.profiles) {
-    router.profiles = {};
+    doc.setIn(['router', 'profiles'], {});
   }
 
   // Add/update profile
-  router.profiles[name] = profile;
+  doc.setIn(['router', 'profiles', name], profile);
 
-  // Write back
-  const yaml = stringifyYaml(config);
-  writeFileSync(configPath, yaml, 'utf-8');
+  // Write back (preserves comments)
+  writeFileSync(configPath, doc.toString(), 'utf-8');
 }
 
 /**
- * Delete a router profile from config.yaml
+ * Delete a router profile from config.yaml (preserves comments)
  */
 export async function deleteRouterProfile(name: string): Promise<boolean> {
   const configPath = getConfigPath();
@@ -43,46 +40,37 @@ export async function deleteRouterProfile(name: string): Promise<boolean> {
     return false;
   }
 
-  const content = readFileSync(configPath, 'utf-8');
-  const config = (parseYaml(content) as Record<string, unknown>) ?? {};
+  const doc = parseDocument(readFileSync(configPath, 'utf-8'));
+  const profiles = doc.getIn(['router', 'profiles']) as Record<string, unknown> | undefined;
 
-  const router = config.router as { profiles?: Record<string, unknown> } | undefined;
-  if (!router?.profiles?.[name]) {
+  if (!profiles?.[name]) {
     return false;
   }
 
-  delete router.profiles[name];
-
-  const yaml = stringifyYaml(config);
-  writeFileSync(configPath, yaml, 'utf-8');
+  doc.deleteIn(['router', 'profiles', name]);
+  writeFileSync(configPath, doc.toString(), 'utf-8');
 
   return true;
 }
 
 /**
- * Update router defaults in config.yaml
+ * Update router defaults in config.yaml (preserves comments)
  */
 export async function updateRouterDefaults(
   defaults: Partial<RouterConfig['defaults']>
 ): Promise<void> {
   const configPath = getConfigPath();
 
-  let config: Record<string, unknown> = {};
-  if (existsSync(configPath)) {
-    const content = readFileSync(configPath, 'utf-8');
-    config = (parseYaml(content) as Record<string, unknown>) ?? {};
+  const doc = existsSync(configPath)
+    ? parseDocument(readFileSync(configPath, 'utf-8'))
+    : parseDocument('');
+
+  if (!doc.has('router')) {
+    doc.set('router', {});
   }
 
-  if (!config.router) {
-    config.router = {};
-  }
-  const router = config.router as Record<string, unknown>;
+  const existingDefaults = (doc.getIn(['router', 'defaults']) as Record<string, unknown>) ?? {};
+  doc.setIn(['router', 'defaults'], { ...existingDefaults, ...defaults });
 
-  router.defaults = {
-    ...((router.defaults as Record<string, unknown>) ?? {}),
-    ...defaults,
-  };
-
-  const yaml = stringifyYaml(config);
-  writeFileSync(configPath, yaml, 'utf-8');
+  writeFileSync(configPath, doc.toString(), 'utf-8');
 }

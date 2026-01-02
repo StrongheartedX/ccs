@@ -1,11 +1,13 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { load as parseYaml, dump as stringifyYaml } from 'js-yaml';
+import { parse as parseYaml, parseDocument, stringify as stringifyYaml } from 'yaml';
+import type { Document } from 'yaml';
 import { routerConfigSchema, type RouterConfig, type RouterProfile } from './schema';
 import { getCcsDir } from '../../utils/config-manager';
 
 // Re-export yaml functions for writer.ts
-export { parseYaml, stringifyYaml };
+export { parseYaml, parseDocument, stringifyYaml };
+export type { Document };
 
 /**
  * Get config.yaml path
