@@ -10,10 +10,22 @@ import { downloadAndInstall, deleteBinary, getBinaryPath } from './installer';
 import { info } from '../../utils/ui';
 import { isCliproxyRunning } from '../stats-fetcher';
 import { CLIPROXY_DEFAULT_PORT } from '../config-generator';
+import { CLIPROXY_MAX_STABLE_VERSION } from '../platform-detector';
 
 /** Log helper */
 function log(message: string, verbose: boolean): void {
   if (verbose) console.error(`[cliproxy] ${message}`);
+}
+
+/**
+ * Clamp version to max stable if newer versions are unstable
+ */
+function clampToMaxStable(version: string, verbose: boolean): string {
+  if (isNewerVersion(version, CLIPROXY_MAX_STABLE_VERSION)) {
+    log(`Clamping ${version} to max stable ${CLIPROXY_MAX_STABLE_VERSION}`, verbose);
+    return CLIPROXY_MAX_STABLE_VERSION;
+  }
+  return version;
 }
 
 /** Handle auto-update when binary exists */
@@ -21,8 +33,15 @@ async function handleAutoUpdate(config: BinaryManagerConfig, verbose: boolean): 
   const updateResult = await checkForUpdates(config.binPath, config.version, verbose);
   if (!updateResult.hasUpdate) return;
 
+  // Clamp to max stable version
+  const targetVersion = clampToMaxStable(updateResult.latestVersion, verbose);
+  if (!isNewerVersion(targetVersion, updateResult.currentVersion)) {
+    log(`Already at max stable version ${updateResult.currentVersion}`, verbose);
+    return;
+  }
+
   const proxyRunning = await isCliproxyRunning(CLIPROXY_DEFAULT_PORT);
-  const updateMsg = `CLIProxy Plus update available: v${updateResult.currentVersion} -> v${updateResult.latestVersion}`;
+  const updateMsg = `CLIProxy Plus update available: v${updateResult.currentVersion} -> v${targetVersion}`;
 
   if (proxyRunning) {
     console.log(info(updateMsg));
@@ -32,7 +51,7 @@ async function handleAutoUpdate(config: BinaryManagerConfig, verbose: boolean): 
     console.log(info(updateMsg));
     console.log(info('Updating CLIProxy Plus...'));
     deleteBinary(config.binPath, verbose);
-    config.version = updateResult.latestVersion;
+    config.version = targetVersion;
     await downloadAndInstall(config, verbose);
   }
 }
@@ -70,9 +89,10 @@ export async function ensureBinary(config: BinaryManagerConfig): Promise<string>
   if (!config.forceVersion) {
     try {
       const latestVersion = await fetchLatestVersion(verbose);
-      if (latestVersion && isNewerVersion(latestVersion, config.version)) {
-        log(`Using latest version: ${latestVersion} (instead of ${config.version})`, verbose);
-        config.version = latestVersion;
+      const targetVersion = clampToMaxStable(latestVersion, verbose);
+      if (targetVersion && isNewerVersion(targetVersion, config.version)) {
+        log(`Using version: ${targetVersion} (instead of ${config.version})`, verbose);
+        config.version = targetVersion;
       }
     } catch {
       log(`Using pinned version: ${config.version}`, verbose);
