@@ -6,6 +6,7 @@
  * In remote mode: shows remote server info instead of local controls.
  */
 
+import { useState } from 'react';
 import {
   Activity,
   Power,
@@ -15,11 +16,32 @@ import {
   Square,
   RotateCw,
   ArrowUp,
+  ArrowDown,
   Globe,
   AlertTriangle,
+  Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useQuery } from '@tanstack/react-query';
 import { api, type CliproxyServerConfig } from '@/lib/api-client';
 import {
@@ -27,8 +49,22 @@ import {
   useStartProxy,
   useStopProxy,
   useCliproxyUpdateCheck,
+  useCliproxyVersions,
+  useInstallVersion,
+  useRestartProxy,
 } from '@/hooks/use-cliproxy';
 import { cn } from '@/lib/utils';
+
+/** Client-side semver comparison (true if a > b) */
+function isNewerVersionClient(a: string, b: string): boolean {
+  const aParts = a.replace(/-\d+$/, '').split('.').map(Number);
+  const bParts = b.replace(/-\d+$/, '').split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((aParts[i] || 0) > (bParts[i] || 0)) return true;
+    if ((aParts[i] || 0) < (bParts[i] || 0)) return false;
+  }
+  return false;
+}
 
 function formatUptime(startedAt?: string): string {
   if (!startedAt) return '';
@@ -59,8 +95,20 @@ function formatTimeAgo(timestamp?: number): string {
 export function ProxyStatusWidget() {
   const { data: status, isLoading } = useProxyStatus();
   const { data: updateCheck } = useCliproxyUpdateCheck();
+  const { data: versionsData, isLoading: versionsLoading } = useCliproxyVersions();
   const startProxy = useStartProxy();
   const stopProxy = useStopProxy();
+  const restartProxy = useRestartProxy();
+  const installVersion = useInstallVersion();
+
+  // Version picker state
+  const [showVersionSettings, setShowVersionSettings] = useState(false);
+  const [selectedVersion, setSelectedVersion] = useState<string>('');
+  const [manualVersion, setManualVersion] = useState('');
+
+  // Confirmation dialog state for unstable versions
+  const [showUnstableConfirm, setShowUnstableConfirm] = useState(false);
+  const [pendingInstallVersion, setPendingInstallVersion] = useState<string | null>(null);
 
   // Fetch cliproxy_server config for remote mode detection
   const { data: cliproxyConfig } = useQuery<CliproxyServerConfig>({
@@ -74,9 +122,44 @@ export function ProxyStatusWidget() {
   const isRemoteMode = remoteConfig?.enabled && remoteConfig?.host;
 
   const isRunning = status?.running ?? false;
-  const isActioning = startProxy.isPending || stopProxy.isPending;
+  const isActioning =
+    startProxy.isPending ||
+    stopProxy.isPending ||
+    restartProxy.isPending ||
+    installVersion.isPending;
   const hasUpdate = updateCheck?.hasUpdate ?? false;
   const isUnstable = updateCheck?.isStable === false;
+
+  // Handle version install (shows confirmation for unstable)
+  const handleInstallVersion = (version: string) => {
+    if (!version) return;
+    const maxStable = versionsData?.maxStableVersion || '6.6.80';
+    const isVersionUnstable = isNewerVersionClient(version, maxStable);
+
+    if (isVersionUnstable) {
+      // Show confirmation dialog for unstable versions
+      setPendingInstallVersion(version);
+      setShowUnstableConfirm(true);
+      return;
+    }
+
+    // Install directly if stable
+    installVersion.mutate({ version });
+  };
+
+  // Confirm unstable version install
+  const handleConfirmUnstableInstall = () => {
+    if (pendingInstallVersion) {
+      installVersion.mutate({ version: pendingInstallVersion, force: true });
+    }
+    setShowUnstableConfirm(false);
+    setPendingInstallVersion(null);
+  };
+
+  const handleCancelUnstableInstall = () => {
+    setShowUnstableConfirm(false);
+    setPendingInstallVersion(null);
+  };
 
   // Build remote display info
   const remoteDisplayHost = isRemoteMode
@@ -190,8 +273,26 @@ export function ProxyStatusWidget() {
               </span>
             )}
           </div>
-          {/* Control buttons when running */}
+          {/* Control buttons when running: Restart | Update/Downgrade | Stop | Settings */}
           <div className="mt-2 flex items-center gap-2">
+            {/* Restart button - pure restart, no version change */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1"
+              onClick={() => restartProxy.mutate()}
+              disabled={isActioning}
+              title="Restart CLIProxy service (no version change)"
+            >
+              {restartProxy.isPending ? (
+                <RefreshCw className="w-3 h-3 animate-spin" />
+              ) : (
+                <RotateCw className="w-3 h-3" />
+              )}
+              Restart
+            </Button>
+
+            {/* Update/Downgrade button - version change */}
             <Button
               variant={hasUpdate || isUnstable ? 'default' : 'outline'}
               size="sm"
@@ -203,26 +304,26 @@ export function ProxyStatusWidget() {
                       'bg-sidebar-accent hover:bg-sidebar-accent/90 text-sidebar-accent-foreground'
               )}
               onClick={handleRestart}
-              disabled={isActioning}
+              disabled={isActioning || (!hasUpdate && !isUnstable)}
               title={
                 isUnstable
-                  ? `Current v${updateCheck?.currentVersion} is unstable. Restart to downgrade to stable v${updateCheck?.maxStableVersion}`
+                  ? `Downgrade to stable v${updateCheck?.maxStableVersion}`
                   : hasUpdate
-                    ? `Restart to update: v${updateCheck?.currentVersion} -> v${updateCheck?.latestVersion}`
-                    : 'Restart CLIProxy service'
+                    ? `Update to v${updateCheck?.latestVersion}`
+                    : 'Already on latest version'
               }
             >
-              {isActioning ? (
+              {isActioning && !restartProxy.isPending ? (
                 <RefreshCw className="w-3 h-3 animate-spin" />
               ) : isUnstable ? (
                 <AlertTriangle className="w-3 h-3" />
               ) : hasUpdate ? (
                 <ArrowUp className="w-3 h-3" />
-              ) : (
-                <RotateCw className="w-3 h-3" />
-              )}
-              {isUnstable ? 'Downgrade' : hasUpdate ? 'Update' : 'Restart'}
+              ) : null}
+              {isUnstable ? 'Downgrade' : hasUpdate ? 'Update' : 'Latest'}
             </Button>
+
+            {/* Stop button */}
             <Button
               variant="outline"
               size="sm"
@@ -238,7 +339,106 @@ export function ProxyStatusWidget() {
               )}
               Stop
             </Button>
+
+            {/* Settings gear - toggle version picker */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn('h-7 w-7 p-0', showVersionSettings && 'bg-muted')}
+              onClick={() => setShowVersionSettings(!showVersionSettings)}
+              title="Version settings"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </Button>
           </div>
+
+          {/* Version Settings (collapsible) */}
+          <Collapsible open={showVersionSettings} onOpenChange={setShowVersionSettings}>
+            <CollapsibleContent className="mt-2 pt-2 border-t border-muted">
+              <div className="space-y-2">
+                {/* Current version */}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">Current:</span>
+                  <span
+                    className={cn('font-mono', isUnstable && 'text-amber-600 dark:text-amber-400')}
+                  >
+                    v{updateCheck?.currentVersion}
+                    {isUnstable && ' (unstable)'}
+                  </span>
+                </div>
+
+                {/* Version picker row */}
+                <div className="flex items-center gap-2">
+                  {/* Dropdown */}
+                  <Select
+                    value={selectedVersion}
+                    onValueChange={(v) => {
+                      setSelectedVersion(v);
+                      setManualVersion('');
+                    }}
+                    disabled={versionsLoading}
+                  >
+                    <SelectTrigger className="h-7 text-xs flex-1">
+                      <SelectValue placeholder="Select version..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {versionsData?.versions.slice(0, 20).map((v) => (
+                        <SelectItem key={v} value={v} className="text-xs">
+                          v{v}
+                          {v === versionsData.latestStable && ' (stable)'}
+                          {v === versionsData.latest &&
+                            v !== versionsData.latestStable &&
+                            ' (latest)'}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  {/* Manual input */}
+                  <Input
+                    placeholder="Manual..."
+                    value={manualVersion}
+                    onChange={(e) => {
+                      setManualVersion(e.target.value);
+                      setSelectedVersion('');
+                    }}
+                    className="h-7 text-xs w-24"
+                  />
+
+                  {/* Install button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs gap-1"
+                    onClick={() => handleInstallVersion(manualVersion || selectedVersion)}
+                    disabled={installVersion.isPending || (!selectedVersion && !manualVersion)}
+                  >
+                    {installVersion.isPending ? (
+                      <RefreshCw className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <ArrowDown className="w-3 h-3" />
+                    )}
+                    Install
+                  </Button>
+                </div>
+
+                {/* Stability warning */}
+                {(selectedVersion || manualVersion) &&
+                  versionsData &&
+                  isNewerVersionClient(
+                    manualVersion || selectedVersion,
+                    versionsData.maxStableVersion
+                  ) && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-amber-600 dark:text-amber-400">
+                      <AlertTriangle className="w-3 h-3" />
+                      <span>
+                        Versions above {versionsData.maxStableVersion} have known stability issues
+                      </span>
+                    </div>
+                  )}
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </>
       ) : (
         <div className="mt-2 flex items-center justify-between">
@@ -284,6 +484,38 @@ export function ProxyStatusWidget() {
           )}
         </div>
       )}
+
+      {/* Unstable Version Confirmation Dialog */}
+      <AlertDialog open={showUnstableConfirm} onOpenChange={setShowUnstableConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-amber-500" />
+              Install Unstable Version?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                You are about to install <strong>v{pendingInstallVersion}</strong>, which is above
+                the maximum stable version{' '}
+                <strong>v{versionsData?.maxStableVersion || '6.6.80'}</strong>.
+              </p>
+              <p className="text-amber-600 dark:text-amber-400">
+                This version has known stability issues and may cause unexpected behavior.
+              </p>
+              <p>Are you sure you want to proceed?</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelUnstableInstall}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmUnstableInstall}
+              className="bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              Install Anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
