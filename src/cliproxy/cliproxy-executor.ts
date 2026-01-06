@@ -462,6 +462,13 @@ export async function execClaudeWithCLIProxy(
     if (tokenResult.refreshed) {
       log('Token was refreshed proactively');
     }
+
+    // 3a-1. Update lastUsedAt for the account being used
+    // This ensures dashboard shows accurate "Last used" timestamps
+    const usedAccount = getDefaultAccount(provider);
+    if (usedAccount) {
+      touchAccount(provider, usedAccount.id);
+    }
   }
 
   // 3b. Preflight quota check - auto-switch to account with quota before launch
