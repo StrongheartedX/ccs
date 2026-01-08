@@ -1,3 +1,13 @@
+## [7.17.0](https://github.com/kaitranntt/ccs/compare/v7.16.0...v7.17.0) (2026-01-08)
+
+### Features
+
+* **ci:** migrate ai-review to claude-code-action with fork PR support ([#304](https://github.com/kaitranntt/ccs/issues/304)) ([5651935](https://github.com/kaitranntt/ccs/commit/5651935797f71e9cfcf658c701f48d6efa0d9fea)), closes [#298](https://github.com/kaitranntt/ccs/issues/298) [#302](https://github.com/kaitranntt/ccs/issues/302) [#289](https://github.com/kaitranntt/ccs/issues/289)
+
+### Bug Fixes
+
+* **ci:** only auto-review on PR opened, not synchronize ([211e642](https://github.com/kaitranntt/ccs/commit/211e6424f015242ee393b4227dfc649c81115369))
+
 ## [7.16.0](https://github.com/kaitranntt/ccs/compare/v7.15.0...v7.16.0) (2026-01-08)
 
 ### Features
