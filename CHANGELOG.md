@@ -1,3 +1,15 @@
+## [7.16.0](https://github.com/kaitranntt/ccs/compare/v7.15.0...v7.16.0) (2026-01-08)
+
+### Features
+
+* **ci:** add workflow_dispatch for AI review ([#291](https://github.com/kaitranntt/ccs/issues/291)) ([b6d6520](https://github.com/kaitranntt/ccs/commit/b6d65209cd9ba8616179c6c75c38b47732bb8858)), closes [#289](https://github.com/kaitranntt/ccs/issues/289)
+* **ci:** AI code review workflow with Claude Code CLI ([#295](https://github.com/kaitranntt/ccs/issues/295)) ([c915ca5](https://github.com/kaitranntt/ccs/commit/c915ca5922e2ed5b8169a91b480136856885ae80)), closes [#289](https://github.com/kaitranntt/ccs/issues/289) [#293](https://github.com/kaitranntt/ccs/issues/293) [#294](https://github.com/kaitranntt/ccs/issues/294) [#296](https://github.com/kaitranntt/ccs/issues/296)
+* **ci:** Claude Code CLI for AI reviews ([#290](https://github.com/kaitranntt/ccs/issues/290)) ([49c4d29](https://github.com/kaitranntt/ccs/commit/49c4d299c03d477c5492e82d559f0f3a1831f062))
+
+### Bug Fixes
+
+* **cliproxy:** update version range and add persistent AI review logging ([#303](https://github.com/kaitranntt/ccs/issues/303)) ([6e0bf7c](https://github.com/kaitranntt/ccs/commit/6e0bf7cb1b07d1a9960f7a44a24c80a08b2df3c3)), closes [#298](https://github.com/kaitranntt/ccs/issues/298) [#302](https://github.com/kaitranntt/ccs/issues/302) [#289](https://github.com/kaitranntt/ccs/issues/289)
+
 ## [7.15.0](https://github.com/kaitranntt/ccs/compare/v7.14.0...v7.15.0) (2026-01-06)
 
 ### Features
