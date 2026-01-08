@@ -18,7 +18,9 @@ import {
   DEFAULT_GLOBAL_ENV,
   DEFAULT_CLIPROXY_SERVER_CONFIG,
   DEFAULT_QUOTA_MANAGEMENT_CONFIG,
+  DEFAULT_THINKING_CONFIG,
   GlobalEnvConfig,
+  ThinkingConfig,
 } from './unified-config-types';
 import { isUnifiedConfigEnabled } from './feature-flags';
 
@@ -241,6 +243,20 @@ function mergeWithDefaults(partial: Partial<UnifiedConfig>): UnifiedConfig {
           partial.quota_management?.manual?.tier_lock ??
           DEFAULT_QUOTA_MANAGEMENT_CONFIG.manual.tier_lock,
       },
+    },
+    // Thinking config - auto/manual/off control for reasoning budget
+    thinking: {
+      mode: partial.thinking?.mode ?? DEFAULT_THINKING_CONFIG.mode,
+      override: partial.thinking?.override,
+      tier_defaults: {
+        opus: partial.thinking?.tier_defaults?.opus ?? DEFAULT_THINKING_CONFIG.tier_defaults.opus,
+        sonnet:
+          partial.thinking?.tier_defaults?.sonnet ?? DEFAULT_THINKING_CONFIG.tier_defaults.sonnet,
+        haiku:
+          partial.thinking?.tier_defaults?.haiku ?? DEFAULT_THINKING_CONFIG.tier_defaults.haiku,
+      },
+      provider_overrides: partial.thinking?.provider_overrides,
+      show_warnings: partial.thinking?.show_warnings ?? DEFAULT_THINKING_CONFIG.show_warnings,
     },
   };
 }
@@ -573,5 +589,25 @@ export function getGlobalEnvConfig(): GlobalEnvConfig {
   return {
     enabled: config.global_env?.enabled ?? true,
     env: config.global_env?.env ?? { ...DEFAULT_GLOBAL_ENV },
+  };
+}
+
+/**
+ * Get thinking configuration.
+ * Returns defaults if not configured.
+ */
+export function getThinkingConfig(): ThinkingConfig {
+  const config = loadOrCreateUnifiedConfig();
+  return {
+    mode: config.thinking?.mode ?? DEFAULT_THINKING_CONFIG.mode,
+    override: config.thinking?.override,
+    tier_defaults: {
+      opus: config.thinking?.tier_defaults?.opus ?? DEFAULT_THINKING_CONFIG.tier_defaults.opus,
+      sonnet:
+        config.thinking?.tier_defaults?.sonnet ?? DEFAULT_THINKING_CONFIG.tier_defaults.sonnet,
+      haiku: config.thinking?.tier_defaults?.haiku ?? DEFAULT_THINKING_CONFIG.tier_defaults.haiku,
+    },
+    provider_overrides: config.thinking?.provider_overrides,
+    show_warnings: config.thinking?.show_warnings ?? DEFAULT_THINKING_CONFIG.show_warnings,
   };
 }
