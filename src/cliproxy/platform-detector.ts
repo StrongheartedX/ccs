@@ -16,10 +16,11 @@ export const CLIPROXY_FALLBACK_VERSION = '6.6.40-0';
 
 /**
  * Maximum stable version cap - prevents auto-update to known unstable releases
- * v86-89 resolved the context cancellation bugs from v81-85
+ * Currently set high since v89+ are all stable.
+ * Only v81-88 have known bugs (see CLIPROXY_FAULTY_RANGE).
  * See: https://github.com/kaitranntt/ccs/issues/269
  */
-export const CLIPROXY_MAX_STABLE_VERSION = '6.6.89-0';
+export const CLIPROXY_MAX_STABLE_VERSION = '9.9.999-0';
 
 /**
  * Faulty version range - versions with known critical bugs

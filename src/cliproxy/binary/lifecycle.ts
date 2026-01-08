@@ -56,21 +56,10 @@ async function handleAutoUpdate(config: BinaryManagerConfig, verbose: boolean): 
     console.log(
       warn(
         `CLIProxy Plus v${currentVersion} has known bugs (v${CLIPROXY_FAULTY_RANGE.min.replace(/-\d+$/, '')}-${CLIPROXY_FAULTY_RANGE.max.replace(/-\d+$/, '')}). ` +
-          `Upgrade to v${CLIPROXY_MAX_STABLE_VERSION.replace(/-\d+$/, '')} recommended.`
+          `Upgrade to latest stable recommended.`
       )
     );
-    console.log(
-      info(
-        `Run "ccs cliproxy install ${CLIPROXY_MAX_STABLE_VERSION.replace(/-\d+$/, '')}" to upgrade`
-      )
-    );
-  } else if (isAboveMaxStable(currentVersion)) {
-    // Version newer than max stable (experimental)
-    console.log(
-      warn(
-        `CLIProxy Plus v${currentVersion} is experimental (above stable v${CLIPROXY_MAX_STABLE_VERSION.replace(/-\d+$/, '')})`
-      )
-    );
+    console.log(info(`Run "ccs cliproxy install" to upgrade to latest stable`));
   }
 
   if (!updateResult.hasUpdate) return;
