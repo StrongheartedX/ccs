@@ -86,7 +86,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.CLIPROXY_API_KEY }}
           github_token: ${{ steps.app-token.outputs.token }}
-          track_progress: true
+          track_progress: ${{ github.event_name != 'workflow_dispatch' }}
           prompt: |
             ultrathink
 
