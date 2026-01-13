@@ -5,8 +5,22 @@
 
 import { Router, type Request, type Response } from 'express';
 import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { getDashboardAuthConfig } from '../../config/unified-config-loader';
 import { loginRateLimiter } from '../middleware/auth-middleware';
+
+/**
+ * Timing-safe string comparison to prevent timing attacks.
+ * Returns true if strings match, false otherwise.
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) {
+    // Still compare to avoid length-based timing leak
+    crypto.timingSafeEqual(Buffer.from(a), Buffer.from(a));
+    return false;
+  }
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
 
 const router = Router();
 
@@ -38,8 +52,8 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
     return;
   }
 
-  // Verify credentials
-  const usernameMatch = username === authConfig.username;
+  // Verify credentials (timing-safe comparison for username)
+  const usernameMatch = timingSafeEqual(username, authConfig.username);
   const passwordMatch = await bcrypt.compare(password, authConfig.password_hash);
 
   if (!usernameMatch || !passwordMatch) {
@@ -47,11 +61,16 @@ router.post('/login', loginRateLimiter, async (req: Request, res: Response) => {
     return;
   }
 
-  // Set session
-  req.session.authenticated = true;
-  req.session.username = username;
-
-  res.json({ success: true, username });
+  // Regenerate session to prevent session fixation, then set auth
+  req.session.regenerate((err) => {
+    if (err) {
+      res.status(500).json({ error: 'Session error' });
+      return;
+    }
+    req.session.authenticated = true;
+    req.session.username = username;
+    res.json({ success: true, username });
+  });
 });
 
 /**

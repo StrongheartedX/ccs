@@ -56,8 +56,9 @@ function getSessionSecret(): string {
       fs.mkdirSync(dir, { recursive: true });
     }
     fs.writeFileSync(SESSION_SECRET_PATH, newSecret, { mode: 0o600 });
-  } catch {
-    // If we can't persist, still return the secret for this session
+  } catch (err) {
+    // Log warning - sessions won't persist across restarts
+    console.warn('[!] Failed to persist session secret:', (err as Error).message);
   }
 
   return newSecret;
