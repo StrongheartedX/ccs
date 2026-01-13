@@ -1,3 +1,17 @@
+## [7.18.1](https://github.com/kaitranntt/ccs/compare/v7.18.0...v7.18.1) (2026-01-13)
+
+### Bug Fixes
+
+* **ci:** add explicit instruction to post review as PR comment ([85f6bc0](https://github.com/kaitranntt/ccs/commit/85f6bc07d44f54673163ad4fed6045a37ccabad0))
+* **ci:** exclude bot comments from triggering AI review ([ce70617](https://github.com/kaitranntt/ccs/commit/ce70617ee94645399ba05af581240a696ca9cfed))
+* **ci:** prevent self-cancelling AI review workflow ([120aca4](https://github.com/kaitranntt/ccs/commit/120aca466d646ee1c770b2712a0d2742d5dd62d6))
+* **ci:** prevent self-cancelling AI review workflow ([#321](https://github.com/kaitranntt/ccs/issues/321)) ([fa1899f](https://github.com/kaitranntt/ccs/commit/fa1899f4611d570b2a8bf5e1a5342d5392466263))
+* **delegation:** improve profile discovery and CI workflow ([#310](https://github.com/kaitranntt/ccs/issues/310)) ([affdaea](https://github.com/kaitranntt/ccs/commit/affdaead80c3635f49ef562cac81bde8db0cab23))
+* **delegation:** only check profiles defined in config.yaml ([0075248](https://github.com/kaitranntt/ccs/commit/0075248273e2d4912c4e277deebd6e668c5b3466))
+* **doctor:** use dynamic profile discovery for delegation check ([f88ad8e](https://github.com/kaitranntt/ccs/commit/f88ad8e78198302f68ee0b420075d704ab01d8ff))
+* **ui:** improve sidebar navigation for collapsible menu items ([12b68f9](https://github.com/kaitranntt/ccs/commit/12b68f9f136c3529ac976eaec9e8903b43185e89))
+* **ui:** improve sidebar navigation for collapsible menu items ([#313](https://github.com/kaitranntt/ccs/issues/313)) ([e2e2ecd](https://github.com/kaitranntt/ccs/commit/e2e2ecda3c1948fb90f9b47b1e31782ef30cc31f))
+
 ## [7.18.0](https://github.com/kaitranntt/ccs/compare/v7.17.0...v7.18.0) (2026-01-08)
 
 ### Features
