@@ -21,12 +21,10 @@ on:
         required: true
         type: string
 
-# Concurrency strategy:
-# - For issue_comment: include comment author to isolate bot progress comments from human /review requests
-# - For other events: use event_name + PR number
-# This prevents bot progress comments from cancelling active reviews
+# Simple concurrency: one review per PR at a time
+# With track_progress disabled, no bot comments are posted during review
 concurrency:
-  group: ai-review-${{ github.event_name }}-${{ github.event.comment.user.login || 'system' }}-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
+  group: ai-review-${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
   cancel-in-progress: true
 
 jobs:
@@ -41,16 +39,14 @@ jobs:
 
     # Conditions:
     # - PR event: only on opened (not synchronize to avoid cancel-on-push)
-    # - Comment event: only if it's a PR, contains /review, NOT from a bot, and NOT from our review bot
-    # The explicit bot name check prevents self-triggering from progress comments
+    # - Comment event: only if it's a PR, contains /review, and NOT from a bot
     if: >
       github.event_name == 'pull_request_target' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' &&
        github.event.issue.pull_request &&
        contains(github.event.comment.body, '/review') &&
-       github.event.comment.user.type != 'Bot' &&
-       github.event.comment.user.login != 'ccs-agy-reviewer[bot]')
+       github.event.comment.user.type != 'Bot')
 
     # CLIProxy environment for model routing
     env:
@@ -97,7 +93,7 @@ jobs:
           anthropic_api_key: ${{ secrets.CLIPROXY_API_KEY }}
           github_token: ${{ steps.app-token.outputs.token }}
           path_to_claude_code_executable: /home/github-runner/.local/bin/claude
-          track_progress: ${{ github.event_name != 'workflow_dispatch' }}
+          track_progress: false  # Disabled - no progress comments, just final review
           prompt: |
             ultrathink
 
