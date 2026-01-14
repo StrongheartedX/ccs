@@ -260,12 +260,24 @@ function uploadTokenToRemoteAsync(tokenPath: string, verbose: boolean): void {
   import('../remote-token-uploader')
     .then(({ uploadTokenToRemote, isRemoteUploadEnabled }) => {
       if (isRemoteUploadEnabled()) {
-        // uploadTokenToRemote handles its own logging for success/failure
-        uploadTokenToRemote(tokenPath, verbose).catch((err: unknown) => {
-          // Unexpected error (not handled by uploadTokenToRemote)
-          const message = err instanceof Error ? err.message : String(err);
-          console.error(`[token-manager] Unexpected upload error: ${message}`);
-        });
+        // uploadTokenToRemote handles its own success/failure logging
+        // On failure, show additional warning so users know local token is still valid
+        uploadTokenToRemote(tokenPath, verbose)
+          .then((success) => {
+            if (!success) {
+              console.error(
+                '\n[!] Remote upload failed - token saved locally only. Run "ccs tokens upload" to retry.'
+              );
+            }
+          })
+          .catch((err: unknown) => {
+            // Unexpected error (not handled by uploadTokenToRemote)
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[token-manager] Unexpected upload error: ${message}`);
+            console.error(
+              '[!] Token saved locally. Run "ccs tokens upload" to sync to remote server.'
+            );
+          });
       }
     })
     .catch((err: unknown) => {

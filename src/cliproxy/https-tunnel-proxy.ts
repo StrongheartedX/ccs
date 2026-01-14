@@ -7,6 +7,10 @@
  *
  * Flow:
  *   Claude CLI --HTTP--> Local Tunnel (port X) --HTTPS--> Remote CLIProxyAPI
+ *
+ * Note: Unlike CodexReasoningProxy, this tunnel does NOT buffer or limit response sizes.
+ * Responses are streamed directly (pipe) which is appropriate for a transparent tunnel.
+ * Socket-level timeouts handle hung connections; size limits are enforced by the remote server.
  */
 
 import * as http from 'http';
@@ -31,7 +35,7 @@ export interface HttpsTunnelConfig {
 export class HttpsTunnelProxy {
   private server: http.Server | null = null;
   private port: number | null = null;
-  private starting = false;
+  private startingPromise: Promise<number> | null = null;
   private activeConnections = new Set<Socket>();
   private readonly config: Required<
     Pick<
@@ -75,11 +79,13 @@ export class HttpsTunnelProxy {
   }
 
   async start(): Promise<number> {
-    // Prevent race condition with concurrent start() calls
-    if (this.server || this.starting) return this.port ?? 0;
-    this.starting = true;
+    // Already started
+    if (this.server) return this.port ?? 0;
 
-    return new Promise((resolve, reject) => {
+    // Prevent race condition: if start() is already in progress, return the same promise
+    if (this.startingPromise) return this.startingPromise;
+
+    this.startingPromise = new Promise((resolve, reject) => {
       this.server = http.createServer((req, res) => {
         void this.handleRequest(req, res);
       });
@@ -93,8 +99,8 @@ export class HttpsTunnelProxy {
       this.server.listen(0, '127.0.0.1', () => {
         const address = this.server?.address();
         this.port = typeof address === 'object' && address ? address.port : 0;
-        this.starting = false;
         if (this.port === 0) {
+          this.startingPromise = null;
           reject(new Error('Failed to bind to any port'));
           return;
         }
@@ -105,10 +111,12 @@ export class HttpsTunnelProxy {
       });
 
       this.server.on('error', (err) => {
-        this.starting = false;
+        this.startingPromise = null;
         reject(err);
       });
     });
+
+    return this.startingPromise;
   }
 
   stop(): void {
@@ -123,6 +131,7 @@ export class HttpsTunnelProxy {
     this.server.close();
     this.server = null;
     this.port = null;
+    this.startingPromise = null;
     this.log('Stopped');
   }
 
