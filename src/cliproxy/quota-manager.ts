@@ -85,7 +85,8 @@ export function clearQuotaCache(): void {
  */
 async function fetchQuotaWithDedup(
   provider: CLIProxyProvider,
-  accountId: string
+  accountId: string,
+  verbose = false
 ): Promise<QuotaResult> {
   const key = getCacheKey(provider, accountId);
 
@@ -96,7 +97,7 @@ async function fetchQuotaWithDedup(
   }
 
   // Start new fetch and track it
-  const fetchPromise = fetchAccountQuota(provider, accountId)
+  const fetchPromise = fetchAccountQuota(provider, accountId, verbose)
     .then((result) => {
       setCachedQuota(provider, accountId, result);
       return result;

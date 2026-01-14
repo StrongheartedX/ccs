@@ -182,7 +182,7 @@ async function refreshAccessToken(
   refreshToken: string,
   verbose = false
 ): Promise<{ accessToken: string | null; error?: string }> {
-  if (verbose) console.log('[i] Refreshing access token...');
+  if (verbose) console.error('[i] Refreshing access token...');
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -204,13 +204,13 @@ async function refreshAccessToken(
 
     clearTimeout(timeoutId);
 
-    if (verbose) console.log(`[i] Token refresh status: ${response.status}`);
+    if (verbose) console.error(`[i] Token refresh status: ${response.status}`);
 
     const data = (await response.json()) as TokenRefreshResponse;
 
     if (!response.ok || data.error) {
       const error = data.error_description || data.error || `OAuth error: ${response.status}`;
-      if (verbose) console.log(`[!] Token refresh failed: ${error}`);
+      if (verbose) console.error(`[!] Token refresh failed: ${error}`);
       return {
         accessToken: null,
         error,
@@ -218,11 +218,11 @@ async function refreshAccessToken(
     }
 
     if (!data.access_token) {
-      if (verbose) console.log('[!] Token refresh failed: No access_token in response');
+      if (verbose) console.error('[!] Token refresh failed: No access_token in response');
       return { accessToken: null, error: 'No access_token in response' };
     }
 
-    if (verbose) console.log('[i] Token refresh: success');
+    if (verbose) console.error('[i] Token refresh: success');
     return { accessToken: data.access_token };
   } catch (err) {
     clearTimeout(timeoutId);
@@ -232,7 +232,7 @@ async function refreshAccessToken(
         : err instanceof Error
           ? err.message
           : 'Unknown error';
-    if (verbose) console.log(`[!] Token refresh failed: ${errorMsg}`);
+    if (verbose) console.error(`[!] Token refresh failed: ${errorMsg}`);
     return { accessToken: null, error: errorMsg };
   }
 }
@@ -539,12 +539,12 @@ export async function fetchAccountQuota(
   accountId: string,
   verbose = false
 ): Promise<QuotaResult> {
-  if (verbose) console.log(`[i] Fetching quota for ${accountId}...`);
+  if (verbose) console.error(`[i] Fetching quota for ${accountId}...`);
 
   // Only Antigravity supports quota fetching
   if (provider !== 'agy') {
     const error = `Quota not supported for provider: ${provider}`;
-    if (verbose) console.log(`[!] Error: ${error}`);
+    if (verbose) console.error(`[!] Error: ${error}`);
     return {
       success: false,
       models: [],
@@ -557,7 +557,7 @@ export async function fetchAccountQuota(
   const authData = readAuthData(provider, accountId);
   if (!authData) {
     const error = 'Auth file not found for account';
-    if (verbose) console.log(`[!] Error: ${error}`);
+    if (verbose) console.error(`[!] Error: ${error}`);
     return {
       success: false,
       models: [],
@@ -590,7 +590,7 @@ export async function fetchAccountQuota(
   }
 
   if (verbose && !tokenRefreshed) {
-    console.log('[i] Token refresh: skipped');
+    console.error('[i] Token refresh: skipped');
   }
 
   // Get project ID and tier - prefer stored project ID, but always call API for tier
@@ -611,7 +611,7 @@ export async function fetchAccountQuota(
     }
     if (!lastProjectResult.projectId) {
       const error = lastProjectResult.error || 'Failed to retrieve project ID';
-      if (verbose) console.log(`[!] Error: ${error}`);
+      if (verbose) console.error(`[!] Error: ${error}`);
       return {
         success: false,
         models: [],
@@ -626,12 +626,12 @@ export async function fetchAccountQuota(
   projectId = lastProjectResult.projectId || projectId;
   apiTier = lastProjectResult.tier || 'unknown';
 
-  if (verbose) console.log(`[i] Project ID: ${projectId || 'not found'}`);
+  if (verbose) console.error(`[i] Project ID: ${projectId || 'not found'}`);
 
   // Fetch models with quota
   const result = await fetchAvailableModels(accessToken, projectId as string);
 
-  if (verbose) console.log(`[i] Models found: ${result.models.length}`);
+  if (verbose) console.error(`[i] Models found: ${result.models.length}`);
 
   // If quota fetch fails with auth error and we haven't refreshed yet, try refresh
   if (!result.success && result.error?.includes('expired') && authData.refreshToken) {
