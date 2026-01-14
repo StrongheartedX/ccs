@@ -3,10 +3,10 @@
  * Main entry point with lazy-loaded sections and URL tab persistence
  */
 
-import { lazy, Suspense, startTransition, useEffect } from 'react';
+import { lazy, Suspense, startTransition, useEffect, Component, type ReactNode } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, FileCode, Copy, Check, GripVertical } from 'lucide-react';
+import { RefreshCw, FileCode, Copy, Check, GripVertical, AlertCircle } from 'lucide-react';
 import { CodeEditor } from '@/components/shared/code-editor';
 import { SettingsProvider } from './context';
 import { useSettingsTab, useRawConfig } from './hooks';
@@ -20,6 +20,45 @@ const GlobalEnvSection = lazy(() => import('./sections/globalenv-section'));
 const ProxySection = lazy(() => import('./sections/proxy'));
 const AuthSection = lazy(() => import('./sections/auth-section'));
 const BackupsSection = lazy(() => import('./sections/backups-section'));
+
+// Error Boundary for lazy-loaded sections
+class SectionErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+          <div className="text-center p-6 max-w-md">
+            <AlertCircle className="w-12 h-12 mx-auto mb-4 text-destructive" />
+            <p className="font-medium text-foreground mb-2">Failed to load section</p>
+            <p className="text-sm mb-4">{this.state.error?.message || 'Unknown error occurred'}</p>
+            <Button
+              variant="outline"
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Reload page
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 // Inner component that uses context
 function SettingsPageInner() {
@@ -55,13 +94,15 @@ function SettingsPageInner() {
             </div>
 
             {/* Tab Content */}
-            <Suspense fallback={<SectionSkeleton />}>
-              {activeTab === 'websearch' && <WebSearchSection />}
-              {activeTab === 'globalenv' && <GlobalEnvSection />}
-              {activeTab === 'proxy' && <ProxySection />}
-              {activeTab === 'auth' && <AuthSection />}
-              {activeTab === 'backups' && <BackupsSection />}
-            </Suspense>
+            <SectionErrorBoundary>
+              <Suspense fallback={<SectionSkeleton />}>
+                {activeTab === 'websearch' && <WebSearchSection />}
+                {activeTab === 'globalenv' && <GlobalEnvSection />}
+                {activeTab === 'proxy' && <ProxySection />}
+                {activeTab === 'auth' && <AuthSection />}
+                {activeTab === 'backups' && <BackupsSection />}
+              </Suspense>
+            </SectionErrorBoundary>
           </div>
         </Panel>
 

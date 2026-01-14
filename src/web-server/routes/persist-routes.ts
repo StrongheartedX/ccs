@@ -15,6 +15,9 @@ interface BackupFile {
   date: Date;
 }
 
+/** Simple in-memory mutex for restore operations */
+let restoreLock = false;
+
 /** Get Claude settings.json path */
 function getClaudeSettingsPath(): string {
   return path.join(os.homedir(), '.claude', 'settings.json');
@@ -85,6 +88,14 @@ router.get('/backups', (_req: Request, res: Response): void => {
  * Body: { timestamp?: string } - If not provided, restores latest
  */
 router.post('/restore', (req: Request, res: Response): void => {
+  // Check concurrent restore lock
+  if (restoreLock) {
+    res.status(409).json({ error: 'Restore already in progress' });
+    return;
+  }
+
+  restoreLock = true;
+
   try {
     const { timestamp } = req.body;
     const backups = getBackupFiles();
@@ -107,19 +118,6 @@ router.post('/restore', (req: Request, res: Response): void => {
       backup = found;
     }
 
-    // Validate backup JSON
-    try {
-      const content = fs.readFileSync(backup.path, 'utf8');
-      const parsed = JSON.parse(content);
-      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-        res.status(400).json({ error: 'Backup file is corrupted' });
-        return;
-      }
-    } catch {
-      res.status(400).json({ error: 'Backup file is corrupted or invalid JSON' });
-      return;
-    }
-
     // Security checks
     if (isSymlink(backup.path)) {
       res.status(400).json({ error: 'Backup file is a symlink - refusing for security' });
@@ -132,16 +130,65 @@ router.post('/restore', (req: Request, res: Response): void => {
       return;
     }
 
-    // Restore
-    fs.copyFileSync(backup.path, settingsPath);
+    // Read and validate backup JSON (do this once atomically)
+    let backupContent: string;
+    try {
+      backupContent = fs.readFileSync(backup.path, 'utf8');
+      const parsed = JSON.parse(backupContent);
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        res.status(400).json({ error: 'Backup file is corrupted' });
+        return;
+      }
+    } catch {
+      res.status(400).json({ error: 'Backup file is corrupted or invalid JSON' });
+      return;
+    }
 
-    res.json({
-      success: true,
-      timestamp: backup.timestamp,
-      date: backup.date.toISOString(),
-    });
+    // Atomic restore with rollback capability
+    const settingsDir = path.dirname(settingsPath);
+    const tempPath = path.join(settingsDir, 'settings.json.restore-tmp');
+    const backupPath = path.join(settingsDir, 'settings.json.rollback-tmp');
+
+    try {
+      // Step 1: Backup current settings for rollback
+      if (fs.existsSync(settingsPath)) {
+        fs.copyFileSync(settingsPath, backupPath);
+      }
+
+      // Step 2: Write validated content to temp file
+      fs.writeFileSync(tempPath, backupContent, 'utf8');
+
+      // Step 3: Atomic rename (replaces existing file)
+      fs.renameSync(tempPath, settingsPath);
+
+      // Step 4: Cleanup rollback backup on success
+      if (fs.existsSync(backupPath)) {
+        fs.unlinkSync(backupPath);
+      }
+
+      res.json({
+        success: true,
+        timestamp: backup.timestamp,
+        date: backup.date.toISOString(),
+      });
+    } catch (error) {
+      // Rollback on failure
+      try {
+        if (fs.existsSync(backupPath)) {
+          fs.renameSync(backupPath, settingsPath);
+        }
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+      throw error;
+    }
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
+  } finally {
+    restoreLock = false;
   }
 });
 

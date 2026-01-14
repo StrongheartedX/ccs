@@ -60,6 +60,13 @@ export default function ProxySection() {
     }
   };
 
+  // Log when debug mode changes
+  useEffect(() => {
+    if (debugMode) {
+      console.log('[CCS Debug] Debug mode enabled - proxy config:', config);
+    }
+  }, [debugMode, config]);
+
   // Load data on mount
   useEffect(() => {
     fetchConfig();
@@ -302,7 +309,7 @@ export default function ProxySection() {
                 <div>
                   <p className="font-medium text-sm">Debug Mode</p>
                   <p className="text-xs text-muted-foreground">
-                    Show verbose logging and diagnostic info (--verbose)
+                    Enable developer diagnostics in browser console
                   </p>
                 </div>
                 <Switch

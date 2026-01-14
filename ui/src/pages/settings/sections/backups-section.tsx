@@ -3,7 +3,7 @@
  * Settings section for managing config.yaml backups (list and restore)
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -25,6 +25,10 @@ interface BackupsResponse {
 export default function BackupsSection() {
   const { fetchRawConfig } = useRawConfig();
 
+  // AbortController refs for cleanup
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const restoreAbortControllerRef = useRef<AbortController | null>(null);
+
   // State
   const [backups, setBackups] = useState<Backup[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,16 +38,24 @@ export default function BackupsSection() {
 
   // Fetch backups
   const fetchBackups = useCallback(async () => {
+    // Abort previous request
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = new AbortController();
+
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch('/api/persist/backups');
+      const response = await fetch('/api/persist/backups', {
+        signal: abortControllerRef.current.signal,
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch backups');
       }
       const data: BackupsResponse = await response.json();
       setBackups(data.backups || []);
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setLoading(false);
@@ -52,6 +64,10 @@ export default function BackupsSection() {
 
   // Restore backup
   const restoreBackup = async (timestamp: string) => {
+    // Abort previous restore request
+    restoreAbortControllerRef.current?.abort();
+    restoreAbortControllerRef.current = new AbortController();
+
     try {
       setRestoring(timestamp);
       setError(null);
@@ -59,6 +75,7 @@ export default function BackupsSection() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ timestamp }),
+        signal: restoreAbortControllerRef.current.signal,
       });
 
       if (!response.ok) {
@@ -70,6 +87,8 @@ export default function BackupsSection() {
       await fetchBackups();
       await fetchRawConfig();
     } catch (err) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
       setRestoring(null);
@@ -80,6 +99,14 @@ export default function BackupsSection() {
   useEffect(() => {
     fetchBackups();
   }, [fetchBackups]);
+
+  // Cleanup: abort pending requests on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      restoreAbortControllerRef.current?.abort();
+    };
+  }, []);
 
   // Clear success after timeout
   useEffect(() => {

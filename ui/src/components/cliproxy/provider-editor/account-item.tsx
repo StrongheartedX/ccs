@@ -41,8 +41,9 @@ import type { AccountItemProps } from './types';
  * Get color class based on quota percentage
  */
 function getQuotaColor(percentage: number): string {
-  if (percentage <= 20) return 'bg-destructive';
-  if (percentage <= 50) return 'bg-yellow-500';
+  const clamped = Math.max(0, Math.min(100, percentage));
+  if (clamped <= 20) return 'bg-destructive';
+  if (clamped <= 50) return 'bg-yellow-500';
   return 'bg-green-500';
 }
 
@@ -257,7 +258,7 @@ export function AccountItem({
                   <TooltipTrigger asChild>
                     <div className="flex items-center gap-2">
                       <Progress
-                        value={minQuota}
+                        value={Math.max(0, Math.min(100, minQuota))}
                         className="h-2 flex-1"
                         indicatorClassName={getQuotaColor(minQuota)}
                       />
