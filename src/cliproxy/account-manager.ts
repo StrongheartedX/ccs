@@ -6,6 +6,7 @@
  *
  * Account storage: ~/.ccs/cliproxy/accounts.json
  * Token storage: ~/.ccs/cliproxy/auth/ (flat structure, CLIProxyAPI discovers by type field)
+ * Paused tokens: ~/.ccs/cliproxy/auth-paused/ (sibling dir, outside CLIProxyAPI scan path)
  */
 
 import * as fs from 'fs';
@@ -138,6 +139,19 @@ export function getAccountsRegistryPath(): string {
 }
 
 /**
+ * Get path to paused tokens directory
+ * Paused tokens are moved here so CLIProxyAPI won't discover them
+ *
+ * Uses sibling directory (auth-paused/) instead of subdirectory (auth/paused/)
+ * because CLIProxyAPI's watcher uses filepath.Walk() which recursively scans
+ * all subdirectories of auth/. A sibling directory is completely outside
+ * CLIProxyAPI's scan path, preventing token refresh loops.
+ */
+export function getPausedDir(): string {
+  return path.join(getCliproxyDir(), 'auth-paused');
+}
+
+/**
  * Load accounts registry
  */
 export function loadAccountsRegistry(): AccountsRegistry {
@@ -178,10 +192,12 @@ export function saveAccountsRegistry(registry: AccountsRegistry): void {
 /**
  * Sync registry with actual token files
  * Removes stale entries where token file no longer exists
+ * For paused accounts, checks both auth/ and paused/ directories
  * Called automatically when loading accounts
  */
 function syncRegistryWithTokenFiles(registry: AccountsRegistry): boolean {
   const authDir = getAuthDir();
+  const pausedDir = getPausedDir();
   let modified = false;
 
   for (const [_providerName, providerAccounts] of Object.entries(registry.providers)) {
@@ -191,7 +207,14 @@ function syncRegistryWithTokenFiles(registry: AccountsRegistry): boolean {
 
     for (const [accountId, meta] of Object.entries(providerAccounts.accounts)) {
       const tokenPath = path.join(authDir, meta.tokenFile);
-      if (!fs.existsSync(tokenPath)) {
+      const pausedPath = path.join(pausedDir, meta.tokenFile);
+
+      // For paused accounts, check paused dir; for active accounts, check auth dir
+      const expectedPath = meta.paused ? pausedPath : tokenPath;
+      // Also accept if file exists in either location (handles edge cases)
+      const existsAnywhere = fs.existsSync(tokenPath) || fs.existsSync(pausedPath);
+
+      if (!fs.existsSync(expectedPath) && !existsAnywhere) {
         staleIds.push(accountId);
       }
     }
@@ -406,6 +429,7 @@ export function setDefaultAccount(provider: CLIProxyProvider, accountId: string)
 
 /**
  * Pause an account (skip in quota rotation)
+ * Moves token file to paused/ subdir so CLIProxyAPI won't discover it
  */
 export function pauseAccount(provider: CLIProxyProvider, accountId: string): boolean {
   const registry = loadAccountsRegistry();
@@ -413,6 +437,32 @@ export function pauseAccount(provider: CLIProxyProvider, accountId: string): boo
 
   if (!providerAccounts?.accounts[accountId]) {
     return false;
+  }
+
+  const accountMeta = providerAccounts.accounts[accountId];
+
+  // Skip if already paused (idempotent)
+  if (accountMeta.paused) {
+    return true;
+  }
+
+  const authDir = getAuthDir();
+  const pausedDir = getPausedDir();
+  const tokenPath = path.join(authDir, accountMeta.tokenFile);
+  const pausedPath = path.join(pausedDir, accountMeta.tokenFile);
+
+  // Move token file to paused directory (if it exists in auth dir)
+  if (fs.existsSync(tokenPath)) {
+    try {
+      // Create paused directory if it doesn't exist
+      if (!fs.existsSync(pausedDir)) {
+        fs.mkdirSync(pausedDir, { recursive: true, mode: 0o700 });
+      }
+      fs.renameSync(tokenPath, pausedPath);
+    } catch {
+      // File operation failed, but continue with registry update
+      // syncRegistryWithTokenFiles() will handle recovery on next load
+    }
   }
 
   providerAccounts.accounts[accountId].paused = true;
@@ -423,6 +473,7 @@ export function pauseAccount(provider: CLIProxyProvider, accountId: string): boo
 
 /**
  * Resume a paused account
+ * Moves token file back from paused/ to auth/ so CLIProxyAPI can discover it
  */
 export function resumeAccount(provider: CLIProxyProvider, accountId: string): boolean {
   const registry = loadAccountsRegistry();
@@ -430,6 +481,28 @@ export function resumeAccount(provider: CLIProxyProvider, accountId: string): bo
 
   if (!providerAccounts?.accounts[accountId]) {
     return false;
+  }
+
+  const accountMeta = providerAccounts.accounts[accountId];
+
+  // Skip if already active (idempotent)
+  if (!accountMeta.paused) {
+    return true;
+  }
+
+  const authDir = getAuthDir();
+  const pausedDir = getPausedDir();
+  const tokenPath = path.join(authDir, accountMeta.tokenFile);
+  const pausedPath = path.join(pausedDir, accountMeta.tokenFile);
+
+  // Move token file back from paused directory (if it exists in paused dir)
+  if (fs.existsSync(pausedPath)) {
+    try {
+      fs.renameSync(pausedPath, tokenPath);
+    } catch {
+      // File operation failed, but continue with registry update
+      // syncRegistryWithTokenFiles() will handle recovery on next load
+    }
   }
 
   providerAccounts.accounts[accountId].paused = false;
@@ -485,14 +558,24 @@ export function removeAccount(provider: CLIProxyProvider, accountId: string): bo
     return false;
   }
 
-  // Get token file to delete
+  // Get token file to delete (check both auth and paused directories)
   const tokenFile = providerAccounts.accounts[accountId].tokenFile;
   const tokenPath = path.join(getAuthDir(), tokenFile);
+  const pausedPath = path.join(getPausedDir(), tokenFile);
 
-  // Delete token file
+  // Delete token file from auth directory
   if (fs.existsSync(tokenPath)) {
     try {
       fs.unlinkSync(tokenPath);
+    } catch {
+      // Ignore deletion errors
+    }
+  }
+
+  // Also delete from paused directory if it exists there
+  if (fs.existsSync(pausedPath)) {
+    try {
+      fs.unlinkSync(pausedPath);
     } catch {
       // Ignore deletion errors
     }
@@ -558,6 +641,7 @@ export function touchAccount(provider: CLIProxyProvider, accountId: string): voi
 
 /**
  * Get token file path for an account
+ * Returns path in paused/ dir if account is paused, otherwise auth/
  */
 export function getAccountTokenPath(provider: CLIProxyProvider, accountId?: string): string | null {
   const account = accountId ? getAccount(provider, accountId) : getDefaultAccount(provider);
@@ -566,7 +650,9 @@ export function getAccountTokenPath(provider: CLIProxyProvider, accountId?: stri
     return null;
   }
 
-  return path.join(getAuthDir(), account.tokenFile);
+  // Return path from paused directory if account is paused
+  const baseDir = account.paused ? getPausedDir() : getAuthDir();
+  return path.join(baseDir, account.tokenFile);
 }
 
 /**
