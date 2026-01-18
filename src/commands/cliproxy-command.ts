@@ -29,11 +29,11 @@ import {
 } from '../cliproxy/account-manager';
 import { fetchAllProviderQuotas } from '../cliproxy/quota-fetcher';
 import { isOnCooldown } from '../cliproxy/quota-manager';
-import { CLIPROXY_FALLBACK_VERSION } from '../cliproxy/platform-detector';
+import { DEFAULT_BACKEND, getFallbackVersion, BACKEND_CONFIG } from '../cliproxy/platform-detector';
 import { CLIPROXY_PROFILES, CLIProxyProfileName } from '../auth/profile-detector';
 import { supportsModelConfig, getProviderCatalog, ModelEntry } from '../cliproxy/model-catalog';
-import { CLIProxyProvider } from '../cliproxy/types';
-import { isUnifiedMode } from '../config/unified-config-loader';
+import { CLIProxyProvider, CLIProxyBackend } from '../cliproxy/types';
+import { isUnifiedMode, loadOrCreateUnifiedConfig } from '../config/unified-config-loader';
 import {
   initUI,
   header,
@@ -67,6 +67,49 @@ import {
 // ============================================================================
 // ARGUMENT PARSING
 // ============================================================================
+
+/**
+ * Parse --backend flag from args
+ * Returns the backend value and remaining args without --backend flag
+ */
+function parseBackendArg(args: string[]): {
+  backend: CLIProxyBackend | undefined;
+  remainingArgs: string[];
+} {
+  const backendIdx = args.indexOf('--backend');
+  if (backendIdx === -1) {
+    // Also check for --backend=value format
+    const backendEqualsIdx = args.findIndex((a) => a.startsWith('--backend='));
+    if (backendEqualsIdx !== -1) {
+      const value = args[backendEqualsIdx].split('=')[1] as CLIProxyBackend;
+      if (value !== 'original' && value !== 'plus') {
+        warn(`Invalid backend '${value}'. Valid options: original, plus`);
+        return { backend: undefined, remainingArgs: args };
+      }
+      const remainingArgs = [...args];
+      remainingArgs.splice(backendEqualsIdx, 1);
+      return { backend: value, remainingArgs };
+    }
+    return { backend: undefined, remainingArgs: args };
+  }
+  const value = args[backendIdx + 1];
+  if (value !== 'original' && value !== 'plus') {
+    warn(`Invalid backend '${value}'. Valid options: original, plus`);
+    return { backend: undefined, remainingArgs: args };
+  }
+  const remainingArgs = [...args];
+  remainingArgs.splice(backendIdx, 2);
+  return { backend: value, remainingArgs };
+}
+
+/**
+ * Get effective backend (CLI flag > config.yaml > default)
+ */
+function getEffectiveBackend(cliBackend?: CLIProxyBackend): CLIProxyBackend {
+  if (cliBackend) return cliBackend;
+  const config = loadOrCreateUnifiedConfig();
+  return config.cliproxy?.backend ?? DEFAULT_BACKEND;
+}
 
 interface CliproxyProfileArgs {
   name?: string;
@@ -431,14 +474,18 @@ async function handleProxyStatus(): Promise<void> {
   console.log('');
 }
 
-async function showStatus(verbose: boolean): Promise<void> {
+async function showStatus(verbose: boolean, backend: CLIProxyBackend): Promise<void> {
   await initUI();
-  const status = getBinaryStatus();
+  const status = getBinaryStatus(backend);
 
   console.log('');
-  console.log(color('CLIProxy Plus Status', 'primary'));
+  const backendLabel = backend === 'plus' ? 'CLIProxy Plus' : 'CLIProxy (Original)';
+  console.log(color(`${backendLabel} Status`, 'primary'));
   console.log('');
 
+  console.log(
+    `  Backend:    ${color(backend, 'info')}${backend === DEFAULT_BACKEND ? dim(' (default)') : ''}`
+  );
   if (status.installed) {
     console.log(`  Installed:  ${color('Yes', 'success')}`);
     const versionLabel = status.pinnedVersion
@@ -576,7 +623,13 @@ async function showHelp(): Promise<void> {
         ['--update', 'Unpin and update to latest version'],
       ],
     ],
-    ['Options:', [['--verbose, -v', 'Show detailed quota fetch diagnostics']]],
+    [
+      'Options:',
+      [
+        ['--backend <type>', 'Use specific backend: original | plus (default: from config)'],
+        ['--verbose, -v', 'Show detailed quota fetch diagnostics'],
+      ],
+    ],
   ];
 
   for (const [title, cmds] of sections) {
@@ -591,9 +644,9 @@ async function showHelp(): Promise<void> {
   console.log(dim('  Note: CLIProxy now persists by default. Use "stop" to terminate.'));
   console.log('');
   console.log(subheader('Notes:'));
-  console.log(`  Default fallback version: ${color(CLIPROXY_FALLBACK_VERSION, 'info')}`);
+  console.log(`  Default fallback version: ${color(getFallbackVersion(), 'info')}`);
   console.log(
-    `  Releases: ${color('https://github.com/router-for-me/CLIProxyAPIPlus/releases', 'path')}`
+    `  Releases: ${color(`https://github.com/${BACKEND_CONFIG[DEFAULT_BACKEND].repo}/releases`, 'path')}`
   );
   console.log('');
 }
@@ -909,16 +962,20 @@ async function handleQuotaStatus(verbose = false): Promise<void> {
 // ============================================================================
 
 export async function handleCliproxyCommand(args: string[]): Promise<void> {
-  const verbose = args.includes('--verbose') || args.includes('-v');
-  const command = args[0];
+  // Parse --backend flag first (before other processing)
+  const { backend: cliBackend, remainingArgs } = parseBackendArg(args);
+  const effectiveBackend = getEffectiveBackend(cliBackend);
 
-  if (args.includes('--help') || args.includes('-h')) {
+  const verbose = remainingArgs.includes('--verbose') || remainingArgs.includes('-v');
+  const command = remainingArgs[0];
+
+  if (remainingArgs.includes('--help') || remainingArgs.includes('-h')) {
     await showHelp();
     return;
   }
 
   if (command === 'create') {
-    await handleCreate(args.slice(1));
+    await handleCreate(remainingArgs.slice(1));
     return;
   }
 
@@ -928,7 +985,7 @@ export async function handleCliproxyCommand(args: string[]): Promise<void> {
   }
 
   if (command === 'remove' || command === 'delete' || command === 'rm') {
-    await handleRemove(args.slice(1));
+    await handleRemove(remainingArgs.slice(1));
     return;
   }
 
@@ -949,17 +1006,17 @@ export async function handleCliproxyCommand(args: string[]): Promise<void> {
 
   // Quota management commands
   if (command === 'default') {
-    await handleSetDefault(args.slice(1));
+    await handleSetDefault(remainingArgs.slice(1));
     return;
   }
 
   if (command === 'pause') {
-    await handlePauseAccount(args.slice(1));
+    await handlePauseAccount(remainingArgs.slice(1));
     return;
   }
 
   if (command === 'resume') {
-    await handleResumeAccount(args.slice(1));
+    await handleResumeAccount(remainingArgs.slice(1));
     return;
   }
 
@@ -968,9 +1025,9 @@ export async function handleCliproxyCommand(args: string[]): Promise<void> {
     return;
   }
 
-  const installIdx = args.indexOf('--install');
+  const installIdx = remainingArgs.indexOf('--install');
   if (installIdx !== -1) {
-    let version = args[installIdx + 1];
+    let version = remainingArgs[installIdx + 1];
     if (!version || version.startsWith('-')) {
       console.error(fail('Missing version argument for --install'));
       console.error('    Usage: ccs cliproxy --install <version>');
@@ -983,10 +1040,10 @@ export async function handleCliproxyCommand(args: string[]): Promise<void> {
     return;
   }
 
-  if (args.includes('--latest') || args.includes('--update')) {
+  if (remainingArgs.includes('--latest') || remainingArgs.includes('--update')) {
     await handleInstallLatest(verbose);
     return;
   }
 
-  await showStatus(verbose);
+  await showStatus(verbose, effectiveBackend);
 }

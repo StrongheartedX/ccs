@@ -495,6 +495,14 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(config),
       }),
+    /** Get backend setting */
+    getBackend: () => request<{ backend: 'original' | 'plus' }>('/cliproxy-server/backend'),
+    /** Update backend setting */
+    updateBackend: (backend: 'original' | 'plus', force = false) =>
+      request<{ backend: 'original' | 'plus' }>('/cliproxy-server/backend', {
+        method: 'PUT',
+        body: JSON.stringify({ backend, force }),
+      }),
     /** Test remote proxy connection */
     test: (params: {
       host: string;

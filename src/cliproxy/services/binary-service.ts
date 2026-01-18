@@ -19,7 +19,9 @@ import {
   clearPinnedVersion,
   isVersionPinned,
 } from '../binary-manager';
-import { CLIPROXY_FALLBACK_VERSION } from '../platform-detector';
+import { BACKEND_CONFIG, DEFAULT_BACKEND } from '../platform-detector';
+import { CLIProxyBackend } from '../types';
+import { loadOrCreateUnifiedConfig } from '../../config/unified-config-loader';
 
 /** Binary status result */
 export interface BinaryStatusResult {
@@ -28,6 +30,7 @@ export interface BinaryStatusResult {
   pinnedVersion: string | null;
   binaryPath: string;
   fallbackVersion: string;
+  backend: CLIProxyBackend;
 }
 
 /** Install result */
@@ -48,15 +51,19 @@ export interface LatestVersionResult {
 }
 
 /**
- * Get current binary status
+ * Get current binary status for a specific backend
  */
-export function getBinaryStatus(): BinaryStatusResult {
+export function getBinaryStatus(backend?: CLIProxyBackend): BinaryStatusResult {
+  const effectiveBackend =
+    backend ?? loadOrCreateUnifiedConfig().cliproxy?.backend ?? DEFAULT_BACKEND;
+  const backendConfig = BACKEND_CONFIG[effectiveBackend];
   return {
     installed: isCLIProxyInstalled(),
     currentVersion: getInstalledCliproxyVersion(),
     pinnedVersion: getPinnedVersion(),
     binaryPath: getCLIProxyPath(),
-    fallbackVersion: CLIPROXY_FALLBACK_VERSION,
+    fallbackVersion: backendConfig.fallbackVersion,
+    backend: effectiveBackend,
   };
 }
 

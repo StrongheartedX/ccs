@@ -30,7 +30,8 @@ import {
 } from './config-generator';
 import { checkRemoteProxy } from './remote-proxy-client';
 import { isAuthenticated } from './auth-handler';
-import { CLIProxyProvider, ExecutorConfig } from './types';
+import { CLIProxyProvider, CLIProxyBackend, PLUS_ONLY_PROVIDERS, ExecutorConfig } from './types';
+import { DEFAULT_BACKEND } from './platform-detector';
 import { configureProviderModel, getCurrentModel } from './model-config';
 import { resolveProxyConfig, PROXY_CLI_FLAGS } from './proxy-config-resolver';
 import { getWebSearchHookEnv } from '../utils/websearch-manager';
@@ -141,6 +142,20 @@ export async function execClaudeWithCLIProxy(
   // 0. Resolve proxy configuration (CLI > ENV > config.yaml > defaults)
   // This filters proxy flags from args and returns resolved config
   const unifiedConfig = loadOrCreateUnifiedConfig();
+
+  // 0a. Runtime backend/provider validation - block kiro/ghcp if backend=original
+  const backend: CLIProxyBackend = unifiedConfig.cliproxy?.backend ?? DEFAULT_BACKEND;
+  if (backend === 'original' && PLUS_ONLY_PROVIDERS.includes(provider)) {
+    console.error('');
+    console.error(fail(`${provider} requires CLIProxyAPIPlus backend`));
+    console.error('');
+    console.error('To use this provider, either:');
+    console.error('  1. Set `cliproxy.backend: plus` in ~/.ccs/config.yaml');
+    console.error('  2. Use --backend=plus flag: ccs ' + provider + ' --backend=plus');
+    console.error('');
+    throw new Error(`Provider ${provider} requires Plus backend`);
+  }
+
   const cliproxyServerConfig = unifiedConfig.cliproxy_server;
   const { config: proxyConfig, remainingArgs: argsWithoutProxy } = resolveProxyConfig(args, {
     remote: cliproxyServerConfig?.remote
