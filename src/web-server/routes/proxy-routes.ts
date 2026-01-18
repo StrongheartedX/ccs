@@ -10,6 +10,7 @@
 import { Router, Request, Response } from 'express';
 import { loadOrCreateUnifiedConfig, saveUnifiedConfig } from '../../config/unified-config-loader';
 import { testConnection } from '../../cliproxy/remote-proxy-client';
+import { isProxyRunning } from '../../cliproxy/services/proxy-lifecycle-service';
 import {
   DEFAULT_CLIPROXY_SERVER_CONFIG,
   CliproxyServerConfig,
@@ -62,6 +63,60 @@ router.put('/', async (req: Request, res: Response) => {
   } catch (error) {
     console.error('[cliproxy-server-routes] Failed to save proxy config:', error);
     res.status(500).json({ error: 'Failed to save proxy config' });
+  }
+});
+
+/**
+ * GET /api/cliproxy-server/backend - Get CLIProxy backend setting
+ */
+router.get('/backend', async (_req: Request, res: Response) => {
+  try {
+    const config = await loadOrCreateUnifiedConfig();
+    res.json({ backend: config.cliproxy?.backend ?? 'plus' });
+  } catch (error) {
+    console.error('[cliproxy-server-routes] Failed to load backend config:', error);
+    res.status(500).json({ error: 'Failed to load backend config' });
+  }
+});
+
+/**
+ * PUT /api/cliproxy-server/backend - Update CLIProxy backend setting
+ */
+router.put('/backend', async (req: Request, res: Response) => {
+  try {
+    const { backend, force } = req.body;
+    if (backend !== 'original' && backend !== 'plus') {
+      res.status(400).json({ error: 'Invalid backend. Must be "original" or "plus"' });
+      return;
+    }
+
+    // Check if proxy is running - warn about restart requirement
+    const config = await loadOrCreateUnifiedConfig();
+    const currentBackend = config.cliproxy?.backend ?? 'plus';
+    if (currentBackend !== backend && isProxyRunning() && !force) {
+      res.status(409).json({
+        error: 'Proxy is running. Stop proxy first or use force=true to change backend.',
+        proxyRunning: true,
+        currentBackend,
+      });
+      return;
+    }
+    if (!config.cliproxy) {
+      config.cliproxy = {
+        backend,
+        oauth_accounts: {},
+        providers: ['gemini', 'codex', 'agy', 'qwen', 'iflow', 'kiro', 'ghcp'],
+        variants: {},
+      };
+    } else {
+      config.cliproxy.backend = backend;
+    }
+
+    await saveUnifiedConfig(config);
+    res.json({ backend });
+  } catch (error) {
+    console.error('[cliproxy-server-routes] Failed to save backend config:', error);
+    res.status(500).json({ error: 'Failed to save backend config' });
   }
 });
 

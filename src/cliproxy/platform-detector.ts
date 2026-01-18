@@ -7,12 +7,35 @@
 
 import { PlatformInfo, SupportedOS, SupportedArch, ArchiveExtension } from './types';
 
+// Phase 1 will add CLIProxyBackend type - using string literal temporarily
+type CLIProxyBackend = 'original' | 'plus';
+
+/** Backend configuration */
+export const BACKEND_CONFIG = {
+  original: {
+    repo: 'router-for-me/CLIProxyAPI',
+    binaryPrefix: 'CLIProxyAPI',
+    executable: 'cli-proxy-api',
+    fallbackVersion: '6.7.8',
+  },
+  plus: {
+    repo: 'router-for-me/CLIProxyAPIPlus',
+    binaryPrefix: 'CLIProxyAPIPlus',
+    executable: 'cli-proxy-api-plus',
+    fallbackVersion: '6.7.8-0',
+  },
+} as const;
+
+/** Default backend */
+export const DEFAULT_BACKEND: CLIProxyBackend = 'plus';
+
 /**
  * CLIProxyAPIPlus fallback version (used when GitHub API unavailable)
  * Auto-update fetches latest from GitHub; this is only a safety net
  * Note: CLIProxyAPIPlus uses v6.6.X-0 suffix pattern
+ * @deprecated Use getFallbackVersion() or BACKEND_CONFIG instead
  */
-export const CLIPROXY_FALLBACK_VERSION = '6.6.40-0';
+export const CLIPROXY_FALLBACK_VERSION = BACKEND_CONFIG[DEFAULT_BACKEND].fallbackVersion;
 
 /**
  * Maximum stable version cap - prevents auto-update to known unstable releases
@@ -48,10 +71,14 @@ const ARCH_MAP: Record<string, SupportedArch | undefined> = {
 
 /**
  * Detect current platform and return binary info
- * @param version Optional version for binaryName (defaults to fallback)
+ * @param version Optional version for binaryName (defaults to backend fallback)
+ * @param backend Backend variant to use (defaults to DEFAULT_BACKEND)
  * @throws Error if platform is unsupported
  */
-export function detectPlatform(version: string = CLIPROXY_FALLBACK_VERSION): PlatformInfo {
+export function detectPlatform(
+  version?: string,
+  backend: CLIProxyBackend = DEFAULT_BACKEND
+): PlatformInfo {
   const nodePlatform = process.platform;
   const nodeArch = process.arch;
 
@@ -71,8 +98,10 @@ export function detectPlatform(version: string = CLIPROXY_FALLBACK_VERSION): Pla
     );
   }
 
+  const config = BACKEND_CONFIG[backend];
+  const ver = version || config.fallbackVersion;
   const extension: ArchiveExtension = os === 'windows' ? 'zip' : 'tar.gz';
-  const binaryName = `CLIProxyAPIPlus_${version}_${os}_${arch}.${extension}`;
+  const binaryName = `${config.binaryPrefix}_${ver}_${os}_${arch}.${extension}`;
 
   return {
     os,
@@ -84,41 +113,62 @@ export function detectPlatform(version: string = CLIPROXY_FALLBACK_VERSION): Pla
 
 /**
  * Get executable name based on platform
+ * @param backend Backend variant to use (defaults to DEFAULT_BACKEND)
  * @returns Binary executable name (with .exe on Windows)
- * Note: The actual binary inside the archive is named 'cli-proxy-api-plus'
  */
-export function getExecutableName(): string {
-  const platform = detectPlatform();
-  return platform.os === 'windows' ? 'cli-proxy-api-plus.exe' : 'cli-proxy-api-plus';
+export function getExecutableName(backend: CLIProxyBackend = DEFAULT_BACKEND): string {
+  const config = BACKEND_CONFIG[backend];
+  const platform = detectPlatform(undefined, backend);
+  return platform.os === 'windows' ? `${config.executable}.exe` : config.executable;
 }
 
 /**
  * Get the name of the binary inside the archive
+ * @param backend Backend variant to use (defaults to DEFAULT_BACKEND)
  * @returns Binary name as it appears in the tar.gz/zip
  */
-export function getArchiveBinaryName(): string {
-  const platform = detectPlatform();
-  return platform.os === 'windows' ? 'cli-proxy-api-plus.exe' : 'cli-proxy-api-plus';
+export function getArchiveBinaryName(backend: CLIProxyBackend = DEFAULT_BACKEND): string {
+  return getExecutableName(backend);
 }
 
 /**
  * Get download URL for current platform
- * @param version Version to download (defaults to fallback version)
+ * @param version Version to download (defaults to backend fallback version)
+ * @param backend Backend variant to use (defaults to DEFAULT_BACKEND)
  * @returns Full GitHub release download URL
  */
-export function getDownloadUrl(version: string = CLIPROXY_FALLBACK_VERSION): string {
-  const platform = detectPlatform(version);
-  const baseUrl = `https://github.com/router-for-me/CLIProxyAPIPlus/releases/download/v${version}`;
-  return `${baseUrl}/${platform.binaryName}`;
+export function getDownloadUrl(
+  version?: string,
+  backend: CLIProxyBackend = DEFAULT_BACKEND
+): string {
+  const config = BACKEND_CONFIG[backend];
+  const ver = version || config.fallbackVersion;
+  const platform = detectPlatform(ver, backend);
+  return `https://github.com/${config.repo}/releases/download/v${ver}/${platform.binaryName}`;
 }
 
 /**
  * Get checksums.txt URL for version
- * @param version Version to get checksums for (defaults to fallback version)
+ * @param version Version to get checksums for (defaults to backend fallback version)
+ * @param backend Backend variant to use (defaults to DEFAULT_BACKEND)
  * @returns Full URL to checksums.txt
  */
-export function getChecksumsUrl(version: string = CLIPROXY_FALLBACK_VERSION): string {
-  return `https://github.com/router-for-me/CLIProxyAPIPlus/releases/download/v${version}/checksums.txt`;
+export function getChecksumsUrl(
+  version?: string,
+  backend: CLIProxyBackend = DEFAULT_BACKEND
+): string {
+  const config = BACKEND_CONFIG[backend];
+  const ver = version || config.fallbackVersion;
+  return `https://github.com/${config.repo}/releases/download/v${ver}/checksums.txt`;
+}
+
+/**
+ * Get fallback version for backend
+ * @param backend Backend variant to use (defaults to DEFAULT_BACKEND)
+ * @returns Fallback version string
+ */
+export function getFallbackVersion(backend: CLIProxyBackend = DEFAULT_BACKEND): string {
+  return BACKEND_CONFIG[backend].fallbackVersion;
 }
 
 /**

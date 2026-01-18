@@ -8,8 +8,10 @@
 import * as os from 'os';
 import * as path from 'path';
 import { CLIProxyProfileName } from '../../auth/profile-detector';
-import { CLIProxyProvider } from '../types';
+import { CLIProxyProvider, CLIProxyBackend, PLUS_ONLY_PROVIDERS } from '../types';
 import { isReservedName, isWindowsReservedName } from '../../config/reserved-names';
+import { loadOrCreateUnifiedConfig } from '../../config/unified-config-loader';
+import { DEFAULT_BACKEND } from '../platform-detector';
 import { isUnifiedMode } from '../../config/unified-config-loader';
 import { deleteConfigForPort } from '../config-generator';
 import { deleteSessionLockForPort } from '../session-tracker';
@@ -65,6 +67,22 @@ export function validateProfileName(name: string): string | null {
 }
 
 /**
+ * Validate provider/backend compatibility
+ * Returns error message if provider requires Plus backend but original is configured
+ */
+export function validateProviderBackend(provider: CLIProxyProfileName): string | null {
+  const config = loadOrCreateUnifiedConfig();
+  const backend: CLIProxyBackend = config.cliproxy?.backend ?? DEFAULT_BACKEND;
+
+  // Normalize provider to lowercase for case-insensitive comparison
+  const normalizedProvider = provider.toLowerCase() as CLIProxyProvider;
+  if (backend === 'original' && PLUS_ONLY_PROVIDERS.includes(normalizedProvider)) {
+    return `${provider} requires CLIProxyAPIPlus. Set \`cliproxy.backend: plus\` in config.yaml or use --backend=plus`;
+  }
+  return null;
+}
+
+/**
  * Check if CLIProxy variant profile exists
  */
 export function variantExists(name: string): boolean {
@@ -88,6 +106,12 @@ export function createVariant(
   account?: string
 ): VariantOperationResult {
   try {
+    // Validate provider/backend compatibility (block kiro/ghcp on original backend)
+    const backendError = validateProviderBackend(provider);
+    if (backendError) {
+      return { success: false, error: backendError };
+    }
+
     // Allocate unique port for this variant
     const port = getNextAvailablePort();
 
@@ -188,6 +212,14 @@ export function updateVariant(name: string, updates: UpdateVariantOptions): Vari
     // Update config entry if provider or account changed
     if (updates.provider !== undefined || updates.account !== undefined) {
       const newProvider = updates.provider ?? existing.provider;
+
+      // Validate provider/backend compatibility on provider change
+      if (updates.provider !== undefined) {
+        const backendError = validateProviderBackend(updates.provider);
+        if (backendError) {
+          return { success: false, error: backendError };
+        }
+      }
       const newAccount = updates.account !== undefined ? updates.account : existing.account;
 
       if (isUnifiedMode()) {

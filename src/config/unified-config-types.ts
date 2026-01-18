@@ -115,6 +115,8 @@ export interface TokenRefreshSettings {
  * CLIProxy configuration section.
  */
 export interface CLIProxyConfig {
+  /** Backend selection: 'original' or 'plus' (default: 'plus') */
+  backend?: 'original' | 'plus';
   /** Nickname to email mapping for OAuth accounts */
   oauth_accounts: OAuthAccounts;
   /** Built-in providers (read-only, for reference) */
@@ -530,6 +532,7 @@ export function createEmptyUnifiedConfig(): UnifiedConfig {
     accounts: {},
     profiles: {},
     cliproxy: {
+      backend: 'plus',
       oauth_accounts: {},
       providers: ['gemini', 'codex', 'agy', 'qwen', 'iflow', 'kiro', 'ghcp'],
       variants: {},

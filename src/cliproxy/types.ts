@@ -120,6 +120,18 @@ export interface DownloadResult {
 export type CLIProxyProvider = 'gemini' | 'codex' | 'agy' | 'qwen' | 'iflow' | 'kiro' | 'ghcp';
 
 /**
+ * CLIProxy backend selection
+ * - original: CLIProxyAPI (no Kiro/ghcp support)
+ * - plus: CLIProxyAPIPlus (Kiro/ghcp support, default)
+ */
+export type CLIProxyBackend = 'original' | 'plus';
+
+/**
+ * Providers that require CLIProxyAPIPlus backend
+ */
+export const PLUS_ONLY_PROVIDERS: CLIProxyProvider[] = ['kiro', 'ghcp'];
+
+/**
  * CLIProxy config.yaml structure (minimal)
  */
 export interface CLIProxyConfig {
