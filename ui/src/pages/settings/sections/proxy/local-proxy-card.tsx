@@ -31,7 +31,7 @@ export function LocalProxyCard({
       <h3 className="text-base font-medium">Local Proxy</h3>
       <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
         {/* Port */}
-        <div className="space-y-1">
+        <div className="flex items-center gap-2">
           <label className="text-sm text-muted-foreground">Port</label>
           <Input
             type="number"
