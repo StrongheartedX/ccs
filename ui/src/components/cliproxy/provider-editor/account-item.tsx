@@ -24,6 +24,9 @@ import {
   HelpCircle,
   Pause,
   Play,
+  AlertCircle,
+  AlertTriangle,
+  FolderCode,
 } from 'lucide-react';
 import {
   cn,
@@ -40,8 +43,9 @@ import type { AccountItemProps } from './types';
  * Get color class based on quota percentage
  */
 function getQuotaColor(percentage: number): string {
-  if (percentage <= 20) return 'bg-destructive';
-  if (percentage <= 50) return 'bg-yellow-500';
+  const clamped = Math.max(0, Math.min(100, percentage));
+  if (clamped <= 20) return 'bg-destructive';
+  if (clamped <= 50) return 'bg-yellow-500';
   return 'bg-green-500';
 }
 
@@ -95,13 +99,13 @@ export function AccountItem({
   showQuota,
 }: AccountItemProps) {
   // Fetch runtime stats to get actual lastUsedAt (more accurate than file state)
-  const { data: stats } = useCliproxyStats(showQuota && account.provider === 'agy');
+  const { data: stats } = useCliproxyStats(showQuota);
 
-  // Fetch quota for 'agy' provider accounts
+  // Fetch quota for all provider accounts
   const { data: quota, isLoading: quotaLoading } = useAccountQuota(
     account.provider,
     account.id,
-    showQuota && account.provider === 'agy'
+    showQuota
   );
 
   // Get last used time from runtime stats (more accurate than file)
@@ -165,6 +169,54 @@ export function AccountItem({
                 </Badge>
               )}
             </div>
+            {/* Project ID for Antigravity accounts - read-only */}
+            {account.provider === 'agy' && (
+              <div className="flex items-center gap-1.5 mt-1">
+                {account.projectId ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <FolderCode className="w-3 h-3" aria-hidden="true" />
+                          <span
+                            className={cn(
+                              'font-mono max-w-[180px] truncate',
+                              privacyMode && PRIVACY_BLUR_CLASS
+                            )}
+                            title={account.projectId}
+                          >
+                            {account.projectId}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        <p className="text-xs">GCP Project ID (read-only)</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-500">
+                          <AlertTriangle className="w-3 h-3" aria-label="Warning" />
+                          <span>Project ID: N/A</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[250px]">
+                        <div className="text-xs space-y-1">
+                          <p className="font-medium text-amber-600">Missing Project ID</p>
+                          <p>
+                            This may cause errors. Remove the account and re-add it to fetch the
+                            project ID.
+                          </p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+            )}
             {account.lastUsedAt && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                 <Clock className="w-3 h-3" />
@@ -217,8 +269,8 @@ export function AccountItem({
         </DropdownMenu>
       </div>
 
-      {/* Quota bar - only for 'agy' provider */}
-      {showQuota && account.provider === 'agy' && (
+      {/* Quota bar - supports all providers with quota API */}
+      {showQuota && (
         <div className="pl-11">
           {quotaLoading ? (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -256,7 +308,7 @@ export function AccountItem({
                   <TooltipTrigger asChild>
                     <div className="flex items-center gap-2">
                       <Progress
-                        value={minQuota}
+                        value={Math.max(0, Math.min(100, minQuota))}
                         className="h-2 flex-1"
                         indicatorClassName={getQuotaColor(minQuota)}
                       />
@@ -285,8 +337,25 @@ export function AccountItem({
                 </Tooltip>
               </TooltipProvider>
             </div>
-          ) : quota?.error ? (
-            <div className="text-xs text-muted-foreground">{quota.error}</div>
+          ) : quota?.error || (quota && !quota.success) ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] h-5 px-2 gap-1 border-muted-foreground/50 text-muted-foreground"
+                    >
+                      <AlertCircle className="w-3 h-3" />
+                      N/A
+                    </Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">{quota?.error || 'Quota information unavailable'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : null}
         </div>
       )}

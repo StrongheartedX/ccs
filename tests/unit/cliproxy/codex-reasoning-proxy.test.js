@@ -88,4 +88,110 @@ describe('Codex Reasoning Proxy', () => {
       });
     });
   });
+
+  describe('stripPathPrefix (remote mode)', () => {
+    // Tests the path prefix stripping logic used in remote proxy mode
+    // Remote CLIProxyAPI expects /v1/messages, but Claude sends /api/provider/codex/v1/messages
+
+    /**
+     * Updated to match the version in codex-reasoning-proxy.ts with boundary check.
+     * Only strips if prefix matches a complete path segment (not partial like /codex matching /codextra)
+     */
+    function stripPathPrefix(path, prefix) {
+      if (
+        prefix &&
+        path.startsWith(prefix) &&
+        (path.length === prefix.length || path[prefix.length] === '/')
+      ) {
+        let stripped = path.slice(prefix.length);
+        // Normalize: collapse any leading slashes to single slash and ensure path starts with '/'
+        stripped = stripped.replace(/^\/+/, '/') || '/';
+        if (!stripped.startsWith('/')) {
+          stripped = '/' + stripped;
+        }
+        return stripped;
+      }
+      return path;
+    }
+
+    it('strips /api/provider/codex prefix for remote mode', () => {
+      const result = stripPathPrefix('/api/provider/codex/v1/messages', '/api/provider/codex');
+      assert.strictEqual(result, '/v1/messages');
+    });
+
+    it('returns root path when prefix equals full path', () => {
+      const result = stripPathPrefix('/api/provider/codex', '/api/provider/codex');
+      assert.strictEqual(result, '/');
+    });
+
+    it('leaves path unchanged when prefix is undefined', () => {
+      const result = stripPathPrefix('/v1/messages', undefined);
+      assert.strictEqual(result, '/v1/messages');
+    });
+
+    it('leaves path unchanged when prefix does not match', () => {
+      const result = stripPathPrefix('/v1/messages', '/api/provider/codex');
+      assert.strictEqual(result, '/v1/messages');
+    });
+
+    it('handles empty prefix', () => {
+      const result = stripPathPrefix('/v1/messages', '');
+      assert.strictEqual(result, '/v1/messages');
+    });
+
+    it('handles various provider prefixes', () => {
+      // Gemini
+      assert.strictEqual(
+        stripPathPrefix('/api/provider/gemini/v1/chat', '/api/provider/gemini'),
+        '/v1/chat'
+      );
+      // Agy
+      assert.strictEqual(
+        stripPathPrefix('/api/provider/agy/v1/messages', '/api/provider/agy'),
+        '/v1/messages'
+      );
+    });
+
+    it('preserves query strings after stripping', () => {
+      const result = stripPathPrefix('/api/provider/codex/v1/messages?stream=true', '/api/provider/codex');
+      assert.strictEqual(result, '/v1/messages?stream=true');
+    });
+
+    // Edge cases for path normalization
+    it('collapses double slashes after stripping', () => {
+      // e.g., '/api/provider/codex//v1/messages' → '/v1/messages'
+      const result = stripPathPrefix('/api/provider/codex//v1/messages', '/api/provider/codex');
+      assert.strictEqual(result, '/v1/messages');
+    });
+
+    it('handles multiple leading slashes after stripping', () => {
+      // e.g., '/api/provider/codex///v1' → '/v1'
+      const result = stripPathPrefix('/api/provider/codex///v1', '/api/provider/codex');
+      assert.strictEqual(result, '/v1');
+    });
+
+    it('adds leading slash if missing after strip', () => {
+      const result = stripPathPrefix('/prefix/suffix', '/prefix');
+      assert.strictEqual(result, '/suffix');
+    });
+
+    // Boundary check tests - prevent partial segment matching
+    it('does NOT strip partial path segment matches', () => {
+      // /codex should NOT match /codextra
+      const result = stripPathPrefix('/api/provider/codextra/v1/messages', '/api/provider/codex');
+      assert.strictEqual(result, '/api/provider/codextra/v1/messages');
+    });
+
+    it('does NOT strip when prefix matches but next char is not slash', () => {
+      // /api should NOT match /api-v2
+      const result = stripPathPrefix('/api-v2/messages', '/api');
+      assert.strictEqual(result, '/api-v2/messages');
+    });
+
+    it('strips when prefix matches exactly with slash boundary', () => {
+      // /api/provider/codex should match /api/provider/codex/v1
+      const result = stripPathPrefix('/api/provider/codex/v1', '/api/provider/codex');
+      assert.strictEqual(result, '/v1');
+    });
+  });
 });

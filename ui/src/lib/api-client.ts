@@ -83,6 +83,8 @@ export interface OAuthAccount {
   pausedAt?: string;
   /** Account tier: free or paid (Pro/Ultra combined) */
   tier?: 'free' | 'paid' | 'unknown';
+  /** GCP Project ID (Antigravity only) - read-only */
+  projectId?: string;
 }
 
 export interface AuthStatus {
@@ -492,6 +494,14 @@ export const api = {
       request<CliproxyServerConfig>('/cliproxy-server', {
         method: 'PUT',
         body: JSON.stringify(config),
+      }),
+    /** Get backend setting */
+    getBackend: () => request<{ backend: 'original' | 'plus' }>('/cliproxy-server/backend'),
+    /** Update backend setting */
+    updateBackend: (backend: 'original' | 'plus', force = false) =>
+      request<{ backend: 'original' | 'plus' }>('/cliproxy-server/backend', {
+        method: 'PUT',
+        body: JSON.stringify({ backend, force }),
       }),
     /** Test remote proxy connection */
     test: (params: {

@@ -49,7 +49,7 @@ export interface GlobalEnvConfig {
 
 // === Tab Types ===
 
-export type SettingsTab = 'websearch' | 'globalenv' | 'proxy' | 'auth' | 'thinking';
+export type SettingsTab = 'websearch' | 'globalenv' | 'proxy' | 'auth' | 'thinking' | 'backups';
 
 // === Thinking Types ===
 

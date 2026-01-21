@@ -3,15 +3,32 @@
  * Settings section for CLIProxyAPI configuration (local/remote)
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
-import { RefreshCw, CheckCircle2, AlertCircle, Laptop, Cloud } from 'lucide-react';
+import {
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  Laptop,
+  Cloud,
+  Bug,
+  Box,
+  AlertTriangle,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { useProxyConfig, useRawConfig } from '../../hooks';
 import { LocalProxyCard } from './local-proxy-card';
 import { RemoteProxyCard } from './remote-proxy-card';
+import { api } from '@/lib/api-client';
+
+/** LocalStorage key for debug mode preference */
+const DEBUG_MODE_KEY = 'ccs_debug_mode';
+
+/** Providers only available on CLIProxyAPIPlus */
+const PLUS_ONLY_PROVIDERS = ['kiro', 'ghcp'];
 
 export default function ProxySection() {
   const {
@@ -39,11 +56,93 @@ export default function ProxySection() {
 
   const { fetchRawConfig } = useRawConfig();
 
+  // Debug mode state (persisted in localStorage)
+  const [debugMode, setDebugMode] = useState(() => {
+    try {
+      return localStorage.getItem(DEBUG_MODE_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleDebugModeChange = (enabled: boolean) => {
+    setDebugMode(enabled);
+    try {
+      localStorage.setItem(DEBUG_MODE_KEY, String(enabled));
+    } catch {
+      // Ignore storage errors
+    }
+  };
+
+  // Backend state (loaded from API)
+  const [backend, setBackend] = useState<'original' | 'plus'>('plus');
+  const [backendSaving, setBackendSaving] = useState(false);
+  const [hasKiroGhcpVariants, setHasKiroGhcpVariants] = useState(false);
+
+  // Fetch backend setting
+  const fetchBackend = useCallback(async () => {
+    try {
+      const result = await api.cliproxyServer.getBackend();
+      setBackend(result.backend);
+    } catch (err) {
+      console.error('[Proxy] Failed to fetch backend:', err);
+    }
+  }, []);
+
+  // Check for Kiro/ghcp variants
+  const checkPlusOnlyVariants = useCallback(async () => {
+    try {
+      const result = await api.cliproxy.list();
+      const hasIncompatible = result.variants.some((v) => PLUS_ONLY_PROVIDERS.includes(v.provider));
+      setHasKiroGhcpVariants(hasIncompatible);
+    } catch (err) {
+      console.error('[Proxy] Failed to check variants:', err);
+    }
+  }, []);
+
+  // Save backend setting
+  const handleBackendChange = async (value: 'original' | 'plus') => {
+    const previousValue = backend;
+    setBackend(value);
+    setBackendSaving(true);
+    try {
+      await api.cliproxyServer.updateBackend(value);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save backend';
+      // Check if error is due to proxy running (409 conflict)
+      if (errorMessage.includes('Proxy is running')) {
+        toast.error('Stop the proxy first to change backend');
+      }
+      console.error('[Proxy] Failed to save backend:', err);
+      setBackend(previousValue);
+    } finally {
+      setBackendSaving(false);
+    }
+  };
+
+  // Log when debug mode changes (sanitize sensitive fields)
+  useEffect(() => {
+    if (debugMode && config) {
+      // Sanitize config before logging to prevent credential exposure
+      const sanitizedConfig = {
+        ...config,
+        remote: {
+          ...config.remote,
+          auth_token: config.remote.auth_token ? '[REDACTED]' : undefined,
+          management_key: config.remote.management_key ? '[REDACTED]' : undefined,
+        },
+      };
+      console.log('[CCS Debug] Debug mode enabled - proxy config:', sanitizedConfig);
+    }
+  }, [debugMode, config]);
+
   // Load data on mount
   useEffect(() => {
     fetchConfig();
     fetchRawConfig();
-  }, [fetchConfig, fetchRawConfig]);
+    fetchBackend();
+    checkPlusOnlyVariants();
+  }, [fetchConfig, fetchRawConfig, fetchBackend, checkPlusOnlyVariants]);
 
   if (loading || !config) {
     return (
@@ -205,6 +304,64 @@ export default function ProxySection() {
             </div>
           </div>
 
+          {/* Backend Selection - Card based selection */}
+          <div className="space-y-3">
+            <h3 className="text-base font-medium flex items-center gap-2">
+              <Box className="w-4 h-4" />
+              Backend Binary
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Plus Backend Card */}
+              <button
+                onClick={() => handleBackendChange('plus')}
+                disabled={backendSaving}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  backend === 'plus'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground/50'
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="font-medium">CLIProxyAPIPlus</span>
+                  <span className="text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-400">
+                    Default
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Full provider support including Kiro and GitHub Copilot
+                </p>
+              </button>
+
+              {/* Original Backend Card */}
+              <button
+                onClick={() => handleBackendChange('original')}
+                disabled={backendSaving}
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
+                  backend === 'original'
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-muted-foreground/50'
+                }`}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="font-medium">CLIProxyAPI</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Original binary (Gemini, Codex, Antigravity only)
+                </p>
+              </button>
+            </div>
+            {/* Warning when original backend selected with Kiro/ghcp variants */}
+            {backend === 'original' && hasKiroGhcpVariants && (
+              <Alert variant="destructive" className="py-2">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  Existing Kiro/Copilot variants will not work with CLIProxyAPI. Switch to
+                  CLIProxyAPIPlus or remove those variants.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
           {/* Remote Settings - Show when remote mode is enabled */}
           {isRemoteMode && (
             <RemoteProxyCard
@@ -269,6 +426,35 @@ export default function ProxySection() {
             </div>
           </div>
 
+          {/* Advanced Settings */}
+          <div className="space-y-3">
+            <h3 className="text-base font-medium flex items-center gap-2">
+              <Bug className="w-4 h-4" />
+              Advanced
+            </h3>
+            <div className="space-y-3 p-4 rounded-lg border bg-muted/30">
+              {/* Debug Mode Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-sm">Debug Mode</p>
+                  <p className="text-xs text-muted-foreground">
+                    Enable developer diagnostics in browser console
+                  </p>
+                </div>
+                <Switch
+                  checked={debugMode}
+                  onCheckedChange={handleDebugModeChange}
+                  disabled={saving}
+                />
+              </div>
+              {debugMode && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 pl-0.5">
+                  Debug mode enabled. Check browser console for detailed logs.
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Local Proxy Settings - Only show in Local mode */}
           {!isRemoteMode && (
             <LocalProxyCard
@@ -291,6 +477,8 @@ export default function ProxySection() {
           onClick={() => {
             fetchConfig();
             fetchRawConfig();
+            fetchBackend();
+            checkPlusOnlyVariants();
           }}
           disabled={loading || saving}
           className="w-full"

@@ -218,7 +218,7 @@ async function fetchAccountQuota(provider: string, accountId: string): Promise<Q
 
 /**
  * Hook to get account quota
- * Only enabled for 'agy' provider (Antigravity) as it's the only one supporting quota
+ * Supports all providers that have quota API implemented
  */
 export function useAccountQuota(provider: string, accountId: string, enabled = true) {
   return useQuery({

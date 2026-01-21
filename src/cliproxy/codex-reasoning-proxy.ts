@@ -1,4 +1,5 @@
 import * as http from 'http';
+import * as https from 'https';
 import { URL } from 'url';
 
 export type CodexReasoningEffort = 'medium' | 'high' | 'xhigh';
@@ -17,6 +18,12 @@ export interface CodexReasoningProxyConfig {
   modelMap: CodexReasoningModelMap;
   defaultEffort?: CodexReasoningEffort;
   traceFilePath?: string;
+  /**
+   * Path prefix to strip from incoming requests before forwarding to upstream.
+   * Used for remote proxy mode where upstream expects /v1/messages, not /api/provider/codex/v1/messages.
+   * Example: '/api/provider/codex' will transform '/api/provider/codex/v1/messages' to '/v1/messages'
+   */
+  stripPathPrefix?: string;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -108,7 +115,7 @@ export class CodexReasoningProxy {
       'upstreamBaseUrl' | 'verbose' | 'timeoutMs' | 'defaultEffort' | 'traceFilePath'
     >
   > &
-    Pick<CodexReasoningProxyConfig, 'modelMap'>;
+    Pick<CodexReasoningProxyConfig, 'modelMap' | 'stripPathPrefix'>;
   private readonly modelEffort: Map<string, CodexReasoningEffort>;
   private readonly recent: Array<{
     at: string;
@@ -127,6 +134,7 @@ export class CodexReasoningProxy {
       modelMap: config.modelMap,
       defaultEffort: config.defaultEffort ?? 'medium',
       traceFilePath: config.traceFilePath ?? '',
+      stripPathPrefix: config.stripPathPrefix,
     };
     this.modelEffort = buildCodexModelEffortMap(this.config.modelMap, this.config.defaultEffort);
   }
@@ -221,7 +229,26 @@ export class CodexReasoningProxy {
 
   private async handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     const method = req.method || 'GET';
-    const requestPath = req.url || '/';
+    let requestPath = req.url || '/';
+
+    // Strip path prefix if configured (for remote proxy mode)
+    // e.g., '/api/provider/codex/v1/messages' → '/v1/messages'
+    // Boundary check: only match complete path segments (not partial like /codex matching /codextra)
+    if (
+      this.config.stripPathPrefix &&
+      requestPath.startsWith(this.config.stripPathPrefix) &&
+      (requestPath.length === this.config.stripPathPrefix.length ||
+        requestPath[this.config.stripPathPrefix.length] === '/')
+    ) {
+      let stripped = requestPath.slice(this.config.stripPathPrefix.length);
+      // Normalize: collapse any leading slashes to single slash and ensure path starts with '/'
+      stripped = stripped.replace(/^\/+/, '/') || '/';
+      if (!stripped.startsWith('/')) {
+        stripped = '/' + stripped;
+      }
+      requestPath = stripped;
+    }
+
     const upstreamBase = new URL(this.config.upstreamBaseUrl);
     const fullUpstreamUrl = new URL(requestPath, upstreamBase);
 
@@ -332,13 +359,22 @@ export class CodexReasoningProxy {
     return headers;
   }
 
+  /**
+   * Get the appropriate request function based on protocol.
+   * Uses https.request for HTTPS URLs, http.request for HTTP.
+   */
+  private getRequestFn(url: URL): typeof http.request | typeof https.request {
+    return url.protocol === 'https:' ? https.request : http.request;
+  }
+
   private forwardRaw(
     originalReq: http.IncomingMessage,
     clientRes: http.ServerResponse,
     upstreamUrl: URL
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const upstreamReq = http.request(
+      const requestFn = this.getRequestFn(upstreamUrl);
+      const upstreamReq = requestFn(
         {
           protocol: upstreamUrl.protocol,
           hostname: upstreamUrl.hostname,
@@ -370,7 +406,8 @@ export class CodexReasoningProxy {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       const bodyString = JSON.stringify(body);
-      const upstreamReq = http.request(
+      const requestFn = this.getRequestFn(upstreamUrl);
+      const upstreamReq = requestFn(
         {
           protocol: upstreamUrl.protocol,
           hostname: upstreamUrl.hostname,

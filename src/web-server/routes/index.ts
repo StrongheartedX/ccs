@@ -21,6 +21,8 @@ import cliproxyStatsRoutes from './cliproxy-stats-routes';
 import copilotRoutes from './copilot-routes';
 import miscRoutes from './misc-routes';
 import cliproxyServerRoutes from './proxy-routes';
+import authRoutes from './auth-routes';
+import persistRoutes from './persist-routes';
 
 // Create the main API router
 export const apiRoutes = Router();
@@ -37,6 +39,12 @@ apiRoutes.use('/config', configRoutes);
 
 // ==================== Health Checks ====================
 apiRoutes.use('/health', healthRoutes);
+
+// ==================== Dashboard Auth ====================
+apiRoutes.use('/auth', authRoutes);
+
+// ==================== Persist (Backup Management) ====================
+apiRoutes.use('/persist', persistRoutes);
 
 // ==================== CLIProxy ====================
 // Variants, auth, accounts, stats, status, models, error logs

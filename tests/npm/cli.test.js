@@ -141,7 +141,7 @@ describe('npm CLI', () => {
   describe('Error handling', () => {
     it('handles empty arguments gracefully', function() {
       try {
-        runCli('', { stdio: 'pipe' });
+        runCli('', { stdio: 'pipe', timeout: 3000 });
       } catch (e) {
         // Should either succeed or fail gracefully with a helpful error
         const output = e.stderr?.toString() || e.stdout?.toString() || '';
@@ -152,7 +152,7 @@ describe('npm CLI', () => {
     it('handles very long argument', function() {
       const longArg = 'a'.repeat(1000);
       try {
-        runCli(`"${longArg}"`, { stdio: 'pipe' });
+        runCli(`"${longArg}"`, { stdio: 'pipe', timeout: 3000 });
       } catch (e) {
         // Should handle gracefully, not crash
         const output = e.stderr?.toString() || e.stdout?.toString() || '';

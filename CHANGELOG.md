@@ -1,3 +1,163 @@
+## [7.24.2](https://github.com/kaitranntt/ccs/compare/v7.24.1...v7.24.2) (2026-01-18)
+
+### Bug Fixes
+
+* **ci:** disable track_progress for workflow_dispatch events ([65c325d](https://github.com/kaitranntt/ccs/commit/65c325d33e3e55f7214f2d4b786f4204751722b6))
+
+## [7.24.1](https://github.com/kaitranntt/ccs/compare/v7.24.0...v7.24.1) (2026-01-18)
+
+### Bug Fixes
+
+* **ci:** use placeholder API key to pass claude-code-action validation ([a83a87b](https://github.com/kaitranntt/ccs/commit/a83a87bbc2f7542d793edff910dc833bda40f9c8))
+
+## [7.24.0](https://github.com/kaitranntt/ccs/compare/v7.23.0...v7.24.0) (2026-01-18)
+
+### Features
+
+* **cliproxy:** add backend selection for CLIProxyAPI vs CLIProxyAPIPlus ([8ade4a6](https://github.com/kaitranntt/ccs/commit/8ade4a6b26a7870b730094ca47085cf4dc1bc411))
+
+### Bug Fixes
+
+* **cliproxy:** address PR review issues for backend selection ([a019ed2](https://github.com/kaitranntt/ccs/commit/a019ed2cf88a0e458d220fa0e9117c1490e9e6a6))
+
+### Documentation
+
+* add Docker support documentation ([90bced9](https://github.com/kaitranntt/ccs/commit/90bced95a42178c5bafae259285413552740cb54))
+
+### Code Refactoring
+
+* **ci:** simplify ai-review to use claude-code-action directly ([5e22547](https://github.com/kaitranntt/ccs/commit/5e22547f3fc19202039dc855a4516e12253960c6))
+* **ci:** simplify ai-review to vanilla claude-code-action ([bdfc409](https://github.com/kaitranntt/ccs/commit/bdfc40966a316b36b3689c8cdc3e6326ba789399))
+
+## [7.23.0](https://github.com/kaitranntt/ccs/compare/v7.22.0...v7.23.0) (2026-01-18)
+
+### Features
+
+* **docker:** add Docker/Compose setup for CCS dashboard ([a14c7f3](https://github.com/kaitranntt/ccs/commit/a14c7f3f6ba0d694dda622a59c9f878f648976b4))
+
+### Bug Fixes
+
+* **docker:** address security and reproducibility issues ([b386410](https://github.com/kaitranntt/ccs/commit/b38641002fadc8732c81aa9c7bd01bee826095a5))
+* **docker:** use bun 1.2.21 ([1dee718](https://github.com/kaitranntt/ccs/commit/1dee71897e89cc20bc1e78a57e29176ddacdb321))
+
+## [7.22.0](https://github.com/kaitranntt/ccs/compare/v7.21.0...v7.22.0) (2026-01-15)
+
+### Features
+
+* **cliproxy:** add HTTPS tunnel for remote proxy mode ([#1](https://github.com/kaitranntt/ccs/issues/1)) ([9e9cbd4](https://github.com/kaitranntt/ccs/commit/9e9cbd48585200c890fe6bb83539fe3a99b25cdc))
+* **dashboard:** add project_id display for Antigravity accounts ([ed2ce13](https://github.com/kaitranntt/ccs/commit/ed2ce138e41f07997eb6fa7e650cb4f16849b3df))
+* **dashboard:** show projectId warning in Live Account Monitor ([28b0faa](https://github.com/kaitranntt/ccs/commit/28b0faa0cb842737c9a2b0409822b1339078cf0d))
+
+### Bug Fixes
+
+* address PR [#4](https://github.com/kaitranntt/ccs/issues/4) review - HTTPS tests and timeout handling ([e055890](https://github.com/kaitranntt/ccs/commit/e055890e16fa6d79411faae5f04794807db39c87))
+* address PR [#4](https://github.com/kaitranntt/ccs/issues/4) review suggestions ([c3bfa34](https://github.com/kaitranntt/ccs/commit/c3bfa34703a501b502508dbf41cff75d2cd84dbe))
+* **cliproxy:** add try-catch for file operations in pause/resume ([d87a653](https://github.com/kaitranntt/ccs/commit/d87a6531952313b1e3795feb67ab152f2bfbb1e9))
+* **cliproxy:** move token files when pausing/resuming accounts ([9d2442f](https://github.com/kaitranntt/ccs/commit/9d2442f9fa772e1048b8153b8a2d586a4ec032ce)), closes [#337](https://github.com/kaitranntt/ccs/issues/337)
+* **cliproxy:** show clear message for paused accounts in Live Monitor ([a931bc9](https://github.com/kaitranntt/ccs/commit/a931bc9745572c0b5ddb488f568f1bec62d69a25))
+* **cliproxy:** use sibling auth-paused/ dir to prevent token refresh loops ([4d31128](https://github.com/kaitranntt/ccs/commit/4d31128b63ad3996dcb783cd08d956d53ff7face))
+* **dashboard:** harden projectId handling with edge case fixes ([bc02ecc](https://github.com/kaitranntt/ccs/commit/bc02ecc94c5120bb0a4491fd9f88c71fb9f26b7f))
+* **dashboard:** update projectId for existing accounts during discovery ([36367d4](https://github.com/kaitranntt/ccs/commit/36367d49f0f51f4ecba9a32adf54308af153bdb2))
+* increase timeout in connection tracking test for CI ([e7e95e6](https://github.com/kaitranntt/ccs/commit/e7e95e69700ed4c94c89d88bdf7d674a55053961))
+* make connection tracking test deterministic ([b735234](https://github.com/kaitranntt/ccs/commit/b735234beb6c9559c2798ab48d8b876cf5e6c495))
+* resolve CI test timing and merge conflict with dev ([504b1b3](https://github.com/kaitranntt/ccs/commit/504b1b3974c2538a692a54a7d83b1dea7e500433))
+* **ui:** improve paused account display in Live Account Monitor ([502b30a](https://github.com/kaitranntt/ccs/commit/502b30a589c8aef948e8d58ffc543fcb4e0248ad))
+
+## [7.21.0](https://github.com/kaitranntt/ccs/compare/v7.20.1...v7.21.0) (2026-01-14)
+
+### Features
+
+* **dashboard:** implement full parity UX improvements ([bd5e9d2](https://github.com/kaitranntt/ccs/commit/bd5e9d2b78b7348443770de3f4e5848390ff34fd))
+
+### Bug Fixes
+
+* **dashboard:** address code review feedback for PR [#336](https://github.com/kaitranntt/ccs/issues/336) ([e808972](https://github.com/kaitranntt/ccs/commit/e808972df0e3ce1987bb3b5a346add3e6d592b56))
+* **dashboard:** resolve 6 critical security and UX edge cases ([623a314](https://github.com/kaitranntt/ccs/commit/623a3146d775b9666218343a0dc39434b77dd24d))
+* **dashboard:** resolve edge cases in backup restore and settings UI ([2e45447](https://github.com/kaitranntt/ccs/commit/2e45447bb7c6bb48337076871d78a152bfb79880))
+* **persist:** add rate limiting, tests, and code quality improvements ([7b80dcc](https://github.com/kaitranntt/ccs/commit/7b80dccdd312fc6651ce03524699a30b8310c998)), closes [#339](https://github.com/kaitranntt/ccs/issues/339)
+
+### Documentation
+
+* update minimax preset references to 'mm' ([eee62a4](https://github.com/kaitranntt/ccs/commit/eee62a46a23f925e7ee891ef0c0ee5ca2271a462))
+
+## [7.20.1](https://github.com/kaitranntt/ccs/compare/v7.20.0...v7.20.1) (2026-01-14)
+
+### Bug Fixes
+
+* **ci:** expand ai-review allowedTools to prevent token waste ([ac7b324](https://github.com/kaitranntt/ccs/commit/ac7b324d4989883c7a8e92030891e51bfc040cc3))
+* **cliproxy:** address PR review feedback ([04c9b08](https://github.com/kaitranntt/ccs/commit/04c9b087ca3466c4b2871a777906f87b19566d3c))
+* **cliproxy:** return null for unknown quota, add verbose diagnostics ([1ac1941](https://github.com/kaitranntt/ccs/commit/1ac19415ce835df15f3fcefbb698f12ec89ec5e9))
+* **deps:** add express-rate-limit to production dependencies ([d9631be](https://github.com/kaitranntt/ccs/commit/d9631be81a018d9e007f241bcb6b928664cc6991)), closes [#333](https://github.com/kaitranntt/ccs/issues/333)
+
+## [7.20.0](https://github.com/kaitranntt/ccs/compare/v7.19.2...v7.20.0) (2026-01-14)
+
+### Features
+
+* **config:** add ccs config auth CLI subcommand ([39c1ee2](https://github.com/kaitranntt/ccs/commit/39c1ee2ca0f01a1254812a4a8fe8f6c2ed052fe0)), closes [#319](https://github.com/kaitranntt/ccs/issues/319)
+* **dashboard:** add optional login authentication ([#319](https://github.com/kaitranntt/ccs/issues/319)) ([464b410](https://github.com/kaitranntt/ccs/commit/464b410e8b3e017689ce7de6b6fc06b3f04c7fdd))
+* **persist:** add --list-backups and --restore options for backup management ([ef7e595](https://github.com/kaitranntt/ccs/commit/ef7e595b6fa4c96ac88e2e98f992fd05f7525e2e))
+* **persist:** add backup management for settings.json ([#312](https://github.com/kaitranntt/ccs/issues/312)) ([3ac687e](https://github.com/kaitranntt/ccs/commit/3ac687ec9fab6ad4ce11bd3af6af5c596958a5e2)), closes [#248](https://github.com/kaitranntt/ccs/issues/248)
+
+### Bug Fixes
+
+* **auth:** add security hardening per code review ([a3a167e](https://github.com/kaitranntt/ccs/commit/a3a167e62aaa555c71379e91a9dfd0b7f5ddf145))
+* **auth:** move redirect to useEffect and validate bcrypt hash format ([37e3468](https://github.com/kaitranntt/ccs/commit/37e3468d4dece26d35ef6b5ad9683312473e1ca9))
+* **ci:** add full CLIProxy env vars for AI review ([7cfd3c1](https://github.com/kaitranntt/ccs/commit/7cfd3c1f9dbd387d4fc6388382727222bd8475bd))
+* **ci:** add Write tool to allowedTools for PR comment posting ([e7dca48](https://github.com/kaitranntt/ccs/commit/e7dca480d313b2227638a3e8a53554b3d28d2c8e))
+* **persist:** harden security and edge case handling ([#328](https://github.com/kaitranntt/ccs/issues/328)) ([397331e](https://github.com/kaitranntt/ccs/commit/397331ec8995b261e0b6916874d59947ede0a88f)), closes [#312](https://github.com/kaitranntt/ccs/issues/312)
+* **ui:** use wss:// for WebSocket on HTTPS pages ([#315](https://github.com/kaitranntt/ccs/issues/315)) ([db58c6b](https://github.com/kaitranntt/ccs/commit/db58c6bbcabdb1edc1748212ad0b85af682ac597))
+
+## [7.19.2](https://github.com/kaitranntt/ccs/compare/v7.19.1...v7.19.2) (2026-01-13)
+
+### Bug Fixes
+
+* **ci:** expand allowedTools patterns for flexible comment posting ([0a27c6a](https://github.com/kaitranntt/ccs/commit/0a27c6a12f53dd050dc8104ce8d82e2cb4bcef3f))
+
+## [7.19.1](https://github.com/kaitranntt/ccs/compare/v7.19.0...v7.19.1) (2026-01-13)
+
+### Bug Fixes
+
+* **ci:** update allowedTools pattern to prevent token waste on retries ([edec6f6](https://github.com/kaitranntt/ccs/commit/edec6f6df242a092545a3c7ffd2856aad4f3f2af))
+
+## [7.19.0](https://github.com/kaitranntt/ccs/compare/v7.18.3...v7.19.0) (2026-01-13)
+
+### Features
+
+* **doctor:** add --help flag with comprehensive command documentation ([22c7d4a](https://github.com/kaitranntt/ccs/commit/22c7d4a20d96d12a2c38ec60d226a6bc26dce9b0))
+
+### Bug Fixes
+
+* **ci:** prevent AI review self-cancellation with smart concurrency ([25d31ce](https://github.com/kaitranntt/ccs/commit/25d31ce4329daf9512df4e0236e02d89d05b0842))
+* **ci:** trigger AI review on follow-up commits to PR ([a2a13fb](https://github.com/kaitranntt/ccs/commit/a2a13fb16ec3d655a817e548a5cb72a21c6c774e))
+
+## [7.18.3](https://github.com/kaitranntt/ccs/compare/v7.18.2...v7.18.3) (2026-01-13)
+
+### Bug Fixes
+
+* **ci:** simplify AI review workflow by disabling progress tracking ([4ef2d48](https://github.com/kaitranntt/ccs/commit/4ef2d4848cf12d197ba1f8cd5dac66b55c82c8be))
+* **ci:** simplify AI review workflow by disabling progress tracking ([#323](https://github.com/kaitranntt/ccs/issues/323)) ([39b37ca](https://github.com/kaitranntt/ccs/commit/39b37caa892f8b723f003c8ed0c6d8f2fe96d799))
+
+## [7.18.2](https://github.com/kaitranntt/ccs/compare/v7.18.1...v7.18.2) (2026-01-13)
+
+### Bug Fixes
+
+* **ci:** isolate concurrency groups by comment author ([3163509](https://github.com/kaitranntt/ccs/commit/316350905233d776968f53732974a77997513f24))
+* **ci:** isolate concurrency groups by comment author ([#322](https://github.com/kaitranntt/ccs/issues/322)) ([1d33012](https://github.com/kaitranntt/ccs/commit/1d33012b4e5ad02bac63f9b559f64c3efdf26044))
+
+## [7.18.1](https://github.com/kaitranntt/ccs/compare/v7.18.0...v7.18.1) (2026-01-13)
+
+### Bug Fixes
+
+* **ci:** add explicit instruction to post review as PR comment ([85f6bc0](https://github.com/kaitranntt/ccs/commit/85f6bc07d44f54673163ad4fed6045a37ccabad0))
+* **ci:** exclude bot comments from triggering AI review ([ce70617](https://github.com/kaitranntt/ccs/commit/ce70617ee94645399ba05af581240a696ca9cfed))
+* **ci:** prevent self-cancelling AI review workflow ([120aca4](https://github.com/kaitranntt/ccs/commit/120aca466d646ee1c770b2712a0d2742d5dd62d6))
+* **ci:** prevent self-cancelling AI review workflow ([#321](https://github.com/kaitranntt/ccs/issues/321)) ([fa1899f](https://github.com/kaitranntt/ccs/commit/fa1899f4611d570b2a8bf5e1a5342d5392466263))
+* **delegation:** improve profile discovery and CI workflow ([#310](https://github.com/kaitranntt/ccs/issues/310)) ([affdaea](https://github.com/kaitranntt/ccs/commit/affdaead80c3635f49ef562cac81bde8db0cab23))
+* **delegation:** only check profiles defined in config.yaml ([0075248](https://github.com/kaitranntt/ccs/commit/0075248273e2d4912c4e277deebd6e668c5b3466))
+* **doctor:** use dynamic profile discovery for delegation check ([f88ad8e](https://github.com/kaitranntt/ccs/commit/f88ad8e78198302f68ee0b420075d704ab01d8ff))
+* **ui:** improve sidebar navigation for collapsible menu items ([12b68f9](https://github.com/kaitranntt/ccs/commit/12b68f9f136c3529ac976eaec9e8903b43185e89))
+* **ui:** improve sidebar navigation for collapsible menu items ([#313](https://github.com/kaitranntt/ccs/issues/313)) ([e2e2ecd](https://github.com/kaitranntt/ccs/commit/e2e2ecda3c1948fb90f9b47b1e31782ef30cc31f))
+
 ## [7.18.0](https://github.com/kaitranntt/ccs/compare/v7.17.0...v7.18.0) (2026-01-08)
 
 ### Features

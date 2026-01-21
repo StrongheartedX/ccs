@@ -3,10 +3,11 @@
  */
 
 import type React from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, AlertTriangle } from 'lucide-react';
 import { cn, STATUS_COLORS } from '@/lib/utils';
 import { PROVIDER_COLORS } from '@/lib/provider-config';
 import { ProviderIcon } from '@/components/shared/provider-icon';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { ProviderStats } from '../types';
 import { getSuccessRate, cleanEmail } from '../utils';
 import { InlineStatsBadge } from './inline-stats-badge';
@@ -102,16 +103,35 @@ export function ProviderCard({
         </div>
       </div>
 
-      {/* Account color dots */}
-      <div className="flex gap-1 mt-3">
-        {stats.accounts.slice(0, 5).map((acc) => (
-          <div
-            key={acc.id}
-            className="w-2 h-2 rounded-full"
-            style={{ backgroundColor: acc.color }}
-            title={privacyMode ? '••••••' : cleanEmail(acc.email)}
-          />
-        ))}
+      {/* Account color dots with warning for agy accounts missing projectId */}
+      <div className="flex gap-1 mt-3 items-center">
+        {stats.accounts.slice(0, 5).map((acc) => {
+          const isMissingProjectId = stats.provider === 'agy' && !acc.projectId;
+          return (
+            <div key={acc.id} className="relative">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: acc.color }}
+                title={privacyMode ? '••••••' : cleanEmail(acc.email)}
+              />
+              {isMissingProjectId && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <AlertTriangle
+                        className="absolute -top-1 -right-1 w-2.5 h-2.5 text-amber-500"
+                        aria-label="Missing Project ID"
+                      />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      Missing Project ID - re-add account to fix
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+          );
+        })}
         {stats.accounts.length > 5 && (
           <span className="text-[10px] text-muted-foreground ml-1">
             +{stats.accounts.length - 5}

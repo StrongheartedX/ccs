@@ -340,8 +340,8 @@ async function main(): Promise<void> {
 
   // Special case: doctor command
   if (firstArg === 'doctor' || firstArg === '--doctor') {
-    const shouldFix = args.includes('--fix') || args.includes('-f');
-    await handleDoctorCommand(shouldFix);
+    const restArgs = args.slice(args.indexOf(firstArg) + 1);
+    await handleDoctorCommand(restArgs);
     return;
   }
 
@@ -435,6 +435,13 @@ async function main(): Promise<void> {
     const { handleTokensCommand } = await import('./commands/tokens-command');
     const exitCode = await handleTokensCommand(args.slice(1));
     process.exit(exitCode);
+  }
+
+  // Special case: persist command (write profile env to ~/.claude/settings.json)
+  if (firstArg === 'persist') {
+    const { handlePersistCommand } = await import('./commands/persist-command');
+    await handlePersistCommand(args.slice(1));
+    return;
   }
 
   // Special case: setup command (first-time wizard)

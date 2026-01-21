@@ -896,7 +896,9 @@ export function getRemoteEnvVars(
   // Omit port suffix for standard web ports (80/443) for cleaner URLs
   const standardWebPort = normalizedProtocol === 'https' ? 443 : 80;
   const portSuffix = effectivePort === standardWebPort ? '' : `:${effectivePort}`;
-  const baseUrl = `${normalizedProtocol}://${remoteConfig.host}${portSuffix}/api/provider/${provider}`;
+  // Remote CLIProxyAPI uses root path (e.g., /v1/messages), not /api/provider/{provider}/v1/messages
+  // The /api/provider/ prefix is only for local CLIProxy instances
+  const baseUrl = `${normalizedProtocol}://${remoteConfig.host}${portSuffix}`;
 
   // Get global env vars (DISABLE_TELEMETRY, etc.)
   const globalEnv = getGlobalEnvVars();

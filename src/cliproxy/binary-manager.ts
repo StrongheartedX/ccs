@@ -8,9 +8,10 @@
 import { info, warn } from '../utils/ui';
 import { getBinDir, CLIPROXY_DEFAULT_PORT } from './config-generator';
 import { BinaryInfo, BinaryManagerConfig } from './types';
-import { CLIPROXY_FALLBACK_VERSION, CLIPROXY_MAX_STABLE_VERSION } from './platform-detector';
+import { BACKEND_CONFIG, DEFAULT_BACKEND, CLIPROXY_MAX_STABLE_VERSION } from './platform-detector';
 import { isProxyRunning, stopProxy } from './services/proxy-lifecycle-service';
 import { waitForPortFree } from '../utils/port-utils';
+import { loadOrCreateUnifiedConfig } from '../config/unified-config-loader';
 import {
   UpdateCheckResult,
   checkForUpdates,
@@ -27,24 +28,53 @@ import {
   ensureBinary,
 } from './binary';
 
-/** Default configuration (uses CLIProxyAPIPlus fork with Kiro + Copilot support) */
-const DEFAULT_CONFIG: BinaryManagerConfig = {
-  version: CLIPROXY_FALLBACK_VERSION,
-  releaseUrl: 'https://github.com/router-for-me/CLIProxyAPIPlus/releases/download',
-  binPath: getBinDir(),
-  maxRetries: 3,
-  verbose: false,
-  forceVersion: false,
-};
+type CLIProxyBackend = 'original' | 'plus';
+
+/**
+ * Get backend from config or default to 'plus'
+ */
+function getConfiguredBackend(): CLIProxyBackend {
+  try {
+    const config = loadOrCreateUnifiedConfig();
+    return config.cliproxy?.backend || DEFAULT_BACKEND;
+  } catch {
+    return DEFAULT_BACKEND;
+  }
+}
+
+/**
+ * Get backend-specific binary directory.
+ * Stores binaries in separate dirs: bin/original/ and bin/plus/
+ */
+function getBackendBinDir(backend: CLIProxyBackend = DEFAULT_BACKEND): string {
+  const baseDir = getBinDir();
+  return `${baseDir}/${backend}`;
+}
+
+/** Default configuration (uses backend from config.yaml or defaults to 'plus') */
+function createDefaultConfig(backend: CLIProxyBackend = DEFAULT_BACKEND): BinaryManagerConfig {
+  const backendConfig = BACKEND_CONFIG[backend];
+  return {
+    version: backendConfig.fallbackVersion,
+    releaseUrl: `https://github.com/${backendConfig.repo}/releases/download`,
+    binPath: getBackendBinDir(backend),
+    maxRetries: 3,
+    verbose: false,
+    forceVersion: false,
+  };
+}
 
 /**
  * Binary Manager class for CLIProxyAPI binary lifecycle
  */
 export class BinaryManager {
   private config: BinaryManagerConfig;
+  private backend: CLIProxyBackend;
 
-  constructor(config: Partial<BinaryManagerConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  constructor(config: Partial<BinaryManagerConfig> = {}, backend?: CLIProxyBackend) {
+    this.backend = backend ?? getConfiguredBackend();
+    const defaultConfig = createDefaultConfig(this.backend);
+    this.config = { ...defaultConfig, ...config };
   }
 
   /** Ensure binary is available (download if missing, update if outdated) */
@@ -80,36 +110,44 @@ export class BinaryManager {
 
 /** Convenience function respecting version pin */
 export async function ensureCLIProxyBinary(verbose = false): Promise<string> {
+  const backend = getConfiguredBackend();
   const pinnedVersion = getPinnedVersion();
   if (pinnedVersion) {
     if (verbose) console.error(`[cliproxy] Using pinned version: ${pinnedVersion}`);
-    return new BinaryManager({
-      version: pinnedVersion,
-      verbose,
-      forceVersion: true,
-    }).ensureBinary();
+    return new BinaryManager(
+      {
+        version: pinnedVersion,
+        verbose,
+        forceVersion: true,
+      },
+      backend
+    ).ensureBinary();
   }
-  return new BinaryManager({ verbose }).ensureBinary();
+  return new BinaryManager({ verbose }, backend).ensureBinary();
 }
 
 /** Check if CLIProxyAPI binary is installed */
 export function isCLIProxyInstalled(): boolean {
-  return new BinaryManager().isBinaryInstalled();
+  const backend = getConfiguredBackend();
+  return new BinaryManager({}, backend).isBinaryInstalled();
 }
 
 /** Get CLIProxyAPI binary path (may not exist) */
 export function getCLIProxyPath(): string {
-  return new BinaryManager().getBinaryPath();
+  const backend = getConfiguredBackend();
+  return new BinaryManager({}, backend).getBinaryPath();
 }
 
 /** Get installed CLIProxyAPI version from .version file */
 export function getInstalledCliproxyVersion(): string {
-  return readInstalledVersion(getBinDir(), CLIPROXY_FALLBACK_VERSION);
+  const backend = getConfiguredBackend();
+  return readInstalledVersion(getBackendBinDir(backend), BACKEND_CONFIG[backend].fallbackVersion);
 }
 
 /** Install a specific version of CLIProxyAPI */
 export async function installCliproxyVersion(version: string, verbose = false): Promise<void> {
-  const manager = new BinaryManager({ version, verbose, forceVersion: true });
+  const backend = getConfiguredBackend();
+  const manager = new BinaryManager({ version, verbose, forceVersion: true }, backend);
 
   // Check if proxy is running and stop it first
   if (isProxyRunning()) {
@@ -140,7 +178,8 @@ export async function installCliproxyVersion(version: string, verbose = false): 
 
 /** Fetch the latest CLIProxyAPI version from GitHub API */
 export async function fetchLatestCliproxyVersion(): Promise<string> {
-  const result = await new BinaryManager().checkForUpdates();
+  const backend = getConfiguredBackend();
+  const result = await new BinaryManager({}, backend).checkForUpdates();
   return result.latestVersion;
 }
 
@@ -159,7 +198,8 @@ export interface CliproxyUpdateCheckResult {
 
 /** Check for CLIProxyAPI binary updates */
 export async function checkCliproxyUpdate(): Promise<CliproxyUpdateCheckResult> {
-  const result = await new BinaryManager().checkForUpdates();
+  const backend = getConfiguredBackend();
+  const result = await new BinaryManager({}, backend).checkForUpdates();
 
   // Import isNewerVersion for stability check
   const { isNewerVersion } = await import('./binary/version-checker');

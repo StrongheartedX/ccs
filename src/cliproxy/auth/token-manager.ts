@@ -200,7 +200,8 @@ export function clearAuth(provider: CLIProxyProvider): boolean {
 export function registerAccountFromToken(
   provider: CLIProxyProvider,
   tokenDir: string,
-  nickname?: string
+  nickname?: string,
+  verbose = false
 ): import('../account-manager').AccountInfo | null {
   const { registerAccount, generateNickname } = require('../account-manager');
   try {
@@ -229,11 +230,63 @@ export function registerAccountFromToken(
     const content = fs.readFileSync(tokenPath, 'utf-8');
     const data = JSON.parse(content);
     const email = data.email || undefined;
+    const projectId = data.project_id || undefined;
 
-    return registerAccount(provider, newestFile, email, nickname || generateNickname(email));
+    const account = registerAccount(
+      provider,
+      newestFile,
+      email,
+      nickname || generateNickname(email),
+      projectId
+    );
+
+    // Upload token to remote server if configured (async, don't block)
+    uploadTokenToRemoteAsync(tokenPath, verbose);
+
+    return account;
   } catch {
     return null;
   }
+}
+
+/**
+ * Upload token to remote server asynchronously (fire and forget).
+ * Only runs if remote mode is enabled. Logs success/failure via uploadTokenToRemote.
+ * Does not block the OAuth flow - local token is always valid regardless of upload result.
+ *
+ * @param tokenPath - Path to the token file
+ * @param verbose - Enable verbose logging for upload progress
+ */
+function uploadTokenToRemoteAsync(tokenPath: string, verbose: boolean): void {
+  // Dynamic import to avoid circular dependencies
+  import('../remote-token-uploader')
+    .then(({ uploadTokenToRemote, isRemoteUploadEnabled }) => {
+      if (isRemoteUploadEnabled()) {
+        // uploadTokenToRemote handles its own success/failure logging
+        // On failure, show additional warning so users know local token is still valid
+        uploadTokenToRemote(tokenPath, verbose)
+          .then((success) => {
+            if (!success) {
+              console.error(
+                '\n[!] Remote upload failed - token saved locally only. Run "ccs tokens upload" to retry.'
+              );
+            }
+          })
+          .catch((err: unknown) => {
+            // Unexpected error (not handled by uploadTokenToRemote)
+            const message = err instanceof Error ? err.message : String(err);
+            console.error(`[token-manager] Unexpected upload error: ${message}`);
+            console.error(
+              '[!] Token saved locally. Run "ccs tokens upload" to sync to remote server.'
+            );
+          });
+      }
+    })
+    .catch((err: unknown) => {
+      // Module load failed - log for debugging
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[token-manager] Failed to load remote-token-uploader: ${message}`);
+    });
 }
 
 /**

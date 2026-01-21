@@ -116,6 +116,8 @@ export interface TokenRefreshSettings {
  * CLIProxy configuration section.
  */
 export interface CLIProxyConfig {
+  /** Backend selection: 'original' or 'plus' (default: 'plus') */
+  backend?: 'original' | 'plus';
   /** Nickname to email mapping for OAuth accounts */
   oauth_accounts: OAuthAccounts;
   /** Built-in providers (read-only, for reference) */
@@ -486,6 +488,33 @@ export const DEFAULT_THINKING_CONFIG: ThinkingConfig = {
 };
 
 /**
+ * Dashboard authentication configuration.
+ * Optional login protection for CCS dashboard.
+ * Disabled by default for backward compatibility.
+ */
+export interface DashboardAuthConfig {
+  /** Enable dashboard authentication (default: false) */
+  enabled: boolean;
+  /** Username for dashboard login */
+  username: string;
+  /** Bcrypt-hashed password (use: npx bcrypt-cli hash 'password') */
+  password_hash: string;
+  /** Session timeout in hours (default: 24) */
+  session_timeout_hours?: number;
+}
+
+/**
+ * Default dashboard auth configuration.
+ * Disabled by default - must be explicitly enabled.
+ */
+export const DEFAULT_DASHBOARD_AUTH_CONFIG: DashboardAuthConfig = {
+  enabled: false,
+  username: '',
+  password_hash: '',
+  session_timeout_hours: 24,
+};
+
+/**
  * Main unified configuration structure.
  * Stored in ~/.ccs/config.yaml
  */
@@ -514,6 +543,8 @@ export interface UnifiedConfig {
   quota_management?: QuotaManagementConfig;
   /** Thinking/reasoning budget configuration (v8+) */
   thinking?: ThinkingConfig;
+  /** Dashboard authentication configuration (optional) */
+  dashboard_auth?: DashboardAuthConfig;
 }
 
 /**
@@ -564,6 +595,7 @@ export function createEmptyUnifiedConfig(): UnifiedConfig {
     accounts: {},
     profiles: {},
     cliproxy: {
+      backend: 'plus',
       oauth_accounts: {},
       providers: ['gemini', 'codex', 'agy', 'qwen', 'iflow', 'kiro', 'ghcp'],
       variants: {},
@@ -604,6 +636,7 @@ export function createEmptyUnifiedConfig(): UnifiedConfig {
     cliproxy_server: { ...DEFAULT_CLIPROXY_SERVER_CONFIG },
     quota_management: { ...DEFAULT_QUOTA_MANAGEMENT_CONFIG },
     thinking: { ...DEFAULT_THINKING_CONFIG },
+    dashboard_auth: { ...DEFAULT_DASHBOARD_AUTH_CONFIG },
   };
 }
 
