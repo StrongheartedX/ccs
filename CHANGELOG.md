@@ -1,3 +1,45 @@
+## [7.25.0](https://github.com/kaitranntt/ccs/compare/v7.24.2...v7.25.0) (2026-01-22)
+
+### Features
+
+* **api:** add /api/thinking endpoints for budget config ([9a2598f](https://github.com/kaitranntt/ccs/commit/9a2598fb61904e1124f5142a179f0407a1f1c13a)), closes [#307](https://github.com/kaitranntt/ccs/issues/307)
+* **cli:** add --thinking flag for runtime budget override ([4d361b2](https://github.com/kaitranntt/ccs/commit/4d361b2ecf9032271eb4fa292b82a2205139b81b)), closes [#307](https://github.com/kaitranntt/ccs/issues/307)
+* **cliproxy:** add model-specific reasoning effort caps ([eec44d5](https://github.com/kaitranntt/ccs/commit/eec44d54e2ba8d2f4e5f0bc48a7e9a03f25de2d9)), closes [#344](https://github.com/kaitranntt/ccs/issues/344)
+* **cliproxy:** add thinking budget validator module ([82ef680](https://github.com/kaitranntt/ccs/commit/82ef6804bbfd207522dde4bb4626fad2aaecb9ec)), closes [#307](https://github.com/kaitranntt/ccs/issues/307)
+* **cliproxy:** add ThinkingSupport to model catalog ([ebf7e04](https://github.com/kaitranntt/ccs/commit/ebf7e04b725d09d2fae10e36b9a45b57f8272069)), closes [#307](https://github.com/kaitranntt/ccs/issues/307)
+* **cliproxy:** inject thinking suffix into model config ([014b5e6](https://github.com/kaitranntt/ccs/commit/014b5e68b8d9486ed697509e6e6fc506671af36a)), closes [#307](https://github.com/kaitranntt/ccs/issues/307)
+* **config:** add ThinkingConfig to unified config ([0c2fd9c](https://github.com/kaitranntt/ccs/commit/0c2fd9cf5f4142a5a096cfa030b489ba9b6260bc)), closes [#307](https://github.com/kaitranntt/ccs/issues/307)
+* **thinking:** improve config validation and codex support ([19b7a49](https://github.com/kaitranntt/ccs/commit/19b7a49eee3a3487e8026a165c0961d60fe4cb43))
+* **ui:** add Thinking settings tab to dashboard ([0a95f36](https://github.com/kaitranntt/ccs/commit/0a95f361a25415fb06bda06a16b0419ce2651119)), closes [#307](https://github.com/kaitranntt/ccs/issues/307)
+
+### Bug Fixes
+
+* **api:** add optimistic locking for thinking config ([ba19e1f](https://github.com/kaitranntt/ccs/commit/ba19e1fcda0b360f0ca4e02d24f8fad47f249b48))
+* **api:** add override type and provider_overrides validation ([31b9520](https://github.com/kaitranntt/ccs/commit/31b9520d54d5fda607bace8f87a7a0989bbb3d23))
+* **api:** add type guard for tier_defaults and extract tiers constant ([299d96c](https://github.com/kaitranntt/ccs/commit/299d96c01186fd065e5454edb7cb9aee6ab12bb0)), closes [#351](https://github.com/kaitranntt/ccs/issues/351)
+* **cli:** add --thinking=value format and improve flag handling ([3060373](https://github.com/kaitranntt/ccs/commit/3060373797871ce2dc1394a5176d3a4693905921))
+* **cliproxy:** add case-insensitive model lookup ([36bcc04](https://github.com/kaitranntt/ccs/commit/36bcc04133f6a0b0775d5edf897bc915b8a3efc5))
+* **cliproxy:** add NaN/Infinity and empty string validation ([5f8d23c](https://github.com/kaitranntt/ccs/commit/5f8d23c60bae72cde1f281a24312813211c39140))
+* **cliproxy:** handle edge cases in thinking validation ([ca490a9](https://github.com/kaitranntt/ccs/commit/ca490a9f4e96dd2da7e6c76b466328ca4aa4dc6c))
+* **cliproxy:** improve thinking flag validation and warnings ([d5652de](https://github.com/kaitranntt/ccs/commit/d5652de63423ebad7afe8f8a428c271d29edb427))
+* **config:** add null guard and document nested paren limitation ([19e5239](https://github.com/kaitranntt/ccs/commit/19e52399fe4a9707dbf2878117d2db09cfa5d467))
+* **config:** improve YAML error messages and thinking validation ([f7cc9f4](https://github.com/kaitranntt/ccs/commit/f7cc9f465312ec5005edb2671f235286f31718d6))
+* **ui:** add fetch timeout and abort controller cleanup ([b634f36](https://github.com/kaitranntt/ccs/commit/b634f365f3c80199516fb798a5a4aba6cb36512d))
+* **ui:** add missing useThinkingConfig export to barrel file ([b996153](https://github.com/kaitranntt/ccs/commit/b996153e7fe92e786ae0c1335472cbb470a03327))
+* **ui:** add provider indicator, retry button, and optimistic locking ([35f28a6](https://github.com/kaitranntt/ccs/commit/35f28a6e7733675813b34a3e6e2bda5907cdc393))
+* **ui:** add spacing between Port label and input field ([1eeb8f9](https://github.com/kaitranntt/ccs/commit/1eeb8f922ddb25cb8caebe01a9239eb4529efc5e))
+* **ui:** add thinking tab to URL sync conditional ([3ea549a](https://github.com/kaitranntt/ccs/commit/3ea549addddeba2c8c100d3fc7b892205904da44))
+* **ui:** reduce excessive AGY quota API requests ([c8c1894](https://github.com/kaitranntt/ccs/commit/c8c189427221707832fa5257ece259321ee3bb52))
+
+### Documentation
+
+* **cli:** add extended thinking section to help ([7c5f365](https://github.com/kaitranntt/ccs/commit/7c5f36580ac357e7f63d70ed084e99c2fa24c6c4))
+
+### Tests
+
+* **cliproxy:** add unit tests for thinking validator ([3bd3e37](https://github.com/kaitranntt/ccs/commit/3bd3e379fe9573929bf24e1c3a925daac8578eaf)), closes [#307](https://github.com/kaitranntt/ccs/issues/307)
+* update tests for codex catalog inclusion ([fbb71a2](https://github.com/kaitranntt/ccs/commit/fbb71a228ed232035f1e14cf858b590492720b1c))
+
 ## [7.24.2](https://github.com/kaitranntt/ccs/compare/v7.24.1...v7.24.2) (2026-01-18)
 
 ### Bug Fixes
