@@ -488,7 +488,7 @@ async function showStatus(verbose: boolean, backend: CLIProxyBackend): Promise<v
   const status = getBinaryStatus(backend);
 
   console.log('');
-  const backendLabel = backend === 'plus' ? 'CLIProxy Plus' : 'CLIProxy (Original)';
+  const backendLabel = getBackendLabel(backend);
   console.log(color(`${backendLabel} Status`, 'primary'));
   console.log('');
 

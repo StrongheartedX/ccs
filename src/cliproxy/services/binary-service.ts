@@ -70,10 +70,13 @@ export function getBinaryStatus(backend?: CLIProxyBackend): BinaryStatusResult {
 /**
  * Check for latest version
  */
-export async function checkLatestVersion(): Promise<LatestVersionResult> {
+export async function checkLatestVersion(backend?: CLIProxyBackend): Promise<LatestVersionResult> {
+  const effectiveBackend =
+    backend ?? loadOrCreateUnifiedConfig().cliproxy?.backend ?? DEFAULT_BACKEND;
+
   try {
     const latestVersion = await fetchLatestCliproxyVersion();
-    const currentVersion = getInstalledCliproxyVersion();
+    const currentVersion = getInstalledCliproxyVersion(effectiveBackend);
     const updateAvailable = latestVersion !== currentVersion;
 
     return {
@@ -177,20 +180,26 @@ export async function installLatest(
 /**
  * Check if a version is pinned
  */
-export function isPinned(): boolean {
-  return isVersionPinned();
+export function isPinned(backend?: CLIProxyBackend): boolean {
+  const effectiveBackend =
+    backend ?? loadOrCreateUnifiedConfig().cliproxy?.backend ?? DEFAULT_BACKEND;
+  return isVersionPinned(effectiveBackend);
 }
 
 /**
  * Get pinned version if any
  */
-export function getPinned(): string | null {
-  return getPinnedVersion();
+export function getPinned(backend?: CLIProxyBackend): string | null {
+  const effectiveBackend =
+    backend ?? loadOrCreateUnifiedConfig().cliproxy?.backend ?? DEFAULT_BACKEND;
+  return getPinnedVersion(effectiveBackend);
 }
 
 /**
  * Clear version pin
  */
-export function clearPin(): void {
-  clearPinnedVersion();
+export function clearPin(backend?: CLIProxyBackend): void {
+  const effectiveBackend =
+    backend ?? loadOrCreateUnifiedConfig().cliproxy?.backend ?? DEFAULT_BACKEND;
+  clearPinnedVersion(effectiveBackend);
 }
