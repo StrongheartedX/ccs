@@ -282,7 +282,7 @@ export function ProxyStatusWidget() {
                 isRunning ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground/30'
               )}
             />
-            <span className="text-sm font-medium">CLIProxy Plus</span>
+            <span className="text-sm font-medium">{updateCheck?.backendLabel ?? 'CLIProxy'}</span>
           </div>
 
           {/* Right side: icon buttons when running */}

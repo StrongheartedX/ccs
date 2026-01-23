@@ -205,6 +205,9 @@ export interface CliproxyUpdateCheckResult {
   latestVersion: string;
   fromCache: boolean;
   checkedAt: number;
+  // Backend info
+  backend: CLIProxyBackend;
+  backendLabel: string;
   // Stability fields
   isStable: boolean;
   maxStableVersion: string;
@@ -223,8 +226,12 @@ export async function checkCliproxyUpdate(): Promise<CliproxyUpdateCheckResult> 
     ? undefined
     : `v${result.currentVersion} has known stability issues. Max stable: v${CLIPROXY_MAX_STABLE_VERSION}`;
 
+  const backendLabel = backend === 'plus' ? 'CLIProxy Plus' : 'CLIProxy';
+
   return {
     ...result,
+    backend,
+    backendLabel,
     isStable,
     maxStableVersion: CLIPROXY_MAX_STABLE_VERSION,
     stabilityMessage,
