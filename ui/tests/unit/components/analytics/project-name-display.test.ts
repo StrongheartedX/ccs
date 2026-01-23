@@ -6,7 +6,7 @@
 import { describe, it, expect } from 'vitest';
 
 // Import the function from the utility
-import { getProjectDisplayName } from '../../../../../src/components/analytics/project-name-utils';
+import { getProjectDisplayName } from '../../../../src/components/analytics/project-name-utils';
 
 describe('getProjectDisplayName', () => {
   describe('Simple project paths', () => {
@@ -24,13 +24,21 @@ describe('getProjectDisplayName', () => {
 
   describe('Complex project paths', () => {
     it('returns leaf folder for worktree paths', () => {
-      expect(getProjectDisplayName('/Users/joe/Developer/ExaDev/Clients/Architect/repositories/architect/worktrees/2026-01-08')).toBe('2026-01-08');
-      expect(getProjectDisplayName('/home/user/workspaces/repo-name/worktrees/feature-branch')).toBe('feature-branch');
+      expect(
+        getProjectDisplayName(
+          '/Users/joe/Developer/ExaDev/Clients/Architect/repositories/architect/worktrees/2026-01-08'
+        )
+      ).toBe('2026-01-08');
+      expect(
+        getProjectDisplayName('/home/user/workspaces/repo-name/worktrees/feature-branch')
+      ).toBe('feature-branch');
       expect(getProjectDisplayName('/project/repo/worktrees/v2.0')).toBe('v2.0');
     });
 
     it('handles nested paths', () => {
-      expect(getProjectDisplayName('/home/user/projects/web-dashboard/src/components')).toBe('components');
+      expect(getProjectDisplayName('/home/user/projects/web-dashboard/src/components')).toBe(
+        'components'
+      );
       expect(getProjectDisplayName('/opt/apps/my-app/lib/utils')).toBe('utils');
     });
   });
@@ -72,7 +80,8 @@ describe('getProjectDisplayName', () => {
     it('displays correct project name for worktree project', () => {
       // Before fix: would show "08"
       // After fix: should show "2026-01-08"
-      const path = '/Users/joe/Developer/ExaDev/Clients/Architect/repositories/architect.worktrees/2026-01-08';
+      const path =
+        '/Users/joe/Developer/ExaDev/Clients/Architect/repositories/architect.worktrees/2026-01-08';
       expect(getProjectDisplayName(path)).toBe('2026-01-08');
     });
 
@@ -97,14 +106,9 @@ describe('getProjectDisplayName', () => {
 
   describe('Regression tests', () => {
     it('does not return empty string for valid paths', () => {
-      const testCases = [
-        '/project',
-        '/home/user/app',
-        '/var/log/nginx',
-        '/tmp/test-file',
-      ];
+      const testCases = ['/project', '/home/user/app', '/var/log/nginx', '/tmp/test-file'];
 
-      testCases.forEach(path => {
+      testCases.forEach((path) => {
         const result = getProjectDisplayName(path);
         expect(result).not.toBe('');
         expect(result).not.toBeUndefined();

@@ -23,7 +23,7 @@ export function getProjectDisplayName(path: string): string {
 
   // Remove leading/trailing slashes and split into segments
   const cleanPath = path.replace(/^\/|\/$/g, '');
-  const segments = cleanPath.split('/').filter(segment => segment.length > 0);
+  const segments = cleanPath.split('/').filter((segment) => segment.length > 0);
 
   // Return the last segment (leaf folder name)
   return segments[segments.length - 1] || '';
