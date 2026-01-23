@@ -47,7 +47,7 @@ const schema = z.object({
     .min(1, 'Name is required')
     .regex(/^[a-zA-Z][a-zA-Z0-9._-]*$/, 'Must start with letter, only letters/numbers/.-_'),
   baseUrl: z.string().url('Invalid URL format'),
-  apiKey: z.string().min(1, 'API key is required'),
+  apiKey: z.string(), // Validation handled conditionally in onSubmit
   model: z.string().optional(),
   opusModel: z.string().optional(),
   sonnetModel: z.string().optional(),
@@ -207,9 +207,16 @@ export function ProfileCreateDialog({
   }, [baseUrlValue, selectedPreset]);
 
   const onSubmit = async (data: FormData) => {
+    // Validate API key - required unless preset has requiresApiKey: false
+    if (currentPreset?.requiresApiKey !== false && !data.apiKey) {
+      toast.error('API key is required');
+      return;
+    }
     // Use user-provided baseUrl (allows customization of preset URLs)
     const finalData = {
       ...data,
+      // Use provided API key, or empty string if not provided (for optional auth providers)
+      apiKey: data.apiKey || '',
     };
     try {
       await createMutation.mutateAsync(finalData);
@@ -367,17 +374,27 @@ export function ProfileCreateDialog({
                   )}
                 </div>
 
-                {/* API Key */}
+                {/* API Key - optional for presets that don't require it */}
                 <div className="space-y-1.5">
                   <Label htmlFor="apiKey">
-                    API Key <span className="text-destructive">*</span>
+                    API Key{' '}
+                    {currentPreset?.requiresApiKey !== false && (
+                      <span className="text-destructive">*</span>
+                    )}
+                    {currentPreset?.requiresApiKey === false && (
+                      <span className="text-muted-foreground text-xs font-normal">(optional)</span>
+                    )}
                   </Label>
                   <div className="relative">
                     <Input
                       id="apiKey"
                       type={showApiKey ? 'text' : 'password'}
                       {...register('apiKey')}
-                      placeholder={currentPreset?.apiKeyPlaceholder ?? 'sk-...'}
+                      placeholder={
+                        currentPreset?.requiresApiKey === false
+                          ? 'Optional - only if auth is enabled'
+                          : (currentPreset?.apiKeyPlaceholder ?? 'sk-...')
+                      }
                       className="pr-10"
                     />
                     <Button
@@ -393,6 +410,10 @@ export function ProfileCreateDialog({
                   </div>
                   {errors.apiKey ? (
                     <p className="text-xs text-destructive">{errors.apiKey.message}</p>
+                  ) : currentPreset?.requiresApiKey === false ? (
+                    <p className="text-xs text-muted-foreground">
+                      Only needed if you have configured Ollama authentication
+                    </p>
                   ) : (
                     currentPreset?.apiKeyHint && (
                       <p className="text-xs text-muted-foreground">{currentPreset.apiKeyHint}</p>

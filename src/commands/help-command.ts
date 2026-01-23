@@ -127,6 +127,8 @@ Run ${color('ccs config', 'command')} for web dashboard`.trim();
       ['ccs glm', 'GLM 4.6 (API key required)'],
       ['ccs glmt', 'GLM with thinking mode'],
       ['ccs kimi', 'Kimi for Coding (API key)'],
+      ['ccs ollama', 'Local Ollama (http://localhost:11434)'],
+      ['ccs ollama-cloud', 'Ollama Cloud (API key required)'],
       ['', ''], // Spacer
       ['ccs api create', 'Create custom API profile'],
       ['ccs api remove', 'Remove an API profile'],

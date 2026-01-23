@@ -17,6 +17,8 @@ export interface ProviderPreset {
   apiKeyPlaceholder: string;
   apiKeyHint: string;
   category: PresetCategory;
+  /** Whether API key is required (default: true, set false for local providers) */
+  requiresApiKey: boolean;
   /** Additional env vars for thinking mode, etc. */
   extraEnv?: Record<string, string>;
   /** Enable always thinking mode */
@@ -42,6 +44,19 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyPlaceholder: 'sk-or-...',
     apiKeyHint: 'Get your API key at openrouter.ai/keys',
     category: 'recommended',
+    requiresApiKey: true,
+  },
+  {
+    id: 'ollama',
+    name: 'Ollama (Local)',
+    description: 'Local open-source models via Ollama (32K+ context)',
+    baseUrl: 'http://localhost:11434',
+    defaultProfileName: 'ollama',
+    defaultModel: 'qwen3-coder',
+    apiKeyPlaceholder: 'ollama',
+    apiKeyHint: 'Install Ollama from ollama.com - no API key needed for local',
+    category: 'recommended',
+    requiresApiKey: false,
   },
   // Alternative providers
   {
@@ -54,6 +69,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyPlaceholder: 'ghp_...',
     apiKeyHint: 'Get your API key from Z.AI',
     category: 'alternative',
+    requiresApiKey: true,
   },
   {
     id: 'glmt',
@@ -65,6 +81,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyPlaceholder: 'ghp_...',
     apiKeyHint: 'Same API key as GLM',
     category: 'alternative',
+    requiresApiKey: true,
     extraEnv: {
       ANTHROPIC_TEMPERATURE: '0.2',
       ANTHROPIC_MAX_TOKENS: '65536',
@@ -85,6 +102,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyPlaceholder: 'sk-...',
     apiKeyHint: 'Get your API key from Moonshot AI',
     category: 'alternative',
+    requiresApiKey: true,
     alwaysThinkingEnabled: true,
   },
   {
@@ -97,6 +115,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyPlaceholder: 'YOUR_AZURE_API_KEY',
     apiKeyHint: 'Create resource at ai.azure.com, get API key from Keys tab',
     category: 'alternative',
+    requiresApiKey: true,
   },
   {
     id: 'mm',
@@ -108,6 +127,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyPlaceholder: 'YOUR_MINIMAX_API_KEY_HERE',
     apiKeyHint: 'Get your API key at platform.minimax.io',
     category: 'alternative',
+    requiresApiKey: true,
   },
   {
     id: 'deepseek',
@@ -119,6 +139,7 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyPlaceholder: 'sk-...',
     apiKeyHint: 'Get your API key at platform.deepseek.com',
     category: 'alternative',
+    requiresApiKey: true,
   },
   {
     id: 'qwen',
@@ -130,6 +151,19 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
     apiKeyPlaceholder: 'sk-...',
     apiKeyHint: 'Get your API key from Alibaba Cloud Model Studio',
     category: 'alternative',
+    requiresApiKey: true,
+  },
+  {
+    id: 'ollama-cloud',
+    name: 'Ollama Cloud',
+    description: 'Ollama cloud models via direct API (glm-4.7:cloud, minimax-m2.1:cloud)',
+    baseUrl: 'https://ollama.com',
+    defaultProfileName: 'ollama-cloud',
+    defaultModel: 'glm-4.7:cloud',
+    apiKeyPlaceholder: 'YOUR_OLLAMA_CLOUD_API_KEY',
+    apiKeyHint: 'Get your API key at ollama.com',
+    category: 'alternative',
+    requiresApiKey: true,
   },
 ];
 

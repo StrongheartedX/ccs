@@ -181,9 +181,21 @@ async function handleCreate(args: string[]): Promise<void> {
     console.log(dim('Note: For OpenRouter, ANTHROPIC_API_KEY should be empty.'));
   }
 
-  // Step 3: API Key
+  // Step 3: API Key (skip if preset has requiresApiKey: false)
   let apiKey = parsedArgs.apiKey;
-  if (!apiKey) {
+
+  if (preset?.requiresApiKey === false) {
+    // Preset doesn't require API key (e.g., local Ollama)
+    if (parsedArgs.apiKey) {
+      console.log(dim('Note: Using provided API key for local Ollama (optional)'));
+      apiKey = parsedArgs.apiKey;
+    } else {
+      console.log(info('No API key required for local Ollama'));
+      // Sentinel value 'ollama' matches config/base-ollama.settings.json template
+      // This is not a valid API key, just a placeholder for local-only providers
+      apiKey = 'ollama';
+    }
+  } else if (!apiKey) {
     const keyPrompt = preset?.apiKeyHint ? `API Key (${preset.apiKeyHint})` : 'API Key';
     apiKey = await InteractivePrompt.password(keyPrompt);
     if (!apiKey) {
@@ -426,7 +438,7 @@ async function showHelp(): Promise<void> {
   console.log('');
   console.log(subheader('Options'));
   console.log(
-    `  ${color('--preset <id>', 'command')}        Use provider preset (openrouter, glm, glmt, kimi, foundry, mm, deepseek, qwen)`
+    `  ${color('--preset <id>', 'command')}        Use provider preset (openrouter, ollama, ollama-cloud, glm, glmt, kimi, foundry, mm, deepseek, qwen)`
   );
   console.log(`  ${color('--base-url <url>', 'command')}     API base URL (create)`);
   console.log(`  ${color('--api-key <key>', 'command')}      API key (create)`);
@@ -437,6 +449,12 @@ async function showHelp(): Promise<void> {
   console.log(subheader('Provider Presets'));
   console.log(
     `  ${color('openrouter', 'command')}    OpenRouter - 349+ models (Claude, GPT, Gemini, Llama)`
+  );
+  console.log(
+    `  ${color('ollama', 'command')}          Ollama - Local open-source models (no API key)`
+  );
+  console.log(
+    `  ${color('ollama-cloud', 'command')}   Ollama Cloud - glm-4.7:cloud, qwen3-coder:480b`
   );
   console.log(`  ${color('glm', 'command')}           GLM - Claude via Z.AI`);
   console.log(`  ${color('glmt', 'command')}          GLMT - GLM with Thinking mode`);
