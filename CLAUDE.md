@@ -96,7 +96,9 @@ bun run validate            # Step 3: Final check (must pass)
 
 ## Critical Constraints (NEVER VIOLATE)
 
-1. **NO EMOJIS** - ASCII only: [OK], [!], [X], [i]
+1. **NO EMOJIS in CLI output** - Terminal output uses ASCII only: [OK], [!], [X], [i]
+   - **Scope:** CCS CLI terminal output (`src/` code that prints to stdout/stderr)
+   - **Does NOT apply to:** PR descriptions, commit messages, documentation, comments, AI conversations
 2. **TTY-aware colors** - Respect NO_COLOR env var
 3. **Non-invasive** - NEVER modify `~/.claude/settings.json` without explicit user request and confirmation (exception: `ccs persist` command)
 4. **Cross-platform parity** - bash/PowerShell/Node.js must behave identically
@@ -232,7 +234,7 @@ Windows fallback: Copies if symlinks unavailable
 - `child_process.spawn`, handle SIGINT/SIGTERM
 
 ### Terminal Output
-- ASCII only: [OK], [!], [X], [i] (NO emojis)
+- ASCII only: [OK], [!], [X], [i] (NO emojis in CLI output)
 - TTY detect before colors, respect NO_COLOR
 - Box borders for errors: ╔═╗║╚╝
 
@@ -351,7 +353,7 @@ rm -rf ~/.ccs             # Clean environment
 - [ ] Local `docs/` updated — if architecture changed
 
 **Standards:**
-- [ ] ASCII only (NO emojis), NO_COLOR respected
+- [ ] CLI output ASCII only (NO emojis in terminal output), NO_COLOR respected
 - [ ] YAGNI/KISS/DRY alignment verified
 - [ ] No manual version bump or tags
 
