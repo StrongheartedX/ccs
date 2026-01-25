@@ -129,46 +129,51 @@ export function getEarliestResetTime<T extends { resetTime: string | null }>(
 }
 
 /**
- * Filter to get Claude models from a model array
+ * Filter to get Claude/GPT models (primary models we care about for quota)
+ * These have weekly limits vs Gemini's daily limits
  */
-function filterClaudeModels<T extends { name: string; displayName?: string }>(models: T[]): T[] {
+function filterPrimaryModels<T extends { name: string; displayName?: string }>(models: T[]): T[] {
   return models.filter((m) => {
     const name = (m.displayName || m.name || '').toLowerCase();
-    return name.includes('claude');
+    return name.includes('claude') || name.includes('gpt');
   });
 }
 
 /**
- * Calculate the minimum quota percentage from Claude models (primary usage).
- * Falls back to minimum of all models if no Claude models exist.
- * Returns null if no valid models or quota data.
+ * Calculate the minimum quota percentage from Claude/GPT models.
+ * Returns 0 if Claude/GPT models are missing (exhausted/removed from API response).
+ * Only returns null if no models at all.
  */
 export function getMinClaudeQuota<
   T extends { name: string; displayName?: string; percentage: number },
 >(models: T[]): number | null {
   if (models.length === 0) return null;
 
-  const claudeModels = filterClaudeModels(models);
-  const targetModels = claudeModels.length > 0 ? claudeModels : models;
-  const percentages = targetModels
+  const primaryModels = filterPrimaryModels(models);
+
+  // If no Claude/GPT models in response, they're exhausted (0%)
+  if (primaryModels.length === 0) return 0;
+
+  const percentages = primaryModels
     .map((m) => m.percentage)
     .filter((p) => typeof p === 'number' && isFinite(p));
 
-  if (percentages.length === 0) return null;
+  if (percentages.length === 0) return 0;
   return Math.min(...percentages);
 }
 
 /**
- * Get reset time for Claude models (matches getMinClaudeQuota logic).
- * Shows when the Claude quota will reset, not just earliest across all models.
+ * Get reset time for Claude/GPT models (matches getMinClaudeQuota logic).
+ * Falls back to earliest of all models if Claude/GPT not present (still need reset info).
  */
 export function getClaudeResetTime<
   T extends { name: string; displayName?: string; resetTime: string | null },
 >(models: T[]): string | null {
   if (models.length === 0) return null;
 
-  const claudeModels = filterClaudeModels(models);
-  const targetModels = claudeModels.length > 0 ? claudeModels : models;
+  const primaryModels = filterPrimaryModels(models);
+  // Fall back to all models for reset time (we need some reset info even if exhausted)
+  const targetModels = primaryModels.length > 0 ? primaryModels : models;
 
   return targetModels.reduce(
     (earliest, m) => {
