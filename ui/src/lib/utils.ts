@@ -56,18 +56,29 @@ export function getProviderColor(provider: string): string {
 }
 
 /**
- * Sort models with Claude models first, then alphabetically
- * Prioritizes: Claude > Gemini > GPT > Other (alphabetically)
+ * Sort models by tier: Primary (Claude/GPT) > Gemini 3 Pro > Gemini 2.5 > Others
+ * Within each tier, sorts alphabetically by display name
  */
 export function sortModelsByPriority<T extends { name: string; displayName?: string }>(
   models: T[]
 ): T[] {
   const getPriority = (model: T): number => {
     const name = (model.displayName || model.name).toLowerCase();
-    if (name.includes('claude')) return 0;
-    if (name.includes('gemini')) return 1;
-    if (name.includes('gpt')) return 2;
-    return 3;
+
+    // Tier 0: Primary models (Claude + GPT) - weekly limits, most valuable
+    if (name.includes('claude') || name.includes('gpt')) return 0;
+
+    // Tier 1: Gemini 3 Pro models - high capability
+    if (name.includes('gemini 3') || name.includes('gemini-3')) return 1;
+
+    // Tier 2: Gemini 2.5 Pro/Flash models - mid tier
+    if (name.includes('gemini 2.5') || name.includes('gemini-2.5')) return 2;
+
+    // Tier 3: Other Gemini models
+    if (name.includes('gemini')) return 3;
+
+    // Tier 4: Everything else
+    return 4;
   };
 
   return [...models].sort((a, b) => {
