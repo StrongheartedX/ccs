@@ -1,0 +1,199 @@
+/**
+ * Profile Mapper for CLIProxy Sync
+ *
+ * Transforms CCS settings-based profiles into CLIProxy ClaudeKey format.
+ * Handles model alias mapping and settings normalization.
+ */
+
+import * as fs from 'fs';
+import * as path from 'path';
+import { getCcsDir } from '../../utils/config-manager';
+import { listApiProfiles, isApiProfileConfigured } from '../../api/services/profile-reader';
+import type { ClaudeKey, ClaudeModel } from '../management-api-types';
+import { getProfileAliases, type ModelAlias } from './model-alias-config';
+
+/**
+ * Profile info with settings for sync.
+ */
+export interface SyncableProfile {
+  /** Profile name (e.g., "glm", "kimi") */
+  name: string;
+  /** Path to settings.json file */
+  settingsPath: string;
+  /** Whether profile has valid API key */
+  isConfigured: boolean;
+  /** Environment variables from settings.json */
+  env?: Record<string, string>;
+}
+
+/**
+ * Settings.json file structure (Claude compatible).
+ */
+interface SettingsJson {
+  env?: Record<string, string>;
+}
+
+/**
+ * Load syncable API profiles from CCS config.
+ * Filters to only configured profiles (with real API keys).
+ */
+export function loadSyncableProfiles(): SyncableProfile[] {
+  const { profiles } = listApiProfiles();
+  const syncable: SyncableProfile[] = [];
+
+  for (const profile of profiles) {
+    // Skip unconfigured profiles
+    if (!profile.isConfigured) {
+      continue;
+    }
+
+    // Load settings.json for env vars
+    const ccsDir = getCcsDir();
+    const settingsPath = path.join(ccsDir, `${profile.name}.settings.json`);
+
+    let env: Record<string, string> | undefined;
+    try {
+      if (fs.existsSync(settingsPath)) {
+        const content = fs.readFileSync(settingsPath, 'utf8');
+        const settings = JSON.parse(content) as SettingsJson;
+        env = settings.env;
+      }
+    } catch {
+      // Skip profiles with unreadable settings
+      continue;
+    }
+
+    // Must have ANTHROPIC_AUTH_TOKEN
+    const token = env?.ANTHROPIC_AUTH_TOKEN;
+    if (!token || token.includes('YOUR_') || token.includes('your-')) {
+      continue;
+    }
+
+    syncable.push({
+      name: profile.name,
+      settingsPath,
+      isConfigured: true,
+      env,
+    });
+  }
+
+  return syncable;
+}
+
+/**
+ * Map model aliases to ClaudeModel format.
+ */
+function mapAliasesToClaudeModels(aliases: ModelAlias[]): ClaudeModel[] {
+  return aliases.map((alias) => ({
+    name: alias.from,
+    alias: alias.to,
+  }));
+}
+
+/**
+ * Sanitize profile name for YAML safety.
+ * Replaces non-alphanumeric chars (except - and _) with hyphens.
+ */
+function sanitizeProfileName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9-_]/g, '-');
+}
+
+/**
+ * Map a single profile to ClaudeKey format.
+ */
+export function mapProfileToClaudeKey(profile: SyncableProfile): ClaudeKey | null {
+  const env = profile.env;
+  if (!env) return null;
+
+  const apiKey = env.ANTHROPIC_AUTH_TOKEN;
+  if (!apiKey) return null;
+
+  const baseUrl = env.ANTHROPIC_BASE_URL;
+
+  // Generate prefix from profile name (e.g., "glm" -> "glm-")
+  const prefix = `${sanitizeProfileName(profile.name)}-`;
+
+  // Load model aliases for this profile
+  const aliases = getProfileAliases(profile.name);
+  const models = aliases.length > 0 ? mapAliasesToClaudeModels(aliases) : undefined;
+
+  const claudeKey: ClaudeKey = {
+    'api-key': apiKey,
+    prefix,
+  };
+
+  if (baseUrl) {
+    claudeKey['base-url'] = baseUrl;
+  }
+
+  if (models && models.length > 0) {
+    claudeKey.models = models;
+  }
+
+  return claudeKey;
+}
+
+/**
+ * Generate sync payload from all configured profiles.
+ * Returns array of ClaudeKey ready to push to remote CLIProxy.
+ */
+export function generateSyncPayload(): ClaudeKey[] {
+  const profiles = loadSyncableProfiles();
+  const keys: ClaudeKey[] = [];
+
+  for (const profile of profiles) {
+    const key = mapProfileToClaudeKey(profile);
+    if (key) {
+      keys.push(key);
+    }
+  }
+
+  return keys;
+}
+
+/**
+ * Generate sync preview with profile details.
+ * Used for dry-run mode to show what would be synced.
+ */
+export interface SyncPreviewItem {
+  /** Profile name */
+  name: string;
+  /** Base URL (masked) */
+  baseUrl?: string;
+  /** Whether profile has model aliases */
+  hasAliases: boolean;
+  /** Number of model aliases */
+  aliasCount: number;
+}
+
+export function generateSyncPreview(): SyncPreviewItem[] {
+  const profiles = loadSyncableProfiles();
+  const preview: SyncPreviewItem[] = [];
+
+  for (const profile of profiles) {
+    const aliases = getProfileAliases(profile.name);
+
+    preview.push({
+      name: profile.name,
+      baseUrl: profile.env?.ANTHROPIC_BASE_URL,
+      hasAliases: aliases.length > 0,
+      aliasCount: aliases.length,
+    });
+  }
+
+  return preview;
+}
+
+/**
+ * Get count of syncable profiles.
+ */
+export function getSyncableProfileCount(): number {
+  return loadSyncableProfiles().length;
+}
+
+/**
+ * Check if profile is syncable (configured with valid API key).
+ */
+export function isProfileSyncable(profileName: string): boolean {
+  return isApiProfileConfigured(profileName);
+}
