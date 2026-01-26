@@ -209,7 +209,10 @@ function updateHookTimeoutIfNeeded(
     }
 
     return true;
-  } catch {
+  } catch (error) {
+    if (process.env.CCS_DEBUG) {
+      console.error(warn(`updateHookTimeoutIfNeeded failed: ${(error as Error).message}`));
+    }
     return false;
   }
 }
@@ -223,7 +226,9 @@ export function removeMigrationMarker(): void {
     if (fs.existsSync(markerPath)) {
       fs.unlinkSync(markerPath);
     }
-  } catch {
-    // Ignore errors
+  } catch (error) {
+    if (process.env.CCS_DEBUG) {
+      console.error(warn(`removeMigrationMarker failed: ${(error as Error).message}`));
+    }
   }
 }

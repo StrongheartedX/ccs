@@ -35,7 +35,7 @@ export async function handleUninstallCommand(): Promise<void> {
 
   let removed = 0;
 
-  // 1. Remove WebSearch hook (file + settings.json)
+  // 1. Remove WebSearch hook file + migration marker (does NOT touch global settings.json)
   const hookRemoved = uninstallWebSearchHook();
   if (hookRemoved) {
     console.log(ok('Removed WebSearch hook'));

@@ -22,7 +22,7 @@ const WEBSEARCH_HOOK = 'websearch-transformer.cjs';
 /**
  * Get CCS hooks directory (respects CCS_HOME for test isolation)
  */
-function getCcsHooksDir(): string {
+export function getCcsHooksDir(): string {
   return path.join(getCcsDir(), 'hooks');
 }
 

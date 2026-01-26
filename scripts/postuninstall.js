@@ -12,6 +12,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
+// Note: Uses os.homedir() directly because this script runs during npm uninstall,
+// not in test context. CCS_HOME isolation is for src/ code only.
 const CCS_DIR = path.join(os.homedir(), '.ccs');
 const HOOKS_DIR = path.join(CCS_DIR, 'hooks');
 const MIGRATION_MARKER = path.join(CCS_DIR, '.hook-migrated');

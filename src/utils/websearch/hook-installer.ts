@@ -10,22 +10,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { info, warn } from '../ui';
 import { getWebSearchConfig } from '../../config/unified-config-loader';
-import { getHookPath, ensureHookConfig } from './hook-config';
+import { getHookPath, ensureHookConfig, getCcsHooksDir } from './hook-config';
 import { removeMigrationMarker } from './profile-hook-injector';
-import { getCcsDir } from '../config-manager';
 
 // Re-export from hook-config for backward compatibility
 export { getHookPath, getWebSearchHookConfig } from './hook-config';
 
 // Hook file name
 const WEBSEARCH_HOOK = 'websearch-transformer.cjs';
-
-/**
- * Get CCS hooks directory (respects CCS_HOME for test isolation)
- */
-function getCcsHooksDir(): string {
-  return path.join(getCcsDir(), 'hooks');
-}
 
 /**
  * Check if WebSearch hook is installed
