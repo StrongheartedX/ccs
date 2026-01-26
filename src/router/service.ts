@@ -1,4 +1,4 @@
-import { startRouter } from './server';
+import { startRouter, type RouterServerOptions } from './server';
 import { getRouterProfile, getRouterPort } from './config/loader';
 import { isProfileRunnable } from './config/validator';
 import { clearPool } from './providers/pool';
@@ -11,6 +11,11 @@ interface RouterService {
   stop: () => void;
 }
 
+export interface RouterServiceOptions extends RouterServerOptions {
+  /** Custom port (default: from config or 9400) */
+  port?: number;
+}
+
 // Active router service (only one at a time)
 let activeService: RouterService | null = null;
 
@@ -19,11 +24,13 @@ let activeService: RouterService | null = null;
  */
 export async function startRouterService(
   profileName: string,
-  port?: number
+  options: RouterServiceOptions = {}
 ): Promise<RouterService> {
   // Stop existing service if running
   if (activeService) {
-    console.log(`[i] Stopping existing router: ${activeService.profileName}`);
+    if (!options.quiet) {
+      console.log(`[i] Stopping existing router: ${activeService.profileName}`);
+    }
     stopRouterService();
   }
 
@@ -38,9 +45,9 @@ export async function startRouterService(
     throw new Error(`Profile "${profileName}" cannot run: ${missing.join(', ')}`);
   }
 
-  // Start server
-  const routerPort = port ?? getRouterPort();
-  const { stop } = startRouter(profile, profileName, routerPort);
+  // Start server (quiet by default)
+  const routerPort = options.port ?? getRouterPort();
+  const { stop } = startRouter(profile, profileName, routerPort, { quiet: options.quiet ?? true });
 
   activeService = {
     profileName,

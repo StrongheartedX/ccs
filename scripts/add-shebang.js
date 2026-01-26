@@ -18,9 +18,11 @@ function addShebang() {
 
   let content = fs.readFileSync(ccsPath, 'utf8');
 
-  // Add shebang if missing
-  if (!content.startsWith('#!/usr/bin/env node')) {
-    content = '#!/usr/bin/env node\n' + content;
+  // Add shebang if missing - use bun for Bun.serve() support in router
+  if (!content.startsWith('#!/usr/bin/env bun')) {
+    // Remove old node shebang if present
+    content = content.replace(/^#!\/usr\/bin\/env node\n/, '');
+    content = '#!/usr/bin/env bun\n' + content;
     fs.writeFileSync(ccsPath, content);
     console.log('[OK] Shebang added to dist/ccs.js');
   }

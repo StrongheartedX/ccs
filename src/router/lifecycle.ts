@@ -48,8 +48,8 @@ export async function runRouterSession(
   process.on('SIGTERM', cleanup);
 
   try {
-    // Start router service
-    await startRouterService(profileName, port);
+    // Start router service (quiet by default, verbose with --debug)
+    await startRouterService(profileName, { port, quiet: !options.debug });
     routerStarted = true;
 
     if (options.debug) {

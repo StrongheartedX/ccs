@@ -111,8 +111,6 @@ export function createRouterServer(
     const endpoint = adapter.getEndpoint(route.provider);
     const headers = adapter.getHeaders(route.provider);
 
-    console.log(`[Router] Routing ${body.model} -> ${route.provider.name}/${route.targetModel}`);
-
     // Handle streaming
     if (body.stream) {
       return handleStreamingRequest(c, endpoint, headers, transformedBody, adapter);
@@ -215,7 +213,7 @@ async function handleStreamingRequest(
     const decoder = new TextDecoder();
 
     stream.onAbort(() => {
-      console.log('[Router] Client disconnected');
+      // Silent abort - client disconnects are routine, not log-worthy
       reader.cancel();
     });
 
@@ -278,12 +276,16 @@ export function startRouter(
     throw error;
   }
 
-  console.log(`[Router] Started on port ${port}`);
+  if (!options.quiet) {
+    console.log(`[Router] Started on port ${port}`);
+  }
 
   return {
     stop: () => {
       server.stop();
-      console.log('[Router] Stopped');
+      if (!options.quiet) {
+        console.log('[Router] Stopped');
+      }
     },
   };
 }

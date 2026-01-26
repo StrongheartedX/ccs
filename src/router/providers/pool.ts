@@ -50,7 +50,7 @@ export async function getPooledProvider(name: string): Promise<ResolvedProvider 
     }
     if (oldest) {
       pool.delete(oldest.key);
-      console.log(`[Router] Pool full, evicted: ${oldest.key}`);
+      // Silent eviction - internal housekeeping, not user-relevant
     }
   }
 

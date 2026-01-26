@@ -43,7 +43,7 @@ export interface RouterProfileSummary {
  */
 export interface RouterProvider {
   name: string;
-  type: 'cliproxy' | 'api' | 'openrouter';
+  type: 'cliproxy' | 'settings' | 'api' | 'openrouter';
   baseUrl: string;
   healthy: boolean;
   latency?: number;

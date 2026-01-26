@@ -10,7 +10,6 @@ import { getAllProviders } from '../providers/registry';
 interface RunOptions {
   debug?: boolean;
   port?: number;
-  quiet?: boolean;
 }
 
 /**
@@ -37,7 +36,7 @@ export async function runCommand(profileName: string, options: RunOptions = {}):
   const port = options.port ?? getRouterPort();
 
   // Pre-flight health checks
-  console.log(`[i] Checking provider health...`);
+  if (options.debug) console.log('[i] Checking provider health...');
   const providers = await getAllProviders();
   const neededProviders = new Set([
     profile.tiers.opus.provider,
@@ -57,8 +56,7 @@ export async function runCommand(profileName: string, options: RunOptions = {}):
   }
 
   // Start router server
-  console.log(`[i] Starting router on port ${port}...`);
-  const { stop } = startRouter(profile, profileName, port, { quiet: options.quiet });
+  const { stop } = startRouter(profile, profileName, port, { quiet: !options.debug });
 
   // Get environment variables for Claude CLI
   const env = {
@@ -74,7 +72,7 @@ export async function runCommand(profileName: string, options: RunOptions = {}):
   }
 
   // Spawn Claude CLI
-  console.log(`[i] Starting Claude CLI...`);
+  if (options.debug) console.log('[i] Starting Claude CLI...');
   const claude = spawn('claude', process.argv.slice(4), {
     stdio: 'inherit',
     env,
@@ -102,7 +100,6 @@ export const runCommandConfig = {
   description: 'Run Claude CLI with router profile',
   options: [
     { flag: '--debug', description: 'Show routing debug info' },
-    { flag: '--quiet', description: 'Suppress request logging' },
     { flag: '--port <port>', description: 'Router port (default: 9400)' },
   ],
   action: runCommand,

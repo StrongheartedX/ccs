@@ -1,6 +1,6 @@
 /**
  * Router Provider Picker - Select provider + model with health status
- * Shows dropdown for both provider and model selection
+ * CLIProxy providers get dropdown (from catalog), settings profiles get text input
  */
 
 import { useMemo } from 'react';
@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import type { RouterProvider } from '@/lib/router-types';
@@ -28,6 +29,11 @@ export function RouterProviderPicker({ providers, value, onChange }: RouterProvi
     [providers, value.provider]
   );
 
+  // Check if provider has a model catalog (CLIProxy) vs settings profile (no catalog)
+  const hasCatalog = useMemo(() => {
+    return !!MODEL_CATALOGS[value.provider];
+  }, [value.provider]);
+
   // Get models for selected provider from catalog
   const providerModels = useMemo(() => {
     if (!value.provider) return [];
@@ -35,7 +41,7 @@ export function RouterProviderPicker({ providers, value, onChange }: RouterProvi
     return catalog?.models ?? [];
   }, [value.provider]);
 
-  // Handle provider change - auto-select default model
+  // Handle provider change - auto-select default model for catalog providers, clear for settings
   const handleProviderChange = (provider: string) => {
     const catalog = MODEL_CATALOGS[provider];
     const defaultModel = catalog?.defaultModel ?? '';
@@ -70,23 +76,33 @@ export function RouterProviderPicker({ providers, value, onChange }: RouterProvi
         </SelectContent>
       </Select>
 
-      {/* Model dropdown - shows model IDs from catalog */}
-      <Select
-        value={value.model}
-        onValueChange={(model) => onChange({ ...value, model })}
-        disabled={!value.provider}
-      >
-        <SelectTrigger className="flex-1 min-w-[280px]">
-          <SelectValue placeholder={value.provider ? 'Select model' : 'Select provider first'} />
-        </SelectTrigger>
-        <SelectContent>
-          {providerModels.map((m) => (
-            <SelectItem key={m.id} value={m.id}>
-              <span className="font-mono text-sm">{m.id}</span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Model selector - dropdown for catalog providers, text input for settings profiles */}
+      {hasCatalog ? (
+        <Select
+          value={value.model}
+          onValueChange={(model) => onChange({ ...value, model })}
+          disabled={!value.provider}
+        >
+          <SelectTrigger className="flex-1 min-w-[280px]">
+            <SelectValue placeholder={value.provider ? 'Select model' : 'Select provider first'} />
+          </SelectTrigger>
+          <SelectContent>
+            {providerModels.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                <span className="font-mono text-sm">{m.id}</span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input
+          value={value.model}
+          onChange={(e) => onChange({ ...value, model: e.target.value })}
+          placeholder={value.provider ? 'Enter model name' : 'Select provider first'}
+          disabled={!value.provider}
+          className="flex-1 min-w-[280px] font-mono text-sm"
+        />
+      )}
 
       {/* Show health error if provider unhealthy */}
       {selectedProvider && !selectedProvider.healthy && selectedProvider.error && (

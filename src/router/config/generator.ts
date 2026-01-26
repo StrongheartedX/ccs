@@ -23,7 +23,7 @@ export function generateRouterSettings(_profile: RouterProfile, port?: number): 
   return {
     env: {
       // Point Claude CLI to router
-      ANTHROPIC_BASE_URL: `http://127.0.0.1:${routerPort}/v1`,
+      ANTHROPIC_BASE_URL: `http://127.0.0.1:${routerPort}`,
 
       // Default model (Claude will send this, router detects tier)
       ANTHROPIC_MODEL: 'claude-sonnet-4-5-20250929',

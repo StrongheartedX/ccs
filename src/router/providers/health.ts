@@ -26,10 +26,14 @@ export async function checkProviderHealth(
   }
 
   // Perform live check based on provider type
-  const result =
-    provider.type === 'cliproxy'
-      ? await checkCLIProxyProviderHealth(provider)
-      : await checkApiProviderHealth(provider);
+  let result: ProviderHealthResult;
+  if (provider.type === 'cliproxy') {
+    result = await checkCLIProxyProviderHealth(provider);
+  } else if (provider.type === 'settings') {
+    result = checkSettingsProviderHealth(provider);
+  } else {
+    result = await checkApiProviderHealth(provider);
+  }
 
   healthCache.set(provider.name, result);
   return result;
@@ -84,6 +88,22 @@ async function checkCLIProxyProviderHealth(
     provider: provider.name,
     healthy: true,
     latency,
+    checkedAt: new Date(),
+  };
+}
+
+/**
+ * Check settings-based profile health (glm, glmt, kimi)
+ * Healthy if auth token exists in settings file
+ */
+function checkSettingsProviderHealth(provider: ResolvedProvider): ProviderHealthResult {
+  const hasToken = !!provider.authToken;
+
+  return {
+    provider: provider.name,
+    healthy: hasToken,
+    latency: 0,
+    error: hasToken ? undefined : 'No API key configured',
     checkedAt: new Date(),
   };
 }

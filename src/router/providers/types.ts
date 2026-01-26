@@ -1,7 +1,7 @@
 // Provider type definitions for CCS Router
 
 // Provider identification
-export type ProviderType = 'cliproxy' | 'api';
+export type ProviderType = 'cliproxy' | 'settings' | 'api';
 export type AdapterType = 'anthropic' | 'openai-compat' | 'openrouter' | 'custom';
 export type Tier = 'opus' | 'sonnet' | 'haiku';
 

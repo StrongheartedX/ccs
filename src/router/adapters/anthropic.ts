@@ -49,7 +49,13 @@ export class AnthropicAdapter implements ProviderAdapter {
   }
 
   getEndpoint(provider: ResolvedProvider): string {
-    return `${provider.baseUrl}/messages`;
+    // Anthropic API requires /v1/messages endpoint
+    // Base URLs may or may not include /v1, so we need to handle both cases
+    const baseUrl = provider.baseUrl.replace(/\/+$/, ''); // Remove trailing slashes
+    if (baseUrl.endsWith('/v1')) {
+      return `${baseUrl}/messages`;
+    }
+    return `${baseUrl}/v1/messages`;
   }
 }
 
