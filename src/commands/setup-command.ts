@@ -132,6 +132,11 @@ export function isFirstTimeInstall(): boolean {
       return false;
     }
 
+    // If setup wizard was completed, NOT first-time install
+    if (loaded.setup_completed) {
+      return false;
+    }
+
     // Check for any meaningful configuration in unified config
     const hasProfiles = Object.keys(loaded.profiles || {}).length > 0;
     const hasAccounts = Object.keys(loaded.accounts || {}).length > 0;
@@ -370,6 +375,7 @@ async function runSetupWizard(force: boolean = false): Promise<void> {
     }
 
     // Save config
+    config.setup_completed = true;
     saveUnifiedConfig(config);
 
     // Final summary
