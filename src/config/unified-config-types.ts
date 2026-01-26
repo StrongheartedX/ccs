@@ -609,6 +609,7 @@ export function createEmptyUnifiedConfig(): UnifiedConfig {
         enabled: false,
         request_log: false,
       },
+      auto_sync: true,
     },
     preferences: {
       theme: 'system',
