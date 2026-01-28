@@ -303,18 +303,21 @@ function readAuthData(provider: CLIProxyProvider, accountId: string): AuthData |
 
 /**
  * Map tier ID string to AccountTier type
+ * API returns: "g1-ultra-tier", "g1-pro-tier", "standard-tier", etc.
  * Priority: ultra > pro > free
  */
 function mapTierString(tierStr: string | undefined): AccountTier {
   if (!tierStr) return 'unknown';
   const normalized = tierStr.toLowerCase();
+  // Match "g1-ultra-tier" or "ultra" anywhere in string
   if (normalized.includes('ultra')) return 'ultra';
+  // Match "g1-pro-tier" or "pro" anywhere in string
   if (normalized.includes('pro')) return 'pro';
+  // Match free/legacy tiers
   if (normalized.includes('free') || normalized.includes('legacy')) {
     return 'free';
   }
-  // "standard-tier" and other unknown values should NOT map to 'free'
-  // Let inferTierFromModels handle the detection
+  // "standard-tier" and other unknown values = unknown
   return 'unknown';
 }
 
@@ -382,17 +385,10 @@ async function getProjectId(accessToken: string): Promise<{
       };
     }
 
-    // Extract tier using CLIProxyAPIPlus approach:
-    // 1. Find tier with isDefault=true in allowedTiers array
-    // 2. Fallback to paidTier > currentTier
-    let tierStr: string | undefined;
-    if (data.allowedTiers && Array.isArray(data.allowedTiers)) {
-      const defaultTier = data.allowedTiers.find((t) => t.isDefault);
-      tierStr = defaultTier?.id;
-    }
-    if (!tierStr) {
-      tierStr = data.paidTier?.id || data.currentTier?.id;
-    }
+    // Extract tier - paidTier reflects actual subscription status, takes priority
+    // API returns: paidTier.id = "g1-ultra-tier" or "g1-pro-tier"
+    // allowedTiers/currentTier often return "standard-tier" which is not useful
+    const tierStr = data.paidTier?.id || data.currentTier?.id;
     const tier = mapTierString(tierStr);
 
     return { projectId: projectId.trim(), tier };
