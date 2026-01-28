@@ -187,9 +187,11 @@ export function AccountItem({
           >
             <User className="w-4 h-4" />
           </div>
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span className={cn('font-medium text-sm', privacyMode && PRIVACY_BLUR_CLASS)}>
+              <span
+                className={cn('font-medium text-sm truncate', privacyMode && PRIVACY_BLUR_CLASS)}
+              >
                 {account.email || account.id}
               </span>
               {account.isDefault && (
