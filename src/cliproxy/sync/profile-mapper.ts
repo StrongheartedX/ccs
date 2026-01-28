@@ -104,6 +104,17 @@ export function mapProfileToClaudeKey(profile: SyncableProfile): ClaudeKey | nul
   if (!sanitizedName || sanitizedName === '') {
     return null; // Skip profiles with invalid names
   }
+
+  // Skip if name is too long (>64 chars)
+  if (sanitizedName.length > 64) {
+    return null;
+  }
+
+  // Skip if name has no alphanumeric characters (e.g., only special chars -> "-----")
+  if (!/[a-zA-Z0-9]/.test(sanitizedName)) {
+    return null;
+  }
+
   const prefix = `${sanitizedName}-`;
 
   const claudeKey: ClaudeKey = {

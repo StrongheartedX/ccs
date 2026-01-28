@@ -47,7 +47,20 @@ export function syncToLocalConfig(): {
       };
     }
 
-    const configContent = fs.readFileSync(configPath, 'utf8');
+    let configContent: string;
+    try {
+      configContent = fs.readFileSync(configPath, 'utf8');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+        return {
+          success: false,
+          syncedCount: 0,
+          configPath,
+          error: 'CLIProxy config deleted during sync. Run ccs doctor to regenerate.',
+        };
+      }
+      throw error;
+    }
 
     // Transform payload to config format
     const claudeApiKeys = payload.map(transformToConfigFormat);
@@ -198,10 +211,12 @@ export function getLocalSyncStatus(): {
   if (fs.existsSync(configPath)) {
     try {
       const content = fs.readFileSync(configPath, 'utf8');
-      const config = yaml.load(content) as Record<string, unknown>;
-      const keys = config['claude-api-key'];
-      if (Array.isArray(keys)) {
-        currentKeyCount = keys.length;
+      const config = yaml.load(content) as Record<string, unknown> | null;
+      if (config && typeof config === 'object') {
+        const keys = config['claude-api-key'];
+        if (Array.isArray(keys)) {
+          currentKeyCount = keys.length;
+        }
       }
     } catch {
       // Ignore parse errors

@@ -149,7 +149,15 @@ export async function stopAutoSyncWatcher(): Promise<void> {
   }
 
   if (watcherInstance) {
-    await watcherInstance.close();
+    const closePromise = watcherInstance.close();
+    const timeoutPromise = new Promise<void>((_, reject) =>
+      setTimeout(() => reject(new Error('Close timeout')), 5000)
+    );
+    try {
+      await Promise.race([closePromise, timeoutPromise]);
+    } catch (err) {
+      log(`Warning: ${(err as Error).message}, forcing cleanup`);
+    }
     watcherInstance = null;
     log('Watcher stopped');
   }

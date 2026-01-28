@@ -89,23 +89,36 @@ async function fetchSyncPreview(): Promise<SyncPreview> {
  * Execute sync to remote CLIProxy
  */
 async function executeSync(): Promise<SyncResult> {
-  const response = await fetch('/api/cliproxy/sync', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-  if (!response.ok) {
-    let message = 'Sync failed';
-    try {
-      const data = await response.json();
-      message = data.error || data.message || message;
-    } catch {
-      // Non-JSON response (e.g., 502 Bad Gateway)
+  try {
+    const response = await fetch('/api/cliproxy/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      let message = 'Sync failed';
+      try {
+        const data = await response.json();
+        message = data.error || data.message || message;
+      } catch {
+        // Non-JSON response (e.g., 502 Bad Gateway)
+      }
+      throw new Error(message);
     }
-    throw new Error(message);
-  }
 
-  return response.json();
+    return response.json();
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Sync request timed out after 30 seconds');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**
