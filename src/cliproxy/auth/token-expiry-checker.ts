@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { CLIProxyProvider } from '../types';
+import { CLIPROXY_PROFILES } from '../../auth/profile-detector';
 import { getProviderAccounts, getAccountTokenPath } from '../account-manager';
 
 /** Preemptive refresh time: refresh tokens 45 minutes before expiry */
@@ -113,7 +114,7 @@ export function getTokenExpiryInfo(
  * @returns Array of token expiry info, excluding invalid tokens
  */
 export function getAllTokenExpiryInfo(): TokenExpiryInfo[] {
-  const providers: CLIProxyProvider[] = ['gemini', 'codex', 'agy', 'qwen', 'iflow', 'kiro', 'ghcp'];
+  const providers: CLIProxyProvider[] = [...CLIPROXY_PROFILES];
   const results: TokenExpiryInfo[] = [];
 
   for (const provider of providers) {

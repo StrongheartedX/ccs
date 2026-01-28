@@ -8,6 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { CLIProxyProvider } from '../types';
+import { CLIPROXY_PROFILES } from '../../auth/profile-detector';
 import { getProviderAuthDir } from '../config-generator';
 import { getProviderAccounts, getDefaultAccount } from '../account-manager';
 import {
@@ -145,16 +146,7 @@ export function getAuthStatus(provider: CLIProxyProvider): AuthStatus {
  * Get auth status for all providers
  */
 export function getAllAuthStatus(): AuthStatus[] {
-  const providers: CLIProxyProvider[] = [
-    'agy',
-    'claude',
-    'gemini',
-    'codex',
-    'qwen',
-    'iflow',
-    'kiro',
-    'ghcp',
-  ];
+  const providers: CLIProxyProvider[] = [...CLIPROXY_PROFILES];
   return providers.map(getAuthStatus);
 }
 

@@ -12,6 +12,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { CLIProxyProvider } from './types';
+import { CLIPROXY_PROFILES } from '../auth/profile-detector';
 import { getCliproxyDir, getAuthDir } from './config-generator';
 import { PROVIDER_TYPE_VALUES } from './auth/auth-types';
 
@@ -946,7 +947,7 @@ export async function soloAccount(
  * Get summary of all accounts across providers
  */
 export function getAllAccountsSummary(): Record<CLIProxyProvider, AccountInfo[]> {
-  const providers: CLIProxyProvider[] = ['gemini', 'codex', 'agy', 'qwen', 'iflow', 'kiro', 'ghcp'];
+  const providers: CLIProxyProvider[] = [...CLIPROXY_PROFILES];
   const summary: Record<CLIProxyProvider, AccountInfo[]> = {} as Record<
     CLIProxyProvider,
     AccountInfo[]

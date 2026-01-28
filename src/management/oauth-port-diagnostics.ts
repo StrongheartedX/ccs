@@ -21,6 +21,7 @@ import {
   BindingTestResult,
 } from '../utils/port-utils';
 import { CLIProxyProvider } from '../cliproxy/types';
+import { CLIPROXY_PROFILES } from '../auth/profile-detector';
 
 /**
  * OAuth callback ports for each provider
@@ -140,16 +141,7 @@ export async function checkOAuthPort(provider: CLIProxyProvider): Promise<OAuthP
  * Check OAuth ports for all providers
  */
 export async function checkAllOAuthPorts(): Promise<OAuthPortDiagnostic[]> {
-  const providers: CLIProxyProvider[] = [
-    'gemini',
-    'codex',
-    'agy',
-    'qwen',
-    'iflow',
-    'kiro',
-    'ghcp',
-    'claude',
-  ];
+  const providers: CLIProxyProvider[] = [...CLIPROXY_PROFILES];
   const results: OAuthPortDiagnostic[] = [];
 
   for (const provider of providers) {
