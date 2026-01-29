@@ -1,3 +1,13 @@
+## [7.31.1](https://github.com/kaitranntt/ccs/compare/v7.31.0...v7.31.1) (2026-01-29)
+
+### Bug Fixes
+
+* **cliproxy:** read Gemini tokens from CLIProxy auth directory ([9d96535](https://github.com/kaitranntt/ccs/commit/9d96535d28bf7070e8eccde6af16ef79262a65cf)), closes [#368](https://github.com/kaitranntt/ccs/issues/368)
+
+### Code Refactoring
+
+* **cliproxy:** address code review feedback for token handling ([cddf931](https://github.com/kaitranntt/ccs/commit/cddf931fe6fb8b4c2b6b9edeb9d4e41a25e29535)), closes [#396](https://github.com/kaitranntt/ccs/issues/396)
+
 ## [7.31.0](https://github.com/kaitranntt/ccs/compare/v7.30.1...v7.31.0) (2026-01-29)
 
 ### Features
