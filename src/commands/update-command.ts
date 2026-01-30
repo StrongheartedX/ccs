@@ -207,13 +207,26 @@ async function performNpmUpdate(
   const performUpdate = (): void => {
     // On Windows, use shell with full command string to avoid deprecation warning
     // Also suppress Node deprecation warnings that may come from package managers
+    // Pipe stderr on Windows to filter npm cleanup warnings (EPERM on native modules)
     const child = isWindows
       ? spawn(`${updateCommand} ${updateArgs.join(' ')}`, [], {
-          stdio: 'inherit',
+          stdio: ['inherit', 'inherit', 'pipe'],
           shell: true,
           env: { ...process.env, NODE_NO_WARNINGS: '1' },
         })
       : spawn(updateCommand, updateArgs, { stdio: 'inherit' });
+
+    // On Windows, filter stderr to hide npm cleanup warnings (EPERM on bcrypt.node etc.)
+    // These warnings are cosmetic - update succeeds despite file locking by antivirus/indexing
+    if (isWindows && child.stderr) {
+      child.stderr.on('data', (data: Buffer) => {
+        const output = data.toString();
+        // Skip npm cleanup warnings (EPERM, ENOTEMPTY, EBUSY on native module prebuilds)
+        if (!/npm warn cleanup/i.test(output)) {
+          process.stderr.write(data);
+        }
+      });
+    }
 
     child.on('exit', (code) => {
       if (code === 0) {
