@@ -109,7 +109,7 @@ export class GlmtProxy {
     const maxRetries = parseInt(process.env.GLMT_MAX_RETRIES || '3', 10);
     const baseDelay = parseInt(process.env.GLMT_RETRY_BASE_DELAY || '1000', 10);
     this.retryConfig = {
-      maxRetries: isNaN(maxRetries) || maxRetries < 0 ? 3 : maxRetries,
+      maxRetries: isNaN(maxRetries) || maxRetries < 0 ? 3 : Math.min(maxRetries, 10),
       baseDelay: isNaN(baseDelay) || baseDelay < 0 ? 1000 : baseDelay,
       enabled: process.env.GLMT_DISABLE_RETRY !== '1',
     };
@@ -406,7 +406,11 @@ export class GlmtProxy {
   private isRetryableError(error: Error): { retryable: boolean; retryAfter?: string } {
     const message = error.message;
     if (message.includes('429') || message.toLowerCase().includes('rate limit')) {
-      // Try to extract Retry-After from error message
+      // Prefer Retry-After from error property (captured from HTTP header), fallback to parsing message
+      const errWithRetryAfter = error as Error & { retryAfter?: string };
+      if (errWithRetryAfter.retryAfter) {
+        return { retryable: true, retryAfter: errWithRetryAfter.retryAfter };
+      }
       const retryAfterMatch = message.match(/retry-after:\s*(\d+)/i);
       return {
         retryable: true,
@@ -565,7 +569,17 @@ export class GlmtProxy {
 
             // Check for non-200 status
             if (res.statusCode !== 200) {
-              reject(new Error(`Upstream error: ${res.statusCode} ${res.statusMessage}\n${body}`));
+              const err = new Error(
+                `Upstream error: ${res.statusCode} ${res.statusMessage}\n${body}`
+              ) as Error & { retryAfter?: string };
+              // Capture Retry-After header for rate limit handling
+              const retryAfterHeader = res.headers['retry-after'];
+              if (retryAfterHeader) {
+                err.retryAfter = Array.isArray(retryAfterHeader)
+                  ? retryAfterHeader[0]
+                  : retryAfterHeader;
+              }
+              reject(err);
               return;
             }
 
@@ -635,7 +649,17 @@ export class GlmtProxy {
           let body = '';
           upstreamRes.on('data', (chunk: Buffer) => (body += chunk.toString()));
           upstreamRes.on('end', () => {
-            reject(new Error(`Upstream error: ${upstreamRes.statusCode}\n${body}`));
+            const err = new Error(`Upstream error: ${upstreamRes.statusCode}\n${body}`) as Error & {
+              retryAfter?: string;
+            };
+            // Capture Retry-After header for rate limit handling
+            const retryAfterHeader = upstreamRes.headers['retry-after'];
+            if (retryAfterHeader) {
+              err.retryAfter = Array.isArray(retryAfterHeader)
+                ? retryAfterHeader[0]
+                : retryAfterHeader;
+            }
+            reject(err);
           });
           return;
         }
