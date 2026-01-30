@@ -366,12 +366,13 @@ export function AccountItem({
                     </Badge>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[200px]">
+                <TooltipContent side="bottom" className="max-w-[220px]">
                   <p className="text-xs">
-                    Token expired. Re-authenticate via CLI:{' '}
-                    <code className="font-mono text-[10px]">
-                      ccs cliproxy auth {account.provider}
-                    </code>
+                    {quota.error?.includes('No refresh token')
+                      ? 'No refresh token available. Remove and re-add account to fix.'
+                      : quota.error?.includes('refresh') || quota.error?.includes('Invalid')
+                        ? `Auto-refresh failed: ${quota.error}`
+                        : `Token issue: ${quota.error || 'Re-authenticate required'}`}
                   </p>
                 </TooltipContent>
               </Tooltip>

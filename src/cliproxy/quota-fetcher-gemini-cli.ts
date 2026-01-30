@@ -10,6 +10,7 @@ import * as path from 'node:path';
 import { getAuthDir } from './config-generator';
 import { getProviderAccounts, getPausedDir } from './account-manager';
 import { sanitizeEmail, isTokenExpired } from './auth-utils';
+import { refreshGeminiToken } from './auth/gemini-token-refresh';
 import type { GeminiCliQuotaResult, GeminiCliBucket } from './quota-types';
 
 /** Google Cloud Code API endpoints */
@@ -322,46 +323,14 @@ function buildGeminiCliBuckets(rawBuckets: RawGeminiCliBucket[]): GeminiCliBucke
 }
 
 /**
- * Fetch quota for a single Gemini CLI account
- *
- * @param accountId - Account identifier (email)
- * @param verbose - Show detailed diagnostics
- * @returns Quota result with buckets and percentages
+ * Internal helper: Fetch quota with validated auth data
+ * Extracted to support auto-refresh retry logic
  */
-export async function fetchGeminiCliQuota(
+async function fetchWithAuthData(
+  authData: GeminiCliAuthData,
   accountId: string,
-  verbose = false
+  verbose: boolean
 ): Promise<GeminiCliQuotaResult> {
-  if (verbose) console.error(`[i] Fetching Gemini CLI quota for ${accountId}...`);
-
-  const authData = readGeminiCliAuthData(accountId);
-  if (!authData) {
-    const error = 'Auth file not found for Gemini account';
-    if (verbose) console.error(`[!] Error: ${error}`);
-    return {
-      success: false,
-      buckets: [],
-      projectId: null,
-      lastUpdated: Date.now(),
-      error,
-      accountId,
-    };
-  }
-
-  if (authData.isExpired) {
-    const error = 'Token expired - re-authenticate with ccs cliproxy auth gemini';
-    if (verbose) console.error(`[!] Error: ${error}`);
-    return {
-      success: false,
-      buckets: [],
-      projectId: null,
-      lastUpdated: Date.now(),
-      error,
-      accountId,
-      needsReauth: true,
-    };
-  }
-
   if (!authData.projectId) {
     const error = 'Cannot resolve project ID from auth file';
     if (verbose) console.error(`[!] Error: ${error}`);
@@ -472,6 +441,91 @@ export async function fetchGeminiCliQuota(
       accountId,
     };
   }
+}
+
+/**
+ * Fetch quota for a single Gemini CLI account
+ *
+ * @param accountId - Account identifier (email)
+ * @param verbose - Show detailed diagnostics
+ * @returns Quota result with buckets and percentages
+ */
+export async function fetchGeminiCliQuota(
+  accountId: string,
+  verbose = false
+): Promise<GeminiCliQuotaResult> {
+  if (verbose) console.error(`[i] Fetching Gemini CLI quota for ${accountId}...`);
+
+  let authData = readGeminiCliAuthData(accountId);
+  if (!authData) {
+    const error = 'Auth file not found for Gemini account';
+    if (verbose) console.error(`[!] Error: ${error}`);
+    return {
+      success: false,
+      buckets: [],
+      projectId: null,
+      lastUpdated: Date.now(),
+      error,
+      accountId,
+    };
+  }
+
+  // Proactive refresh: refresh if expired OR expiring within 5 minutes
+  const REFRESH_LEAD_TIME_MS = 5 * 60 * 1000;
+  const shouldRefresh =
+    authData.isExpired ||
+    !authData.expiresAt ||
+    new Date(authData.expiresAt).getTime() - Date.now() < REFRESH_LEAD_TIME_MS;
+
+  if (shouldRefresh) {
+    if (verbose)
+      console.error(
+        authData.isExpired
+          ? '[i] Token expired, refreshing...'
+          : '[i] Token expiring soon, proactive refresh...'
+      );
+    const refreshResult = await refreshGeminiToken();
+
+    if (refreshResult.success) {
+      if (verbose) console.error('[i] Token refreshed successfully');
+      // Re-read auth data after successful refresh
+      const refreshedAuthData = readGeminiCliAuthData(accountId);
+      if (refreshedAuthData) {
+        authData = refreshedAuthData;
+      }
+    } else if (authData.isExpired) {
+      // Only fail if token is actually expired (not just expiring soon)
+      const error = refreshResult.error || 'Token refresh failed';
+      if (verbose) console.error(`[!] Refresh failed: ${error}`);
+      return {
+        success: false,
+        buckets: [],
+        projectId: null,
+        lastUpdated: Date.now(),
+        error,
+        accountId,
+        needsReauth: true,
+      };
+    }
+    // If proactive refresh fails but token isn't expired yet, continue with existing token
+  }
+
+  // First attempt with current token
+  const result = await fetchWithAuthData(authData, accountId, verbose);
+
+  // If 401 error and we haven't refreshed yet, try refresh and retry
+  if (result.needsReauth && result.error?.includes('expired')) {
+    if (verbose) console.error('[i] Got 401, attempting refresh and retry...');
+    const refreshResult = await refreshGeminiToken();
+    if (refreshResult.success) {
+      const refreshedAuthData = readGeminiCliAuthData(accountId);
+      if (refreshedAuthData) {
+        return await fetchWithAuthData(refreshedAuthData, accountId, verbose);
+      }
+    }
+  }
+
+  return result;
 }
 
 /**

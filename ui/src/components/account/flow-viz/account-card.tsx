@@ -258,8 +258,12 @@ export function AccountCard({
                     <span>Reauth needed</span>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="top" className="max-w-[180px]">
-                  <p className="text-xs">Token expired. Re-authenticate via CLI.</p>
+                <TooltipContent side="top" className="max-w-[200px]">
+                  <p className="text-xs">
+                    {quota.error?.includes('No refresh token')
+                      ? 'Remove and re-add account'
+                      : quota.error || 'Auto-refresh failed'}
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
