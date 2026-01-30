@@ -3,7 +3,28 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { getMinClaudeQuota, sortModelsByPriority, getEarliestResetTime } from '@/lib/utils';
+import {
+  getMinClaudeQuota,
+  sortModelsByPriority,
+  getEarliestResetTime,
+  getMinCodexQuota,
+  getCodexResetTime,
+  getMinGeminiQuota,
+  getGeminiResetTime,
+  getProviderMinQuota,
+  getProviderResetTime,
+  isAgyQuotaResult,
+  isCodexQuotaResult,
+  isGeminiQuotaResult,
+} from '@/lib/utils';
+import type {
+  CodexQuotaWindow,
+  CodexQuotaResult,
+  GeminiCliBucket,
+  GeminiCliQuotaResult,
+  QuotaResult,
+  ModelQuota,
+} from '@/lib/api-client';
 
 describe('getMinClaudeQuota', () => {
   describe('basic functionality', () => {
@@ -20,12 +41,13 @@ describe('getMinClaudeQuota', () => {
       expect(getMinClaudeQuota(models)).toBe(90);
     });
 
-    it('falls back to minimum of all models when no Claude models', () => {
+    it('returns 0 when no Claude/GPT models (exhausted)', () => {
       const models = [
         { name: 'gemini-2.5-flash', displayName: 'Gemini 2.5 Flash', percentage: 100 },
         { name: 'gemini-3-pro', displayName: 'Gemini 3 Pro', percentage: 98 },
       ];
-      expect(getMinClaudeQuota(models)).toBe(98);
+      // No Claude/GPT models means they're exhausted
+      expect(getMinClaudeQuota(models)).toBe(0);
     });
 
     it('handles single Claude model', () => {
@@ -100,12 +122,13 @@ describe('getMinClaudeQuota', () => {
       expect(getMinClaudeQuota(models)).toBe(75);
     });
 
-    it('returns null when all percentages are invalid', () => {
+    it('returns 0 when all percentages are invalid', () => {
       const models = [
         { name: 'claude-opus', displayName: 'Claude Opus', percentage: NaN },
         { name: 'claude-sonnet', displayName: 'Claude Sonnet', percentage: Infinity },
       ];
-      expect(getMinClaudeQuota(models)).toBeNull();
+      // Invalid percentages filtered out, no valid ones left -> returns 0
+      expect(getMinClaudeQuota(models)).toBe(0);
     });
   });
 
@@ -153,16 +176,18 @@ describe('getMinClaudeQuota', () => {
 });
 
 describe('sortModelsByPriority', () => {
-  it('sorts Claude models first', () => {
+  it('sorts Claude and GPT models first (Tier 0)', () => {
     const models = [
       { name: 'gemini-flash', displayName: 'Gemini Flash' },
       { name: 'claude-opus', displayName: 'Claude Opus' },
       { name: 'gpt-4', displayName: 'GPT-4' },
     ];
     const sorted = sortModelsByPriority(models);
+    // Both Claude and GPT are Tier 0, sorted alphabetically: Claude Opus < GPT-4
     expect(sorted[0].name).toBe('claude-opus');
-    expect(sorted[1].name).toBe('gemini-flash');
-    expect(sorted[2].name).toBe('gpt-4');
+    expect(sorted[1].name).toBe('gpt-4');
+    // Gemini is lower priority
+    expect(sorted[2].name).toBe('gemini-flash');
   });
 
   it('sorts alphabetically within same priority', () => {
@@ -214,5 +239,1093 @@ describe('getEarliestResetTime', () => {
       { resetTime: null },
     ];
     expect(getEarliestResetTime(models)).toBe('2026-01-01T14:00:00Z');
+  });
+});
+
+// ==================== Codex Quota Functions ====================
+
+describe('getMinCodexQuota', () => {
+  describe('basic functionality', () => {
+    it('returns null for empty windows array', () => {
+      expect(getMinCodexQuota([])).toBeNull();
+    });
+
+    it('returns null for null input', () => {
+      expect(getMinCodexQuota(null as unknown as CodexQuotaWindow[])).toBeNull();
+    });
+
+    it('returns null for undefined input', () => {
+      expect(getMinCodexQuota(undefined as unknown as CodexQuotaWindow[])).toBeNull();
+    });
+
+    it('returns minimum remaining percent from single window', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 25,
+          remainingPercent: 75,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T12:00:00Z',
+        },
+      ];
+      expect(getMinCodexQuota(windows)).toBe(75);
+    });
+
+    it('returns minimum remaining percent from multiple windows', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 20,
+          remainingPercent: 80,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T12:00:00Z',
+        },
+        {
+          label: 'Secondary',
+          usedPercent: 65,
+          remainingPercent: 35,
+          resetAfterSeconds: 7200,
+          resetAt: '2026-01-30T14:00:00Z',
+        },
+        {
+          label: 'Code Review (Primary)',
+          usedPercent: 50,
+          remainingPercent: 50,
+          resetAfterSeconds: 1800,
+          resetAt: '2026-01-30T11:00:00Z',
+        },
+      ];
+      expect(getMinCodexQuota(windows)).toBe(35);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('handles 0% remaining quota', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 100,
+          remainingPercent: 0,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T12:00:00Z',
+        },
+        {
+          label: 'Secondary',
+          usedPercent: 50,
+          remainingPercent: 50,
+          resetAfterSeconds: 7200,
+          resetAt: '2026-01-30T14:00:00Z',
+        },
+      ];
+      expect(getMinCodexQuota(windows)).toBe(0);
+    });
+
+    it('handles 100% remaining quota', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 0,
+          remainingPercent: 100,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T12:00:00Z',
+        },
+      ];
+      expect(getMinCodexQuota(windows)).toBe(100);
+    });
+
+    it('handles negative values (should not occur but test defensive code)', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 120,
+          remainingPercent: -20,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T12:00:00Z',
+        },
+        {
+          label: 'Secondary',
+          usedPercent: 50,
+          remainingPercent: 50,
+          resetAfterSeconds: 7200,
+          resetAt: '2026-01-30T14:00:00Z',
+        },
+      ];
+      expect(getMinCodexQuota(windows)).toBe(-20);
+    });
+  });
+
+  describe('real-world scenarios', () => {
+    it('matches Codex rate limit response structure', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 45.2,
+          remainingPercent: 54.8,
+          resetAfterSeconds: 3456,
+          resetAt: '2026-01-30T13:27:36Z',
+        },
+        {
+          label: 'Secondary',
+          usedPercent: 78.9,
+          remainingPercent: 21.1,
+          resetAfterSeconds: 7890,
+          resetAt: '2026-01-30T15:41:30Z',
+        },
+        {
+          label: 'Code Review (Primary)',
+          usedPercent: 12.5,
+          remainingPercent: 87.5,
+          resetAfterSeconds: 1234,
+          resetAt: '2026-01-30T12:20:34Z',
+        },
+        {
+          label: 'Code Review (Secondary)',
+          usedPercent: 91.3,
+          remainingPercent: 8.7,
+          resetAfterSeconds: 5432,
+          resetAt: '2026-01-30T14:30:32Z',
+        },
+      ];
+      expect(getMinCodexQuota(windows)).toBe(8.7);
+    });
+  });
+});
+
+describe('getCodexResetTime', () => {
+  describe('basic functionality', () => {
+    it('returns null for empty windows array', () => {
+      expect(getCodexResetTime([])).toBeNull();
+    });
+
+    it('returns null for null input', () => {
+      expect(getCodexResetTime(null as unknown as CodexQuotaWindow[])).toBeNull();
+    });
+
+    it('returns null for undefined input', () => {
+      expect(getCodexResetTime(undefined as unknown as CodexQuotaWindow[])).toBeNull();
+    });
+
+    it('returns earliest reset time from single window', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 25,
+          remainingPercent: 75,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T12:00:00Z',
+        },
+      ];
+      expect(getCodexResetTime(windows)).toBe('2026-01-30T12:00:00Z');
+    });
+
+    it('returns earliest reset time from multiple windows', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 20,
+          remainingPercent: 80,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T14:00:00Z',
+        },
+        {
+          label: 'Secondary',
+          usedPercent: 65,
+          remainingPercent: 35,
+          resetAfterSeconds: 7200,
+          resetAt: '2026-01-30T10:00:00Z',
+        },
+        {
+          label: 'Code Review (Primary)',
+          usedPercent: 50,
+          remainingPercent: 50,
+          resetAfterSeconds: 1800,
+          resetAt: '2026-01-30T16:00:00Z',
+        },
+      ];
+      // Should return earliest (alphabetically sorted)
+      expect(getCodexResetTime(windows)).toBe('2026-01-30T10:00:00Z');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('returns null when all resetAt are null', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 25,
+          remainingPercent: 75,
+          resetAfterSeconds: null,
+          resetAt: null,
+        },
+        {
+          label: 'Secondary',
+          usedPercent: 50,
+          remainingPercent: 50,
+          resetAfterSeconds: null,
+          resetAt: null,
+        },
+      ];
+      expect(getCodexResetTime(windows)).toBeNull();
+    });
+
+    it('handles mixed null and valid reset times', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 20,
+          remainingPercent: 80,
+          resetAfterSeconds: null,
+          resetAt: null,
+        },
+        {
+          label: 'Secondary',
+          usedPercent: 65,
+          remainingPercent: 35,
+          resetAfterSeconds: 7200,
+          resetAt: '2026-01-30T12:00:00Z',
+        },
+        {
+          label: 'Code Review',
+          usedPercent: 50,
+          remainingPercent: 50,
+          resetAfterSeconds: null,
+          resetAt: null,
+        },
+      ];
+      expect(getCodexResetTime(windows)).toBe('2026-01-30T12:00:00Z');
+    });
+
+    it('sorts timestamps alphabetically (ISO 8601 format)', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 25,
+          remainingPercent: 75,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T15:00:00Z',
+        },
+        {
+          label: 'Secondary',
+          usedPercent: 50,
+          remainingPercent: 50,
+          resetAfterSeconds: 1800,
+          resetAt: '2026-01-30T09:30:00Z',
+        },
+        {
+          label: 'Code Review',
+          usedPercent: 75,
+          remainingPercent: 25,
+          resetAfterSeconds: 5400,
+          resetAt: '2026-01-30T18:45:00Z',
+        },
+      ];
+      expect(getCodexResetTime(windows)).toBe('2026-01-30T09:30:00Z');
+    });
+  });
+});
+
+// ==================== Gemini Quota Functions ====================
+
+describe('getMinGeminiQuota', () => {
+  describe('basic functionality', () => {
+    it('returns null for empty buckets array', () => {
+      expect(getMinGeminiQuota([])).toBeNull();
+    });
+
+    it('returns null for null input', () => {
+      expect(getMinGeminiQuota(null as unknown as GeminiCliBucket[])).toBeNull();
+    });
+
+    it('returns null for undefined input', () => {
+      expect(getMinGeminiQuota(undefined as unknown as GeminiCliBucket[])).toBeNull();
+    });
+
+    it('returns minimum remaining percent from single bucket', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.82,
+          remainingPercent: 82,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash', 'gemini-3-flash'],
+        },
+      ];
+      expect(getMinGeminiQuota(buckets)).toBe(82);
+    });
+
+    it('returns minimum remaining percent from multiple buckets', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.95,
+          remainingPercent: 95,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+        {
+          id: 'gemini-pro-series::input',
+          label: 'Gemini Pro Series',
+          tokenType: 'input',
+          remainingFraction: 0.45,
+          remainingPercent: 45,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-pro', 'gemini-3-pro'],
+        },
+        {
+          id: 'gemini-flash-series::output',
+          label: 'Gemini Flash Series',
+          tokenType: 'output',
+          remainingFraction: 0.78,
+          remainingPercent: 78,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+      ];
+      expect(getMinGeminiQuota(buckets)).toBe(45);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('handles 0% remaining quota', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0,
+          remainingPercent: 0,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+        {
+          id: 'gemini-pro-series::input',
+          label: 'Gemini Pro Series',
+          tokenType: 'input',
+          remainingFraction: 0.5,
+          remainingPercent: 50,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-pro'],
+        },
+      ];
+      expect(getMinGeminiQuota(buckets)).toBe(0);
+    });
+
+    it('handles 100% remaining quota', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 1.0,
+          remainingPercent: 100,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+      ];
+      expect(getMinGeminiQuota(buckets)).toBe(100);
+    });
+
+    it('handles negative values (should not occur but test defensive code)', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: -0.1,
+          remainingPercent: -10,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+        {
+          id: 'gemini-pro-series::input',
+          label: 'Gemini Pro Series',
+          tokenType: 'input',
+          remainingFraction: 0.5,
+          remainingPercent: 50,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-pro'],
+        },
+      ];
+      expect(getMinGeminiQuota(buckets)).toBe(-10);
+    });
+  });
+
+  describe('real-world scenarios', () => {
+    it('matches Gemini CLI response structure', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.923,
+          remainingPercent: 92.3,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash', 'gemini-3-flash'],
+        },
+        {
+          id: 'gemini-flash-series::output',
+          label: 'Gemini Flash Series',
+          tokenType: 'output',
+          remainingFraction: 0.867,
+          remainingPercent: 86.7,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash', 'gemini-3-flash'],
+        },
+        {
+          id: 'gemini-pro-series::input',
+          label: 'Gemini Pro Series',
+          tokenType: 'input',
+          remainingFraction: 0.341,
+          remainingPercent: 34.1,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-pro', 'gemini-3-pro-high', 'gemini-3-pro-low'],
+        },
+        {
+          id: 'gemini-pro-series::output',
+          label: 'Gemini Pro Series',
+          tokenType: 'output',
+          remainingFraction: 0.456,
+          remainingPercent: 45.6,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-pro', 'gemini-3-pro-high', 'gemini-3-pro-low'],
+        },
+      ];
+      expect(getMinGeminiQuota(buckets)).toBe(34.1);
+    });
+  });
+});
+
+describe('getGeminiResetTime', () => {
+  describe('basic functionality', () => {
+    it('returns null for empty buckets array', () => {
+      expect(getGeminiResetTime([])).toBeNull();
+    });
+
+    it('returns null for null input', () => {
+      expect(getGeminiResetTime(null as unknown as GeminiCliBucket[])).toBeNull();
+    });
+
+    it('returns null for undefined input', () => {
+      expect(getGeminiResetTime(undefined as unknown as GeminiCliBucket[])).toBeNull();
+    });
+
+    it('returns earliest reset time from single bucket', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.82,
+          remainingPercent: 82,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+      ];
+      expect(getGeminiResetTime(buckets)).toBe('2026-01-30T00:00:00Z');
+    });
+
+    it('returns earliest reset time from multiple buckets', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.95,
+          remainingPercent: 95,
+          resetTime: '2026-01-30T12:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+        {
+          id: 'gemini-pro-series::input',
+          label: 'Gemini Pro Series',
+          tokenType: 'input',
+          remainingFraction: 0.45,
+          remainingPercent: 45,
+          resetTime: '2026-01-30T06:00:00Z',
+          modelIds: ['gemini-2.5-pro'],
+        },
+        {
+          id: 'gemini-flash-series::output',
+          label: 'Gemini Flash Series',
+          tokenType: 'output',
+          remainingFraction: 0.78,
+          remainingPercent: 78,
+          resetTime: '2026-01-30T18:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+      ];
+      expect(getGeminiResetTime(buckets)).toBe('2026-01-30T06:00:00Z');
+    });
+  });
+
+  describe('edge cases', () => {
+    it('returns null when all resetTime are null', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.82,
+          remainingPercent: 82,
+          resetTime: null,
+          modelIds: ['gemini-2.5-flash'],
+        },
+        {
+          id: 'gemini-pro-series::input',
+          label: 'Gemini Pro Series',
+          tokenType: 'input',
+          remainingFraction: 0.45,
+          remainingPercent: 45,
+          resetTime: null,
+          modelIds: ['gemini-2.5-pro'],
+        },
+      ];
+      expect(getGeminiResetTime(buckets)).toBeNull();
+    });
+
+    it('handles mixed null and valid reset times', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.95,
+          remainingPercent: 95,
+          resetTime: null,
+          modelIds: ['gemini-2.5-flash'],
+        },
+        {
+          id: 'gemini-pro-series::input',
+          label: 'Gemini Pro Series',
+          tokenType: 'input',
+          remainingFraction: 0.45,
+          remainingPercent: 45,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-pro'],
+        },
+        {
+          id: 'gemini-flash-series::output',
+          label: 'Gemini Flash Series',
+          tokenType: 'output',
+          remainingFraction: 0.78,
+          remainingPercent: 78,
+          resetTime: null,
+          modelIds: ['gemini-2.5-flash'],
+        },
+      ];
+      expect(getGeminiResetTime(buckets)).toBe('2026-01-30T00:00:00Z');
+    });
+
+    it('sorts timestamps alphabetically (ISO 8601 format)', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.95,
+          remainingPercent: 95,
+          resetTime: '2026-01-30T18:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+        {
+          id: 'gemini-pro-series::input',
+          label: 'Gemini Pro Series',
+          tokenType: 'input',
+          remainingFraction: 0.45,
+          remainingPercent: 45,
+          resetTime: '2026-01-30T03:30:00Z',
+          modelIds: ['gemini-2.5-pro'],
+        },
+        {
+          id: 'gemini-flash-series::output',
+          label: 'Gemini Flash Series',
+          tokenType: 'output',
+          remainingFraction: 0.78,
+          remainingPercent: 78,
+          resetTime: '2026-01-30T21:45:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+      ];
+      expect(getGeminiResetTime(buckets)).toBe('2026-01-30T03:30:00Z');
+    });
+  });
+});
+
+// ==================== Type Guards ====================
+
+describe('isAgyQuotaResult', () => {
+  it('returns true for valid Agy quota result', () => {
+    const quota: QuotaResult = {
+      success: true,
+      models: [
+        { name: 'claude-opus-4', displayName: 'Claude Opus 4', percentage: 95, resetTime: null },
+      ],
+      lastUpdated: Date.now(),
+    };
+    expect(isAgyQuotaResult(quota)).toBe(true);
+  });
+
+  it('returns false for Codex quota result', () => {
+    const quota: CodexQuotaResult = {
+      success: true,
+      windows: [],
+      planType: 'free',
+      lastUpdated: Date.now(),
+    };
+    expect(isAgyQuotaResult(quota)).toBe(false);
+  });
+
+  it('returns false for Gemini quota result', () => {
+    const quota: GeminiCliQuotaResult = {
+      success: true,
+      buckets: [],
+      projectId: null,
+      lastUpdated: Date.now(),
+    };
+    expect(isAgyQuotaResult(quota)).toBe(false);
+  });
+
+  it('returns true for Agy quota with empty models array', () => {
+    const quota: QuotaResult = {
+      success: true,
+      models: [],
+      lastUpdated: Date.now(),
+    };
+    expect(isAgyQuotaResult(quota)).toBe(true);
+  });
+});
+
+describe('isCodexQuotaResult', () => {
+  it('returns true for valid Codex quota result', () => {
+    const quota: CodexQuotaResult = {
+      success: true,
+      windows: [
+        {
+          label: 'Primary',
+          usedPercent: 25,
+          remainingPercent: 75,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T12:00:00Z',
+        },
+      ],
+      planType: 'free',
+      lastUpdated: Date.now(),
+    };
+    expect(isCodexQuotaResult(quota)).toBe(true);
+  });
+
+  it('returns false for Agy quota result', () => {
+    const quota: QuotaResult = {
+      success: true,
+      models: [],
+      lastUpdated: Date.now(),
+    };
+    expect(isCodexQuotaResult(quota)).toBe(false);
+  });
+
+  it('returns false for Gemini quota result', () => {
+    const quota: GeminiCliQuotaResult = {
+      success: true,
+      buckets: [],
+      projectId: null,
+      lastUpdated: Date.now(),
+    };
+    expect(isCodexQuotaResult(quota)).toBe(false);
+  });
+
+  it('returns true for Codex quota with empty windows array', () => {
+    const quota: CodexQuotaResult = {
+      success: true,
+      windows: [],
+      planType: null,
+      lastUpdated: Date.now(),
+    };
+    expect(isCodexQuotaResult(quota)).toBe(true);
+  });
+});
+
+describe('isGeminiQuotaResult', () => {
+  it('returns true for valid Gemini quota result', () => {
+    const quota: GeminiCliQuotaResult = {
+      success: true,
+      buckets: [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.82,
+          remainingPercent: 82,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+      ],
+      projectId: 'my-project-123',
+      lastUpdated: Date.now(),
+    };
+    expect(isGeminiQuotaResult(quota)).toBe(true);
+  });
+
+  it('returns false for Agy quota result', () => {
+    const quota: QuotaResult = {
+      success: true,
+      models: [],
+      lastUpdated: Date.now(),
+    };
+    expect(isGeminiQuotaResult(quota)).toBe(false);
+  });
+
+  it('returns false for Codex quota result', () => {
+    const quota: CodexQuotaResult = {
+      success: true,
+      windows: [],
+      planType: 'free',
+      lastUpdated: Date.now(),
+    };
+    expect(isGeminiQuotaResult(quota)).toBe(false);
+  });
+
+  it('returns true for Gemini quota with empty buckets array', () => {
+    const quota: GeminiCliQuotaResult = {
+      success: true,
+      buckets: [],
+      projectId: null,
+      lastUpdated: Date.now(),
+    };
+    expect(isGeminiQuotaResult(quota)).toBe(true);
+  });
+});
+
+// ==================== Unified Provider Helpers ====================
+
+describe('getProviderMinQuota', () => {
+  describe('agy provider', () => {
+    it('returns minimum quota from Claude models', () => {
+      const models: ModelQuota[] = [
+        { name: 'claude-opus-4', displayName: 'Claude Opus 4', percentage: 85, resetTime: null },
+        {
+          name: 'claude-sonnet-4',
+          displayName: 'Claude Sonnet 4',
+          percentage: 92,
+          resetTime: null,
+        },
+        {
+          name: 'gemini-2.5-flash',
+          displayName: 'Gemini 2.5 Flash',
+          percentage: 100,
+          resetTime: null,
+        },
+      ];
+      const quota: QuotaResult = { success: true, models, lastUpdated: Date.now() };
+      expect(getProviderMinQuota('agy', quota)).toBe(85);
+    });
+
+    it('returns null when quota is null', () => {
+      expect(getProviderMinQuota('agy', null)).toBeNull();
+    });
+
+    it('returns null when quota is undefined', () => {
+      expect(getProviderMinQuota('agy', undefined)).toBeNull();
+    });
+
+    it('returns null when success is false', () => {
+      const quota: QuotaResult = {
+        success: false,
+        models: [],
+        lastUpdated: Date.now(),
+        error: 'Failed',
+      };
+      expect(getProviderMinQuota('agy', quota)).toBeNull();
+    });
+
+    it('returns null when quota is wrong type', () => {
+      const quota: CodexQuotaResult = {
+        success: true,
+        windows: [],
+        planType: 'free',
+        lastUpdated: Date.now(),
+      };
+      expect(getProviderMinQuota('agy', quota)).toBeNull();
+    });
+  });
+
+  describe('codex provider', () => {
+    it('returns minimum quota from windows', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 20,
+          remainingPercent: 80,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T12:00:00Z',
+        },
+        {
+          label: 'Secondary',
+          usedPercent: 65,
+          remainingPercent: 35,
+          resetAfterSeconds: 7200,
+          resetAt: '2026-01-30T14:00:00Z',
+        },
+      ];
+      const quota: CodexQuotaResult = {
+        success: true,
+        windows,
+        planType: 'free',
+        lastUpdated: Date.now(),
+      };
+      expect(getProviderMinQuota('codex', quota)).toBe(35);
+    });
+
+    it('returns null when quota is null', () => {
+      expect(getProviderMinQuota('codex', null)).toBeNull();
+    });
+
+    it('returns null when success is false', () => {
+      const quota: CodexQuotaResult = {
+        success: false,
+        windows: [],
+        planType: null,
+        lastUpdated: Date.now(),
+        error: 'Failed',
+      };
+      expect(getProviderMinQuota('codex', quota)).toBeNull();
+    });
+
+    it('returns null when quota is wrong type', () => {
+      const quota: QuotaResult = { success: true, models: [], lastUpdated: Date.now() };
+      expect(getProviderMinQuota('codex', quota)).toBeNull();
+    });
+  });
+
+  describe('gemini provider', () => {
+    it('returns minimum quota from buckets', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.95,
+          remainingPercent: 95,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+        {
+          id: 'gemini-pro-series::input',
+          label: 'Gemini Pro Series',
+          tokenType: 'input',
+          remainingFraction: 0.45,
+          remainingPercent: 45,
+          resetTime: '2026-01-30T00:00:00Z',
+          modelIds: ['gemini-2.5-pro'],
+        },
+      ];
+      const quota: GeminiCliQuotaResult = {
+        success: true,
+        buckets,
+        projectId: 'test',
+        lastUpdated: Date.now(),
+      };
+      expect(getProviderMinQuota('gemini', quota)).toBe(45);
+    });
+
+    it('returns null when quota is null', () => {
+      expect(getProviderMinQuota('gemini', null)).toBeNull();
+    });
+
+    it('returns null when success is false', () => {
+      const quota: GeminiCliQuotaResult = {
+        success: false,
+        buckets: [],
+        projectId: null,
+        lastUpdated: Date.now(),
+        error: 'Failed',
+      };
+      expect(getProviderMinQuota('gemini', quota)).toBeNull();
+    });
+
+    it('returns null when quota is wrong type', () => {
+      const quota: QuotaResult = { success: true, models: [], lastUpdated: Date.now() };
+      expect(getProviderMinQuota('gemini', quota)).toBeNull();
+    });
+  });
+
+  describe('unknown provider', () => {
+    it('returns null for unknown provider', () => {
+      const quota: QuotaResult = { success: true, models: [], lastUpdated: Date.now() };
+      expect(getProviderMinQuota('unknown', quota)).toBeNull();
+    });
+
+    it('returns null for empty provider name', () => {
+      const quota: QuotaResult = { success: true, models: [], lastUpdated: Date.now() };
+      expect(getProviderMinQuota('', quota)).toBeNull();
+    });
+  });
+});
+
+describe('getProviderResetTime', () => {
+  describe('agy provider', () => {
+    it('returns earliest reset time from Claude models', () => {
+      const models: ModelQuota[] = [
+        {
+          name: 'claude-opus-4',
+          displayName: 'Claude Opus 4',
+          percentage: 85,
+          resetTime: '2026-01-30T14:00:00Z',
+        },
+        {
+          name: 'claude-sonnet-4',
+          displayName: 'Claude Sonnet 4',
+          percentage: 92,
+          resetTime: '2026-01-30T10:00:00Z',
+        },
+        {
+          name: 'gemini-2.5-flash',
+          displayName: 'Gemini 2.5 Flash',
+          percentage: 100,
+          resetTime: '2026-01-30T12:00:00Z',
+        },
+      ];
+      const quota: QuotaResult = { success: true, models, lastUpdated: Date.now() };
+      expect(getProviderResetTime('agy', quota)).toBe('2026-01-30T10:00:00Z');
+    });
+
+    it('returns null when quota is null', () => {
+      expect(getProviderResetTime('agy', null)).toBeNull();
+    });
+
+    it('returns null when success is false', () => {
+      const quota: QuotaResult = {
+        success: false,
+        models: [],
+        lastUpdated: Date.now(),
+        error: 'Failed',
+      };
+      expect(getProviderResetTime('agy', quota)).toBeNull();
+    });
+
+    it('returns null when quota is wrong type', () => {
+      const quota: CodexQuotaResult = {
+        success: true,
+        windows: [],
+        planType: 'free',
+        lastUpdated: Date.now(),
+      };
+      expect(getProviderResetTime('agy', quota)).toBeNull();
+    });
+  });
+
+  describe('codex provider', () => {
+    it('returns earliest reset time from windows', () => {
+      const windows: CodexQuotaWindow[] = [
+        {
+          label: 'Primary',
+          usedPercent: 20,
+          remainingPercent: 80,
+          resetAfterSeconds: 3600,
+          resetAt: '2026-01-30T14:00:00Z',
+        },
+        {
+          label: 'Secondary',
+          usedPercent: 65,
+          remainingPercent: 35,
+          resetAfterSeconds: 7200,
+          resetAt: '2026-01-30T10:00:00Z',
+        },
+      ];
+      const quota: CodexQuotaResult = {
+        success: true,
+        windows,
+        planType: 'free',
+        lastUpdated: Date.now(),
+      };
+      expect(getProviderResetTime('codex', quota)).toBe('2026-01-30T10:00:00Z');
+    });
+
+    it('returns null when quota is null', () => {
+      expect(getProviderResetTime('codex', null)).toBeNull();
+    });
+
+    it('returns null when success is false', () => {
+      const quota: CodexQuotaResult = {
+        success: false,
+        windows: [],
+        planType: null,
+        lastUpdated: Date.now(),
+        error: 'Failed',
+      };
+      expect(getProviderResetTime('codex', quota)).toBeNull();
+    });
+
+    it('returns null when quota is wrong type', () => {
+      const quota: QuotaResult = { success: true, models: [], lastUpdated: Date.now() };
+      expect(getProviderResetTime('codex', quota)).toBeNull();
+    });
+  });
+
+  describe('gemini provider', () => {
+    it('returns earliest reset time from buckets', () => {
+      const buckets: GeminiCliBucket[] = [
+        {
+          id: 'gemini-flash-series::input',
+          label: 'Gemini Flash Series',
+          tokenType: 'input',
+          remainingFraction: 0.95,
+          remainingPercent: 95,
+          resetTime: '2026-01-30T12:00:00Z',
+          modelIds: ['gemini-2.5-flash'],
+        },
+        {
+          id: 'gemini-pro-series::input',
+          label: 'Gemini Pro Series',
+          tokenType: 'input',
+          remainingFraction: 0.45,
+          remainingPercent: 45,
+          resetTime: '2026-01-30T06:00:00Z',
+          modelIds: ['gemini-2.5-pro'],
+        },
+      ];
+      const quota: GeminiCliQuotaResult = {
+        success: true,
+        buckets,
+        projectId: 'test',
+        lastUpdated: Date.now(),
+      };
+      expect(getProviderResetTime('gemini', quota)).toBe('2026-01-30T06:00:00Z');
+    });
+
+    it('returns null when quota is null', () => {
+      expect(getProviderResetTime('gemini', null)).toBeNull();
+    });
+
+    it('returns null when success is false', () => {
+      const quota: GeminiCliQuotaResult = {
+        success: false,
+        buckets: [],
+        projectId: null,
+        lastUpdated: Date.now(),
+        error: 'Failed',
+      };
+      expect(getProviderResetTime('gemini', quota)).toBeNull();
+    });
+
+    it('returns null when quota is wrong type', () => {
+      const quota: QuotaResult = { success: true, models: [], lastUpdated: Date.now() };
+      expect(getProviderResetTime('gemini', quota)).toBeNull();
+    });
+  });
+
+  describe('unknown provider', () => {
+    it('returns null for unknown provider', () => {
+      const quota: QuotaResult = { success: true, models: [], lastUpdated: Date.now() };
+      expect(getProviderResetTime('unknown', quota)).toBeNull();
+    });
+
+    it('returns null for empty provider name', () => {
+      const quota: QuotaResult = { success: true, models: [], lastUpdated: Date.now() };
+      expect(getProviderResetTime('', quota)).toBeNull();
+    });
   });
 });

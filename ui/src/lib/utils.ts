@@ -1,5 +1,12 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import type {
+  CodexQuotaWindow,
+  CodexQuotaResult,
+  GeminiCliBucket,
+  GeminiCliQuotaResult,
+  QuotaResult,
+} from './api-client';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -297,4 +304,126 @@ export function groupModelsByTier(models: TieredModel[]): Map<ModelTier, TieredM
     groups.set(m.tier, existing);
   }
   return groups;
+}
+
+/**
+ * Get minimum remaining percentage across Codex rate limit windows
+ */
+export function getMinCodexQuota(windows: CodexQuotaWindow[]): number | null {
+  if (!windows || windows.length === 0) return null;
+  const percentages = windows.map((w) => w.remainingPercent);
+  return Math.min(...percentages);
+}
+
+/**
+ * Get earliest reset time from Codex windows
+ */
+export function getCodexResetTime(windows: CodexQuotaWindow[]): string | null {
+  if (!windows || windows.length === 0) return null;
+  const resets = windows.map((w) => w.resetAt).filter((t): t is string => t !== null);
+  if (resets.length === 0) return null;
+  return resets.sort()[0];
+}
+
+/**
+ * Get minimum remaining percentage across Gemini CLI buckets
+ */
+export function getMinGeminiQuota(buckets: GeminiCliBucket[]): number | null {
+  if (!buckets || buckets.length === 0) return null;
+  const percentages = buckets.map((b) => b.remainingPercent);
+  return Math.min(...percentages);
+}
+
+/**
+ * Get earliest reset time from Gemini buckets
+ */
+export function getGeminiResetTime(buckets: GeminiCliBucket[]): string | null {
+  if (!buckets || buckets.length === 0) return null;
+  const resets = buckets.map((b) => b.resetTime).filter((t): t is string => t !== null);
+  if (resets.length === 0) return null;
+  return resets.sort()[0];
+}
+
+// ==================== Unified Quota Type Guards ====================
+
+/** Unified quota result type for provider-agnostic handling */
+export type UnifiedQuotaResult = QuotaResult | CodexQuotaResult | GeminiCliQuotaResult;
+
+/** Type guard: Check if quota result is from Antigravity (agy) provider */
+export function isAgyQuotaResult(quota: UnifiedQuotaResult): quota is QuotaResult {
+  return 'models' in quota && Array.isArray((quota as QuotaResult).models);
+}
+
+/** Type guard: Check if quota result is from Codex provider */
+export function isCodexQuotaResult(quota: UnifiedQuotaResult): quota is CodexQuotaResult {
+  return 'windows' in quota && Array.isArray((quota as CodexQuotaResult).windows);
+}
+
+/** Type guard: Check if quota result is from Gemini CLI provider */
+export function isGeminiQuotaResult(quota: UnifiedQuotaResult): quota is GeminiCliQuotaResult {
+  return 'buckets' in quota && Array.isArray((quota as GeminiCliQuotaResult).buckets);
+}
+
+// ==================== Unified Quota Helpers ====================
+
+/**
+ * Get minimum quota percentage for any provider
+ * Centralizes provider-specific logic to eliminate duplication
+ */
+export function getProviderMinQuota(
+  provider: string,
+  quota: UnifiedQuotaResult | null | undefined
+): number | null {
+  if (!quota?.success) return null;
+
+  switch (provider) {
+    case 'agy':
+      if (isAgyQuotaResult(quota)) {
+        return getMinClaudeQuota(quota.models);
+      }
+      return null;
+    case 'codex':
+      if (isCodexQuotaResult(quota)) {
+        return getMinCodexQuota(quota.windows);
+      }
+      return null;
+    case 'gemini':
+      if (isGeminiQuotaResult(quota)) {
+        return getMinGeminiQuota(quota.buckets);
+      }
+      return null;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Get earliest reset time for any provider
+ * Centralizes provider-specific logic to eliminate duplication
+ */
+export function getProviderResetTime(
+  provider: string,
+  quota: UnifiedQuotaResult | null | undefined
+): string | null {
+  if (!quota?.success) return null;
+
+  switch (provider) {
+    case 'agy':
+      if (isAgyQuotaResult(quota)) {
+        return getClaudeResetTime(quota.models);
+      }
+      return null;
+    case 'codex':
+      if (isCodexQuotaResult(quota)) {
+        return getCodexResetTime(quota.windows);
+      }
+      return null;
+    case 'gemini':
+      if (isGeminiQuotaResult(quota)) {
+        return getGeminiResetTime(quota.buckets);
+      }
+      return null;
+    default:
+      return null;
+  }
 }

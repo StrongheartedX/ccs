@@ -28,18 +28,12 @@ import {
   AlertTriangle,
   FolderCode,
   Check,
+  KeyRound,
 } from 'lucide-react';
-import {
-  cn,
-  formatResetTime,
-  getClaudeResetTime,
-  getMinClaudeQuota,
-  getModelsWithTiers,
-  groupModelsByTier,
-  type ModelTier,
-} from '@/lib/utils';
+import { cn, getProviderMinQuota, getProviderResetTime } from '@/lib/utils';
 import { PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
 import { useAccountQuota, useCliproxyStats } from '@/hooks/use-cliproxy-stats';
+import { QuotaTooltipContent } from '@/components/shared/quota-tooltip-content';
 import type { AccountItemProps } from './types';
 
 /**
@@ -118,12 +112,9 @@ export function AccountItem({
   const runtimeLastUsed = stats?.accountStats?.[account.email || account.id]?.lastUsedAt;
   const wasRecentlyUsed = isRecentlyUsed(runtimeLastUsed);
 
-  // Show minimum quota of Claude models (primary), fallback to min of all models
-  const minQuota = quota?.success ? getMinClaudeQuota(quota.models) : null;
-
-  // Get earliest reset time
-  const nextReset =
-    quota?.success && quota.models.length > 0 ? getClaudeResetTime(quota.models) : null;
+  // Use shared utility functions for provider-specific quota handling
+  const minQuota = getProviderMinQuota(account.provider, quota);
+  const nextReset = getProviderResetTime(account.provider, quota);
 
   return (
     <div
@@ -356,48 +347,36 @@ export function AccountItem({
                     </div>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" className="max-w-xs">
-                    <div className="text-xs space-y-1">
-                      <p className="font-medium">Model Quotas:</p>
-                      {(() => {
-                        const tiered = getModelsWithTiers(quota?.models || []);
-                        const groups = groupModelsByTier(tiered);
-                        const tierOrder: ModelTier[] = ['primary', 'gemini-3', 'gemini-2', 'other'];
-                        return tierOrder.map((tier, idx) => {
-                          const models = groups.get(tier);
-                          if (!models || models.length === 0) return null;
-                          const isFirst = tierOrder
-                            .slice(0, idx)
-                            .every((t) => !groups.get(t)?.length);
-                          return (
-                            <div key={tier}>
-                              {!isFirst && <div className="border-t border-border/40 my-1" />}
-                              {models.map((m) => (
-                                <div key={m.name} className="flex justify-between gap-4">
-                                  <span className={cn('truncate', m.exhausted && 'text-red-500')}>
-                                    {m.displayName}
-                                  </span>
-                                  <span className={cn('font-mono', m.exhausted && 'text-red-500')}>
-                                    {m.percentage}%
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        });
-                      })()}
-                      {nextReset && (
-                        <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
-                          <Clock className="w-3 h-3 text-blue-400" />
-                          <span className="text-blue-400 font-medium">
-                            Resets {formatResetTime(nextReset)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
+                    {quota && <QuotaTooltipContent quota={quota} resetTime={nextReset} />}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
             </div>
+          ) : quota?.needsReauth ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1.5">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] h-5 px-2 gap-1 border-amber-500/50 text-amber-600 dark:text-amber-400"
+                    >
+                      <KeyRound className="w-3 h-3" />
+                      Reauth
+                    </Badge>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[220px]">
+                  <p className="text-xs">
+                    {quota.error?.includes('No refresh token')
+                      ? 'No refresh token available. Remove and re-add account to fix.'
+                      : quota.error?.includes('refresh') || quota.error?.includes('Invalid')
+                        ? `Auto-refresh failed: ${quota.error}`
+                        : `Token issue: ${quota.error || 'Re-authenticate required'}`}
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           ) : quota?.error || (quota && !quota.success) ? (
             <TooltipProvider>
               <Tooltip>

@@ -2,20 +2,14 @@
  * Account Card Component for Flow Visualization
  */
 
-import {
-  cn,
-  formatResetTime,
-  getClaudeResetTime,
-  getMinClaudeQuota,
-  getModelsWithTiers,
-  groupModelsByTier,
-  type ModelTier,
-} from '@/lib/utils';
+import { cn, getProviderMinQuota, getProviderResetTime } from '@/lib/utils';
 import { PRIVACY_BLUR_CLASS } from '@/contexts/privacy-context';
-import { GripVertical, Loader2, Clock, Pause, Play } from 'lucide-react';
-import { useAccountQuota } from '@/hooks/use-cliproxy-stats';
+import { GripVertical, Loader2, Pause, Play, KeyRound } from 'lucide-react';
+import { useAccountQuota, QUOTA_SUPPORTED_PROVIDERS } from '@/hooks/use-cliproxy-stats';
+import type { QuotaSupportedProvider } from '@/hooks/use-cliproxy-stats';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
+import { QuotaTooltipContent } from '@/components/shared/quota-tooltip-content';
 
 import type { AccountData, DragOffset } from './types';
 import { cleanEmail } from './utils';
@@ -89,19 +83,26 @@ export function AccountCard({
   const borderColor = getBorderColorStyle(zone, account.color);
   const connectorPosition = CONNECTOR_POSITION_MAP[zone];
 
-  // Quota for AGY accounts
-  const isAgy = account.provider === 'agy';
+  // Quota for CLIProxy accounts (agy, codex, gemini)
+  const isCliproxyProvider = QUOTA_SUPPORTED_PROVIDERS.includes(
+    account.provider as QuotaSupportedProvider
+  );
   const { data: quota, isLoading: quotaLoading } = useAccountQuota(
     account.provider,
     account.id,
-    isAgy
+    isCliproxyProvider
   );
-  // Show minimum quota of Claude models (primary), fallback to min of all models
-  const minQuota = quota?.success ? getMinClaudeQuota(quota.models) : null;
+
+  // Use shared helper for provider-specific minimum quota
+  const minQuota = getProviderMinQuota(account.provider, quota);
+  const resetTime = getProviderResetTime(account.provider, quota);
 
   // Tier badge (AGY only) - show P for Pro, U for Ultra
   const showTierBadge =
-    isAgy && account.tier && account.tier !== 'unknown' && account.tier !== 'free';
+    account.provider === 'agy' &&
+    account.tier &&
+    account.tier !== 'unknown' &&
+    account.tier !== 'free';
 
   return (
     <div
@@ -198,8 +199,8 @@ export function AccountCard({
         failure={account.failureCount}
         showDetails={showDetails}
       />
-      {/* Quota bar for AGY accounts */}
-      {isAgy && (
+      {/* Quota bar for CLIProxy accounts (agy, codex, gemini) */}
+      {isCliproxyProvider && (
         <div className="mt-2 px-0.5">
           {quotaLoading ? (
             <div className="flex items-center gap-1 text-[8px] text-muted-foreground">
@@ -244,47 +245,25 @@ export function AccountCard({
                   </div>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="max-w-xs">
-                  <div className="text-xs space-y-1">
-                    <p className="font-medium">Model Quotas:</p>
-                    {(() => {
-                      const tiered = getModelsWithTiers(quota?.models || []);
-                      const groups = groupModelsByTier(tiered);
-                      const tierOrder: ModelTier[] = ['primary', 'gemini-3', 'gemini-2', 'other'];
-                      return tierOrder.map((tier, idx) => {
-                        const models = groups.get(tier);
-                        if (!models || models.length === 0) return null;
-                        const isFirst = tierOrder
-                          .slice(0, idx)
-                          .every((t) => !groups.get(t)?.length);
-                        return (
-                          <div key={tier}>
-                            {!isFirst && <div className="border-t border-border/40 my-1" />}
-                            {models.map((m) => (
-                              <div key={m.name} className="flex justify-between gap-4">
-                                <span className={cn('truncate', m.exhausted && 'text-red-500')}>
-                                  {m.displayName}
-                                </span>
-                                <span className={cn('font-mono', m.exhausted && 'text-red-500')}>
-                                  {m.percentage}%
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      });
-                    })()}
-                    {(() => {
-                      const resetTime = getClaudeResetTime(quota?.models || []);
-                      return resetTime ? (
-                        <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
-                          <Clock className="w-3 h-3 text-blue-400" />
-                          <span className="text-blue-400 font-medium">
-                            Resets {formatResetTime(resetTime)}
-                          </span>
-                        </div>
-                      ) : null;
-                    })()}
+                  {quota && <QuotaTooltipContent quota={quota} resetTime={resetTime} />}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          ) : quota?.needsReauth ? (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-1 text-[8px] text-amber-600 dark:text-amber-400">
+                    <KeyRound className="w-2.5 h-2.5" />
+                    <span>Reauth needed</span>
                   </div>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="max-w-[200px]">
+                  <p className="text-xs">
+                    {quota.error?.includes('No refresh token')
+                      ? 'Remove and re-add account'
+                      : quota.error || 'Auto-refresh failed'}
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

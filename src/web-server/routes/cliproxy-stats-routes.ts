@@ -13,6 +13,11 @@ import {
   fetchCliproxyErrorLogContent,
 } from '../../cliproxy/stats-fetcher';
 import { fetchAccountQuota } from '../../cliproxy/quota-fetcher';
+import { fetchCodexQuota } from '../../cliproxy/quota-fetcher-codex';
+import { fetchGeminiCliQuota } from '../../cliproxy/quota-fetcher-gemini-cli';
+import { getCachedQuota, setCachedQuota } from '../../cliproxy/quota-response-cache';
+import type { CodexQuotaResult, GeminiCliQuotaResult } from '../../cliproxy/quota-types';
+import type { QuotaResult } from '../../cliproxy/quota-fetcher';
 import type { CLIProxyProvider } from '../../cliproxy/types';
 import { CLIPROXY_PROFILES } from '../../auth/profile-detector';
 import {
@@ -510,10 +515,96 @@ router.put('/models/:provider', async (req: Request, res: Response): Promise<voi
 });
 
 // ==================== Account Quota ====================
+// NOTE: Specific routes MUST be defined BEFORE generic routes for Express routing to work correctly
+// NOTE: All quota endpoints use in-memory caching (2 min TTL) to reduce external API calls
 
 /**
- * GET /api/cliproxy/quota/:provider/:accountId - Get quota for a specific account
+ * GET /api/cliproxy/quota/codex/:accountId - Get Codex quota for a specific account
+ * Returns: CodexQuotaResult with rate limit windows
+ * Caching: 2 minute TTL to reduce ChatGPT API calls
+ */
+router.get('/quota/codex/:accountId', async (req: Request, res: Response): Promise<void> => {
+  const { accountId } = req.params;
+
+  // Validate accountId - prevent path traversal
+  if (
+    !accountId ||
+    accountId.includes('..') ||
+    accountId.includes('/') ||
+    accountId.includes('\\')
+  ) {
+    res.status(400).json({ error: 'Invalid account ID' });
+    return;
+  }
+
+  try {
+    // Check cache first
+    const cached = getCachedQuota<CodexQuotaResult>('codex', accountId);
+    if (cached) {
+      res.json({ ...cached, cached: true });
+      return;
+    }
+
+    // Fetch from external API
+    const result = await fetchCodexQuota(accountId);
+
+    // Cache successful results (don't cache errors that need reauth)
+    if (result.success || !result.needsReauth) {
+      setCachedQuota('codex', accountId, result);
+    }
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/cliproxy/quota/gemini/:accountId - Get Gemini quota for a specific account
+ * Returns: GeminiCliQuotaResult with quota buckets
+ * Caching: 2 minute TTL to reduce Google Cloud API calls
+ */
+router.get('/quota/gemini/:accountId', async (req: Request, res: Response): Promise<void> => {
+  const { accountId } = req.params;
+
+  // Validate accountId - prevent path traversal
+  if (
+    !accountId ||
+    accountId.includes('..') ||
+    accountId.includes('/') ||
+    accountId.includes('\\')
+  ) {
+    res.status(400).json({ error: 'Invalid account ID' });
+    return;
+  }
+
+  try {
+    // Check cache first
+    const cached = getCachedQuota<GeminiCliQuotaResult>('gemini', accountId);
+    if (cached) {
+      res.json({ ...cached, cached: true });
+      return;
+    }
+
+    // Fetch from external API
+    const result = await fetchGeminiCliQuota(accountId);
+
+    // Cache successful results (don't cache errors that need reauth)
+    if (result.success || !result.needsReauth) {
+      setCachedQuota('gemini', accountId, result);
+    }
+
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: (error as Error).message });
+  }
+});
+
+/**
+ * GET /api/cliproxy/quota/:provider/:accountId - Get quota for a specific account (generic)
  * Returns: QuotaResult with model quotas and reset times
+ * NOTE: This generic route MUST come after specific routes (codex, gemini) to avoid matching them
+ * Caching: 2 minute TTL to reduce external API calls
  */
 router.get('/quota/:provider/:accountId', async (req: Request, res: Response): Promise<void> => {
   const { provider, accountId } = req.params;
@@ -540,7 +631,21 @@ router.get('/quota/:provider/:accountId', async (req: Request, res: Response): P
   }
 
   try {
+    // Check cache first
+    const cached = getCachedQuota<QuotaResult>(provider, accountId);
+    if (cached) {
+      res.json({ ...cached, cached: true });
+      return;
+    }
+
+    // Fetch from external API
     const result = await fetchAccountQuota(provider as CLIProxyProvider, accountId);
+
+    // Cache successful results
+    if (result.success) {
+      setCachedQuota(provider, accountId, result);
+    }
+
     res.json(result);
   } catch (error) {
     res.status(500).json({ error: (error as Error).message });
