@@ -24,6 +24,7 @@ import {
   getRemoteEnvVars,
   getProviderConfig,
   ensureProviderSettings,
+  getProviderSettingsPath,
   CLIPROXY_DEFAULT_PORT,
   getCliproxyWritablePath,
   validatePort,
@@ -973,6 +974,7 @@ export async function execClaudeWithCLIProxy(
     '--incognito',
     '--no-incognito',
     '--import',
+    '--settings', // Block user --settings to prevent duplicate flags
     // Proxy flags are handled by resolveProxyConfig, but list for documentation
     ...PROXY_CLI_FLAGS,
   ];
@@ -994,9 +996,17 @@ export async function execClaudeWithCLIProxy(
   const isWindows = process.platform === 'win32';
   const needsShell = isWindows && /\.(cmd|bat|ps1)$/i.test(claudeCli);
 
+  // Get profile settings path for hooks (WebSearch, etc.)
+  // Use custom settings path for CLIProxy variants, otherwise use default provider path
+  const settingsPath = cfg.customSettingsPath
+    ? cfg.customSettingsPath.replace(/^~/, process.env.HOME || '')
+    : getProviderSettingsPath(provider);
+
   let claude: ChildProcess;
   if (needsShell) {
-    const cmdString = [claudeCli, ...claudeArgs].map(escapeShellArg).join(' ');
+    const cmdString = [claudeCli, '--settings', settingsPath, ...claudeArgs]
+      .map(escapeShellArg)
+      .join(' ');
     claude = spawn(cmdString, {
       stdio: 'inherit',
       windowsHide: true,
@@ -1004,7 +1014,7 @@ export async function execClaudeWithCLIProxy(
       env,
     });
   } else {
-    claude = spawn(claudeCli, claudeArgs, {
+    claude = spawn(claudeCli, ['--settings', settingsPath, ...claudeArgs], {
       stdio: 'inherit',
       windowsHide: true,
       env,

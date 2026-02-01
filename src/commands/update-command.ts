@@ -207,13 +207,38 @@ async function performNpmUpdate(
   const performUpdate = (): void => {
     // On Windows, use shell with full command string to avoid deprecation warning
     // Also suppress Node deprecation warnings that may come from package managers
+    // Pipe stderr on Windows to filter npm cleanup warnings (EPERM on native modules)
     const child = isWindows
       ? spawn(`${updateCommand} ${updateArgs.join(' ')}`, [], {
-          stdio: 'inherit',
+          stdio: ['inherit', 'inherit', 'pipe'],
           shell: true,
           env: { ...process.env, NODE_NO_WARNINGS: '1' },
         })
       : spawn(updateCommand, updateArgs, { stdio: 'inherit' });
+
+    // On Windows, filter stderr to hide npm cleanup warnings (EPERM on bcrypt.node etc.)
+    // These warnings are cosmetic - update succeeds despite file locking by antivirus/indexing
+    // Use line-buffering to handle chunk splitting (data events don't guarantee message boundaries)
+    if (isWindows && child.stderr) {
+      let stderrBuffer = '';
+      child.stderr.on('data', (data: Buffer) => {
+        stderrBuffer += data.toString();
+        const lines = stderrBuffer.split('\n');
+        stderrBuffer = lines.pop() || ''; // Keep incomplete line in buffer
+        for (const line of lines) {
+          // Skip npm cleanup warnings (EPERM, ENOTEMPTY, EBUSY on native module prebuilds)
+          if (!/npm warn cleanup/i.test(line)) {
+            process.stderr.write(line + '\n');
+          }
+        }
+      });
+      child.stderr.on('close', () => {
+        // Flush remaining buffer on stream close
+        if (stderrBuffer && !/npm warn cleanup/i.test(stderrBuffer)) {
+          process.stderr.write(stderrBuffer);
+        }
+      });
+    }
 
     child.on('exit', (code) => {
       if (code === 0) {
