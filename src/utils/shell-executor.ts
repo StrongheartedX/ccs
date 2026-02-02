@@ -7,6 +7,7 @@
 import { spawn, ChildProcess } from 'child_process';
 import { ErrorManager } from './error-manager';
 import { getWebSearchHookEnv } from './websearch-manager';
+import { getImageReadBlockHookEnv } from './hooks/image-read-block-hook-env';
 
 /**
  * Escape arguments for shell execution (Windows compatibility)
@@ -28,11 +29,12 @@ export function execClaude(
 
   // Get WebSearch hook config env vars
   const webSearchEnv = getWebSearchHookEnv();
+  const imageReadBlockEnv = getImageReadBlockHookEnv();
 
   // Prepare environment (merge with process.env if envVars provided)
   const env = envVars
-    ? { ...process.env, ...envVars, ...webSearchEnv }
-    : { ...process.env, ...webSearchEnv };
+    ? { ...process.env, ...envVars, ...webSearchEnv, ...imageReadBlockEnv }
+    : { ...process.env, ...webSearchEnv, ...imageReadBlockEnv };
 
   let child: ChildProcess;
   if (needsShell) {
