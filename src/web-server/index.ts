@@ -32,7 +32,11 @@ export interface ServerInstance {
 export async function startServer(options: ServerOptions): Promise<ServerInstance> {
   const app = express();
   const server = http.createServer(app);
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({
+    server,
+    maxPayload: 1024 * 1024, // 1MB hard limit to prevent DoS
+    perMessageDeflate: false, // Prevent zip bomb attacks
+  });
 
   // JSON body parsing with error handler for malformed JSON
   app.use(express.json());
