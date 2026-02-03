@@ -1,3 +1,26 @@
+## [7.34.1](https://github.com/kaitranntt/ccs/compare/v7.34.0...v7.34.1) (2026-02-03)
+
+### Bug Fixes
+
+* **dashboard:** cross-browser OAuth with manual callback fallback ([#417](https://github.com/kaitranntt/ccs/issues/417)) ([#423](https://github.com/kaitranntt/ccs/issues/423)) ([24b0312](https://github.com/kaitranntt/ccs/commit/24b03121fd43121f229bd4c07cbd7e3ee5a0234a))
+* **dashboard:** detect popup blocked during OAuth flow ([441870d](https://github.com/kaitranntt/ccs/commit/441870d38e5e7d8069df5f4695cb28275f0d48b6))
+* **jsonl:** add explicit UTF-8 BOM stripping ([09b5239](https://github.com/kaitranntt/ccs/commit/09b5239f58213b24f2e13116cb2384748bf8913f))
+* **quota:** add explicit 429 rate limit handling ([e596ab4](https://github.com/kaitranntt/ccs/commit/e596ab487d9782e4cd9633be081dc42e4a176668))
+* **quota:** improve 403 error messaging for forbidden accounts ([5a308db](https://github.com/kaitranntt/ccs/commit/5a308db409392d88e637ee66b9c693b8b7557198))
+* **websearch:** add type guards and deduplication for global settings ([847aad0](https://github.com/kaitranntt/ccs/commit/847aad00fee1fd920ddf8ea3a4b0e85aa1f3dfa4))
+* **websearch:** normalize double-slash paths in hook detection ([66f5fe6](https://github.com/kaitranntt/ccs/commit/66f5fe6b2c2a955b4b616c38042ab3c9ead199a1))
+* **websearch:** normalize Windows path separators in hook detection ([d61c940](https://github.com/kaitranntt/ccs/commit/d61c940a087d4e9134fa0a9ae32dc8d79d42648d))
+* **websocket:** add maxPayload limit to prevent DoS attacks ([4fd2f60](https://github.com/kaitranntt/ccs/commit/4fd2f601f676c0710b078960ad1d6c45fba8a6ca))
+
+### Code Refactoring
+
+* **oauth:** align box chars with CCS standard and add JSDoc ([258220b](https://github.com/kaitranntt/ccs/commit/258220b7e8ec833efe772bf32b61800e20439ddb))
+* **websearch:** extract shared hook utils to DRY module ([1f8d9b8](https://github.com/kaitranntt/ccs/commit/1f8d9b82d5ad89cefe73966e9c1ef57692dd9284)), closes [#420](https://github.com/kaitranntt/ccs/issues/420)
+
+### Tests
+
+* **websearch:** add unit tests for hook-utils module ([deb6249](https://github.com/kaitranntt/ccs/commit/deb62490dbe797369460ac07ad42a0790463a460))
+
 ## [7.34.0](https://github.com/kaitranntt/ccs/compare/v7.33.0...v7.34.0) (2026-02-01)
 
 ### Features
