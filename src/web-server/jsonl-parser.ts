@@ -70,10 +70,12 @@ export interface ParserOptions {
  * Returns null for non-assistant entries or entries without usage data
  */
 export function parseUsageEntry(line: string, projectPath: string): RawUsageEntry | null {
-  if (!line.trim()) return null;
+  // Strip UTF-8 BOM if present (can occur on first line of some files)
+  const cleanLine = line.replace(/^\uFEFF/, '').trim();
+  if (!cleanLine) return null;
 
   try {
-    const entry = JSON.parse(line);
+    const entry = JSON.parse(cleanLine);
 
     // Only process assistant entries with usage data
     if (entry.type !== 'assistant') return null;

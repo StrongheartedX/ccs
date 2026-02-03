@@ -133,6 +133,16 @@ describe('parseUsageEntry', () => {
     expect(parseUsageEntry('not json at all', '/test')).toBeNull();
   });
 
+  test('strips UTF-8 BOM from line before parsing', () => {
+    // UTF-8 BOM character (\uFEFF) can appear at start of files
+    const bomEntry = '\uFEFF' + VALID_ASSISTANT_ENTRY;
+    const result = parseUsageEntry(bomEntry, '/test');
+
+    expect(result).not.toBeNull();
+    expect(result!.model).toBe('claude-sonnet-4-5');
+    expect(result!.inputTokens).toBe(1000);
+  });
+
   test('includes project path in result', () => {
     const result = parseUsageEntry(VALID_ASSISTANT_ENTRY, '/custom/project/path');
     expect(result!.projectPath).toBe('/custom/project/path');
