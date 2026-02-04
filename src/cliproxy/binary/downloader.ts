@@ -539,3 +539,11 @@ export async function fetchJson(
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+// Export internal functions for testing
+export const __testExports = {
+  getProxyUrl,
+  shouldBypassProxy,
+  getHostname,
+  getProxyAgent,
+};
