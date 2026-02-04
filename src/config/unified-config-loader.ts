@@ -642,11 +642,10 @@ export function saveUnifiedConfig(config: UnifiedConfig): void {
       lockAcquired = true;
       break;
     }
-    // Wait before retry
-    const start = Date.now();
-    while (Date.now() - start < retryDelayMs) {
-      // Busy wait
-    }
+    // Synchronous sleep without CPU-intensive busy-wait
+    // Uses Atomics.wait which properly sleeps the thread
+    // Note: saveUnifiedConfig is sync API with 19+ callers, converting to async not feasible
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, retryDelayMs);
   }
 
   if (!lockAcquired) {
