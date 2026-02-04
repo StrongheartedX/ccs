@@ -14,6 +14,7 @@
 
 import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
+import * as os from 'os';
 import { ProgressIndicator } from '../utils/progress-indicator';
 import { ok, fail, info, warn } from '../utils/ui';
 import { escapeShellArg } from '../utils/shell-executor';
@@ -925,9 +926,7 @@ export async function execClaudeWithCLIProxy(
           upstreamBaseUrl: postSanitizationBaseUrl,
           verbose,
           defaultEffort: 'medium',
-          traceFilePath: traceEnabled
-            ? `${process.env.HOME || process.cwd()}/.ccs/codex-reasoning-proxy.log`
-            : '',
+          traceFilePath: traceEnabled ? `${os.homedir()}/.ccs/codex-reasoning-proxy.log` : '',
           modelMap: {
             defaultModel: envVars.ANTHROPIC_MODEL,
             opusModel: envVars.ANTHROPIC_DEFAULT_OPUS_MODEL,
@@ -1028,7 +1027,7 @@ export async function execClaudeWithCLIProxy(
   // Get profile settings path for hooks (WebSearch, etc.)
   // Use custom settings path for CLIProxy variants, otherwise use default provider path
   const settingsPath = cfg.customSettingsPath
-    ? cfg.customSettingsPath.replace(/^~/, process.env.HOME || '')
+    ? cfg.customSettingsPath.replace(/^~/, os.homedir())
     : getProviderSettingsPath(provider);
 
   let claude: ChildProcess;
