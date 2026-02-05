@@ -19,7 +19,7 @@ export function escapeShellArg(arg: string): string {
   const isWindows = process.platform === 'win32';
 
   if (isWindows) {
-    // cmd.exe: Use double quotes, escape inner double quotes with backslash
+    // cmd.exe: Use double quotes, escape inner double quotes by doubling them
     // cmd.exe interprets "" as escaped double quote inside quoted string
     // Strip newlines/tabs that can break cmd.exe parsing
     return (
